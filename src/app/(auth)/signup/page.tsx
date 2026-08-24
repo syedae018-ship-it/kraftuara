@@ -184,7 +184,7 @@ function SignupFormContent() {
           isLoading={loading}
           rightIcon={<ArrowRight className="w-4 h-4" />}
         >
-          Create Account & Verify Email
+          Create Account
         </Button>
       </form>
 

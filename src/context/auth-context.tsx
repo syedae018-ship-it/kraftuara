@@ -1,10 +1,10 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { isAdminUser } from "@/lib/services/admin-roles";
 import { createClient } from "@/lib/supabase/client";
-import { toast } from "@/hooks/use-toast";
+import { normalizeSlug } from "@/lib/urls";
 
 export type DummyUser = {
   id: string;
@@ -32,13 +32,19 @@ export type DummyStore = {
   userId?: string;
 };
 
+export type LoginResult = {
+  role: "admin" | "merchant";
+  hasStores: boolean;
+  user: DummyUser | null;
+};
+
 type AuthContextType = {
   user: DummyUser;
   activeStore: DummyStore;
   stores: DummyStore[];
   switchStore: (storeId: string) => void;
-  signUp: (name: string, email: string, password: string, businessName: string) => Promise<void>;
-  login: (email: string, password: string) => Promise<{ role: "admin" | "merchant" }>;
+  signUp: (name: string, email: string, password: string, businessName: string) => Promise<{ user: any; hasSession: boolean }>;
+  login: (email: string, password: string) => Promise<LoginResult>;
   createStore: (
     storeName: string,
     storeSlug: string,
@@ -68,7 +74,7 @@ type AuthContextType = {
     instagram?: string;
     facebook?: string;
     logoFile?: File | null;
-  }) => Promise<void>;
+  }) => Promise<any>;
   isImpersonating: boolean;
   impersonatorUser: DummyUser | null;
   impersonate: (merchantUser: any) => void;
@@ -87,21 +93,20 @@ export function DummyAuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<DummyUser>(null as any);
   const [stores, setStores] = useState<DummyStore[]>([]);
   const [activeStore, setActiveStore] = useState<DummyStore>(null as any);
-  
+
   const [impersonatorUser, setImpersonatorUser] = useState<DummyUser | null>(null);
   const [isImpersonating, setIsImpersonating] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  const getSession = async () => {
-    setIsLoading(true);
+  const getSession = useCallback(async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      
+
       if (session?.user) {
         const u = session.user;
-        const profile = {
+        const profile: DummyUser = {
           id: u.id,
-          name: u.user_metadata?.full_name || u.email?.split("@")[0] || "User",
+          name: u.user_metadata?.full_name || u.user_metadata?.name || u.email?.split("@")[0] || "User",
           email: u.email || "",
           avatar: u.user_metadata?.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(u.email || "")}`,
           plan: "free",
@@ -116,12 +121,12 @@ export function DummyAuthProvider({ children }: { children: React.ReactNode }) {
           .eq("user_id", u.id);
 
         if (error) {
-          console.error("Failed to load stores:", error);
-          setUser(profile as any);
+          console.error("Failed to load stores for user:", error);
+          setUser(profile);
           setStores([]);
           setActiveStore(null as any);
           setIsLoading(false);
-          return;
+          return { user: profile, stores: [], activeStore: null };
         }
 
         if (userStores && userStores.length > 0) {
@@ -134,10 +139,11 @@ export function DummyAuthProvider({ children }: { children: React.ReactNode }) {
             logoUrl: s.logo_url || "",
             primaryColor: s.primary_color || "",
             secondaryColor: s.secondary_color || "",
+            userId: s.user_id,
           }));
           setStores(mappedStores);
 
-          const savedActiveStoreId = localStorage.getItem("symar_active_store_id");
+          const savedActiveStoreId = typeof window !== "undefined" ? localStorage.getItem("symar_active_store_id") : null;
           const found = mappedStores.find((s) => s.id === savedActiveStoreId);
           const currentStore = found || mappedStores[0];
           setActiveStore(currentStore);
@@ -146,26 +152,32 @@ export function DummyAuthProvider({ children }: { children: React.ReactNode }) {
           profile.storeName = currentStore.name;
           profile.storeSlug = currentStore.slug;
           profile.plan = currentStore.plan;
-          setUser(profile as any);
-          // Redirect handled by separate useEffect
+          setUser(profile);
+          setIsLoading(false);
+          return { user: profile, stores: mappedStores, activeStore: currentStore };
         } else {
           setStores([]);
           setActiveStore(null as any);
-          setUser(profile as any);
+          setUser(profile);
+          setIsLoading(false);
+          return { user: profile, stores: [], activeStore: null };
         }
       } else {
         setUser(null as any);
         setStores([]);
         setActiveStore(null as any);
+        setIsLoading(false);
+        return { user: null, stores: [], activeStore: null };
       }
     } catch (e) {
       console.error("Supabase auth session load failed:", e);
       setUser(null as any);
       setStores([]);
       setActiveStore(null as any);
+      setIsLoading(false);
+      return { user: null, stores: [], activeStore: null };
     }
-    setIsLoading(false);
-  };
+  }, [supabase]);
 
   useEffect(() => {
     getSession();
@@ -184,9 +196,9 @@ export function DummyAuthProvider({ children }: { children: React.ReactNode }) {
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
+  }, [getSession, supabase]);
 
-  // Dedicated lightweight routing/redirection watcher
+  // Dedicated route protection watcher
   useEffect(() => {
     if (isLoading) return;
 
@@ -219,6 +231,92 @@ export function DummyAuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user, stores, pathname, isLoading, router]);
 
+  const signUp = async (name: string, email: string, password: string, businessName: string) => {
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: name,
+            name: name,
+          },
+        },
+      });
+      if (error) throw error;
+
+      if (typeof window !== "undefined") {
+        localStorage.setItem("symar_pending_store_name", businessName);
+      }
+
+      if (data.session) {
+        await getSession();
+      }
+
+      return { user: data.user, hasSession: !!data.session };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const login = async (email: string, password: string): Promise<LoginResult> => {
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+
+      const sessionData = await getSession();
+      const isAdmin = isAdminUser(email);
+
+      return {
+        role: (isAdmin ? "admin" : "merchant") as "admin" | "merchant",
+        hasStores: (sessionData?.stores?.length ?? 0) > 0,
+        user: sessionData?.user ?? null,
+      };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const logout = async () => {
+    setIsLoading(true);
+    try {
+      await supabase.auth.signOut();
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("symar_active_store_id");
+        localStorage.removeItem("symar_selected_plan");
+        localStorage.removeItem("symar_selected_template");
+        localStorage.removeItem("symar_pending_store_name");
+      }
+      setUser(null as any);
+      setStores([]);
+      setActiveStore(null as any);
+    } finally {
+      setIsLoading(false);
+      router.push("/login");
+    }
+  };
+
+  const switchStore = (storeId: string) => {
+    const found = stores.find((s) => s.id === storeId);
+    if (found) {
+      setActiveStore(found);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("symar_active_store_id", found.id);
+      }
+      if (user) {
+        setUser({
+          ...user,
+          storeId: found.id,
+          storeName: found.name,
+          storeSlug: found.slug,
+          plan: found.plan,
+        });
+      }
+    }
+  };
+
   const verifyEmailOtp = async (email: string, token: string) => {
     setIsLoading(true);
     try {
@@ -242,65 +340,19 @@ export function DummyAuthProvider({ children }: { children: React.ReactNode }) {
     if (error) throw error;
   };
 
-  const switchStore = (storeId: string) => {
-    const found = stores.find((s) => s.id === storeId);
-    if (found) {
-      setActiveStore(found);
-      localStorage.setItem("symar_active_store_id", found.id);
-      if (user) {
-        setUser({
-          ...user,
-          storeId: found.id,
-          storeName: found.name,
-          storeSlug: found.slug,
-          plan: found.plan,
-        });
-      }
-    }
-  };
-
-  const signUp = async (name: string, email: string, password: string, businessName: string) => {
-    setIsLoading(true);
-    try {
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: { data: { full_name: name } },
-      });
-      if (error) throw error;
-      localStorage.setItem("symar_pending_store_name", businessName);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const login = async (email: string, password: string) => {
-    setIsLoading(true);
-    try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw error;
-      const isAdmin = isAdminUser(email);
-      return { role: (isAdmin ? "admin" : "merchant") as "admin" | "merchant" };
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const logout = async () => {
-    setIsLoading(true);
-    await supabase.auth.signOut();
-    localStorage.removeItem("symar_active_store_id");
-    setUser(null as any);
-    setStores([]);
-    setActiveStore(null as any);
-    setIsLoading(false);
-    router.push("/login");
-  };
-
-  const createStore = async () => {}; // Used in older flow
+  const createStore = async () => {};
   const verifyEmail = () => {};
-  const selectPlan = () => {};
-  const selectTemplate = () => {};
+  const selectPlan = (planName: string) => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("symar_selected_plan", planName);
+    }
+  };
+  const selectTemplate = (templateId: string) => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("symar_selected_template", templateId);
+    }
+  };
+
   const completeStoreWizard = async (storeData: any) => {
     setIsLoading(true);
     try {
@@ -308,9 +360,18 @@ export function DummyAuthProvider({ children }: { children: React.ReactNode }) {
       if (!currentUser) throw new Error("User not authenticated");
 
       // Generate slug if not provided
-      const slug = storeData.storeSlug || storeData.storeName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+      let slug = normalizeSlug(storeData.storeSlug || storeData.storeName);
+      if (!slug || slug.length < 3) slug = `store-${Date.now().toString(36)}`;
 
-      // Check slug uniqueness manually? (Optional, but Supabase unique constraint will catch it)
+      // Check slug uniqueness
+      const { data: existingStore } = await (supabase.from("stores") as any)
+        .select("id")
+        .eq("slug", slug)
+        .maybeSingle();
+
+      if (existingStore) {
+        slug = `${slug}-${Math.random().toString(36).substring(2, 6)}`;
+      }
 
       // Upload logo if provided
       let logoUrl = storeData.logoUrl || "";
@@ -333,14 +394,14 @@ export function DummyAuthProvider({ children }: { children: React.ReactNode }) {
         name: storeData.storeName,
         slug: slug,
         logo_url: logoUrl,
-        primary_color: storeData.accentColor || "#F97316",
-        secondary_color: "#F4F4F5",
+        primary_color: storeData.accentColor || "#800020",
+        secondary_color: "#111111",
         is_published: true,
       }).select().single();
 
       if (storeError) throw storeError;
 
-      // 2. Add default appearance settings
+      // 2. Add appearance settings
       const appearanceData = {
         store_id: store.id,
         theme_id: "bloom",
@@ -359,11 +420,11 @@ export function DummyAuthProvider({ children }: { children: React.ReactNode }) {
         colors: {
           primary: "#18181B",
           secondary: "#F4F4F5",
-          accent: storeData.accentColor || "#F97316",
+          accent: storeData.accentColor || "#800020",
           background: "#FFFFFF",
         },
         typography: {
-          headingFont: storeData.headingFont || "Helvetica Neue",
+          headingFont: storeData.headingFont || "Plus Jakarta Sans",
           bodyFont: storeData.bodyFont || "Inter",
           animationStyle: "smooth",
         },
@@ -372,8 +433,17 @@ export function DummyAuthProvider({ children }: { children: React.ReactNode }) {
       const { error: appError } = await (supabase.from("appearance_settings") as any).insert(appearanceData);
       if (appError) console.error("Appearance creation error:", appError);
 
-      // 3. Subscription (default free)
-      const selectedPlan = localStorage.getItem("symar_selected_plan") || "free";
+      // 3. Add default category
+      await (supabase.from("categories") as any).insert({
+        store_id: store.id,
+        name: "Featured",
+        slug: "featured",
+        is_published: true,
+        display_order: 1,
+      });
+
+      // 4. Subscription (default free or selected)
+      const selectedPlan = (typeof window !== "undefined" && localStorage.getItem("symar_selected_plan")) || "starter";
       const { error: subError } = await (supabase.from("subscriptions") as any).insert({
         store_id: store.id,
         user_id: currentUser.id,
@@ -382,12 +452,17 @@ export function DummyAuthProvider({ children }: { children: React.ReactNode }) {
       });
       if (subError) console.error("Subscription creation error:", subError);
 
+      // Save active store ID immediately
+      if (typeof window !== "undefined") {
+        localStorage.setItem("symar_active_store_id", store.id);
+      }
+
       // Finish by refreshing session
       await getSession();
-      router.push("/dashboard");
-    } catch (e: any) {
+
+      return store;
+    } finally {
       setIsLoading(false);
-      throw e;
     }
   };
 

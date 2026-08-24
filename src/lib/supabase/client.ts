@@ -5,20 +5,5 @@ export function createClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder-url.supabase.co";
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder-anon-key";
 
-  const getCookieDomain = () => {
-    if (typeof window === "undefined") return undefined;
-    const hostname = window.location.hostname;
-    if (hostname === "localhost" || hostname.endsWith(".localhost")) return "localhost";
-    const parts = hostname.split(".");
-    if (parts.length >= 2) return `.${parts.slice(-2).join(".")}`;
-    return hostname;
-  };
-
-  return createBrowserClient<Database>(supabaseUrl, supabaseAnonKey, {
-    cookieOptions: {
-      domain: getCookieDomain(),
-      path: "/",
-      sameSite: "lax",
-    }
-  });
+  return createBrowserClient<Database>(supabaseUrl, supabaseAnonKey);
 }

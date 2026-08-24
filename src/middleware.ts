@@ -119,20 +119,7 @@ export async function middleware(request: NextRequest) {
                   });
                   
                   cookiesToSet.forEach(({ name, value, options }) => {
-                    let domain = options?.domain;
-                    if (!domain) {
-                      const reqHost = request.headers.get("host") || "";
-                      const hostname = reqHost.split(":")[0];
-                      if (hostname === "localhost" || hostname.endsWith(".localhost")) {
-                        domain = "localhost";
-                      } else {
-                        const parts = hostname.split(".");
-                        if (parts.length >= 2) {
-                          domain = `.${parts.slice(-2).join(".")}`;
-                        }
-                      }
-                    }
-                    response.cookies.set(name, value, { ...options, domain });
+                    response.cookies.set(name, value, options);
                   });
                 } catch (e) {
                   console.error("Error setting cookies inside Supabase client:", e);
