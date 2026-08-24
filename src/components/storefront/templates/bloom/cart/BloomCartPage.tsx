@@ -11,12 +11,14 @@ import OrderSummary from "./OrderSummary";
 import Recommendations from "./Recommendations";
 import { Button } from "../ui/button";
 import { useCart } from "@/context/CartContext";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, CheckCircle2, MessageCircle } from "lucide-react";
 import { StoreData } from "@/types/store";
 import { getStoreBasePath } from "@/lib/urls";
+import { formatCurrency } from "@/lib/utils";
 
 export default function BloomCartPage({ store, isSubdomain = false }: { store: StoreData; isSubdomain?: boolean }) {
   const { cart } = useCart();
+  const [placedOrder, setPlacedOrder] = React.useState<any | null>(null);
   const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
   const basePath = getStoreBasePath(store.slug, isSubdomain);
 
@@ -33,7 +35,48 @@ export default function BloomCartPage({ store, isSubdomain = false }: { store: S
       <Header store={store} isSubdomain={isSubdomain} />
 
       <main className="flex-grow bg-bloom-background container mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {cart.length === 0 ? (
+        {placedOrder ? (
+          <div className="mx-auto max-w-md text-center py-12 flex flex-col items-center justify-center">
+            <div className="w-16 h-16 bg-green-950/80 border border-green-700/50 rounded-2xl flex items-center justify-center text-green-400 mb-6 shadow-glow">
+              <CheckCircle2 className="w-8 h-8" />
+            </div>
+            <h1 className="text-3xl font-bold font-heading text-bloom-foreground mb-2">Order Placed Successfully!</h1>
+            <p className="text-xs text-bloom-muted mb-6">
+              Your order has been recorded. Please click the button below to send your quotation details to the store owner on WhatsApp to finalize your purchase.
+            </p>
+
+            <div className="w-full p-4 bg-bloom-card border border-bloom-border rounded-xl mb-6 text-left text-xs space-y-2">
+              <div className="flex justify-between border-b border-bloom-border/50 pb-2 mb-2">
+                <span className="text-bloom-muted font-heading">Order ID:</span>
+                <span className="font-semibold font-mono text-bloom-foreground">#{placedOrder.orderNumber}</span>
+              </div>
+              <div className="flex justify-between border-b border-bloom-border/50 pb-2 mb-2">
+                <span className="text-bloom-muted font-heading">Total Amount:</span>
+                <span className="font-semibold font-mono text-bloom-foreground">{formatCurrency(placedOrder.totalAmount)}</span>
+              </div>
+              <div className="flex flex-col gap-1">
+                <span className="text-bloom-muted font-heading">Delivery Address:</span>
+                <span className="font-medium text-bloom-foreground">{placedOrder.shippingAddress}</span>
+              </div>
+            </div>
+
+            <a
+              href={placedOrder.whatsappUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full h-11 bg-bloom-primary text-bloom-primary-foreground hover:bg-bloom-primary/90 flex items-center justify-center gap-2 text-sm font-semibold rounded-lg transition-colors shadow-md"
+            >
+              <MessageCircle className="h-4 w-4" />
+              Send on WhatsApp
+            </a>
+
+            <div className="text-center mt-6">
+              <Link href={basePath || "/"} className="text-xs text-bloom-muted hover:underline">
+                Return to Store Home
+              </Link>
+            </div>
+          </div>
+        ) : cart.length === 0 ? (
           <EmptyCart storeSlug={store.slug} isSubdomain={isSubdomain} />
         ) : (
           <div>
@@ -63,7 +106,7 @@ export default function BloomCartPage({ store, isSubdomain = false }: { store: S
               </div>
 
               <div className="lg:col-span-1">
-                <OrderSummary store={store} />
+                <OrderSummary store={store} onOrderPlaced={setPlacedOrder} />
               </div>
             </div>
 

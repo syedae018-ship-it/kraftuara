@@ -13,7 +13,7 @@ import { createOrderAction } from "@/lib/actions/order";
 import { toast } from "@/hooks/use-toast";
 import { trackClientEvent } from "@/components/storefront/storefront-tracker";
 
-export default function OrderSummary({ store }: { store: StoreData }) {
+export default function OrderSummary({ store, onOrderPlaced }: { store: StoreData; onOrderPlaced?: (data: any) => void }) {
   const { cart, clearCart } = useCart();
 
   const [customerName, setCustomerName] = useState("");
@@ -159,7 +159,7 @@ export default function OrderSummary({ store }: { store: StoreData }) {
 
       const whatsappUrl = `https://wa.me/${destinationNumber}?text=${encodeURIComponent(message)}`;
 
-      // Reset form and clear cart
+      // Reset form and notify parent before clearing cart so page enters success state first
       setCustomerName("");
       setCustomerPhone("");
       setAddressLine("");
@@ -167,14 +167,22 @@ export default function OrderSummary({ store }: { store: StoreData }) {
       setState("");
       setPinCode("");
       setCustomerNotes("");
+
+      if (onOrderPlaced) {
+        onOrderPlaced({
+          orderNumber: order.orderNumber,
+          totalAmount: total,
+          shippingAddress: fullAddress,
+          whatsappUrl,
+        });
+      }
+
       clearCart();
 
-      toast.success("Order Placed!", `Order #${order.orderNumber} confirmed. Opening WhatsApp...`);
-      setTimeout(() => {
-        if (typeof window !== "undefined") {
-          window.open(whatsappUrl, "_blank", "noopener,noreferrer");
-        }
-      }, 800);
+      toast.success("Order Placed Successfully!", `Order #${order.orderNumber} confirmed. Opening WhatsApp...`);
+      if (typeof window !== "undefined") {
+        window.location.href = whatsappUrl;
+      }
     } catch (err) {
       console.error(err);
       toast.error("Error", "An unexpected error occurred. Please try again.");
