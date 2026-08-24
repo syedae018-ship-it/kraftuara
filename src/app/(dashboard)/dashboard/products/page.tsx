@@ -18,9 +18,10 @@ import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/auth-context";
 import { productRepository } from "@/lib/repositories/product-repository";
 import { categoryRepository } from "@/lib/repositories/category-repository";
+import { PLANS, PlanTier } from "@/lib/feature-gating";
 
 export default function ProductListPage() {
-  const { activeStore } = useAuth();
+  const { activeStore, user } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -114,6 +115,17 @@ export default function ProductListPage() {
     if (!activeStore?.id) return;
     const target = products.find((p) => p.id === id);
     if (!target) return;
+
+    const planTier = (user?.plan || "starter") as PlanTier;
+    const planConfig = PLANS[planTier];
+    const limit = planConfig?.productLimit ?? 10;
+    if (products.length >= limit) {
+      toast.error(
+        "Upgrade Required",
+        `You have reached the product limit of your ${planConfig?.name || "Starter"} plan (${limit} products). Please upgrade your plan to duplicate this product.`
+      );
+      return;
+    }
 
     try {
       await productRepository.create(activeStore.id, {

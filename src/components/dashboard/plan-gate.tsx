@@ -54,34 +54,32 @@ export function PlanGate({
       </div>
 
       {/* Locked Overlay Card */}
-      <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-black/90 to-black flex flex-col items-center justify-center p-6 text-center space-y-4 font-body z-20">
-        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-maroon-800 to-maroon-950 border border-maroon-600/40 flex items-center justify-center text-maroon-300 shadow-glow">
-          <Lock className="w-6 h-6" />
+      <div className="absolute inset-0 bg-gradient-to-b from-black/90 via-black/95 to-black flex flex-col items-center justify-center p-3 text-center space-y-2 font-body z-20 overflow-hidden">
+        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-maroon-800 to-maroon-950 border border-maroon-600/40 flex items-center justify-center text-maroon-300 shadow-glow shrink-0">
+          <Lock className="w-4 h-4" />
         </div>
 
-        <div className="space-y-1 max-w-md">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-maroon-950/60 border border-maroon-700/50 text-maroon-300 text-[10px] font-mono font-bold uppercase tracking-wider">
-            <Sparkles className="w-3 h-3 text-maroon-400" /> {requiredPlan} Feature
+        <div className="space-y-0.5 max-w-full px-2">
+          <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-maroon-950/60 border border-maroon-700/50 text-maroon-300 text-[8px] font-mono font-bold uppercase tracking-wider">
+            <Sparkles className="w-2.5 h-2.5 text-maroon-400" /> {requiredPlan}
           </div>
 
-          <h3 className="text-xl font-bold font-heading text-white tracking-tight">
-            Unlock {featureName}
+          <h3 className="text-xs sm:text-sm font-bold font-heading text-white tracking-tight leading-tight">
+            {featureName}
           </h3>
 
-          <p className="text-xs text-zinc-400 leading-relaxed">
-            {description ||
-              `Your current plan (${user?.plan || "Starter Plan"}) does not include ${featureName}. Upgrade to the ${requiredPlan} to unlock full access.`}
+          <p className="text-[10px] text-zinc-500 leading-normal max-w-xs line-clamp-1 hidden sm:block">
+            {description || `Requires ${requiredPlan}`}
           </p>
         </div>
 
-        <Link href="/choose-plan">
+        <Link href="/choose-plan" className="shrink-0">
           <Button
             variant="primary"
-            size="md"
-            className="px-6 text-xs uppercase tracking-wider font-bold shadow-glow"
-            rightIcon={<ArrowRight className="w-4 h-4" />}
+            size="sm"
+            className="px-3 h-8 text-[9px] uppercase tracking-wider font-bold shadow-glow"
           >
-            Upgrade Plan to Unlock
+            Upgrade
           </Button>
         </Link>
       </div>

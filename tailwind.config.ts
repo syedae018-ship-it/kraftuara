@@ -70,6 +70,7 @@ const config: Config = {
       fontFamily: {
         heading: ["var(--font-heading)", "Plus Jakarta Sans", "sans-serif"],
         body: ["var(--font-body)", "Inter", "sans-serif"],
+        brand: ["var(--font-brand)", "Plus Jakarta Sans", "sans-serif"],
       },
       borderRadius: {
         xs: "4px",

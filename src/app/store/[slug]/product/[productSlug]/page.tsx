@@ -81,7 +81,7 @@ export default async function StoreProductPage({
     sku: product.sku,
     offers: {
       "@type": "Offer",
-      priceCurrency: "USD",
+      priceCurrency: "INR",
       price: product.price,
       availability: product.stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
     },

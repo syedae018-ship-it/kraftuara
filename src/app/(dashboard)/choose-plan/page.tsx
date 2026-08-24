@@ -28,6 +28,7 @@ interface DisplayPlan {
   description: string;
   badge?: string;
   popular?: boolean;
+  setupFee?: string;
   features: string[];
 }
 
@@ -35,21 +36,22 @@ const planFeaturesDisplay = {
   starter: [
     "WhatsApp Catalog Order Buttons",
     "Basic Dashboard Overview",
-    "Product Management (up to 50 products)",
+    "Product Management (up to 10 products)",
     "Dedicated Storefront URL Link",
-    "Craft Store Classic template access",
+    "Craftaura Classic template access",
+    "Custom Logo Upload",
   ],
   pro: [
     "Everything in Starter Plan",
-    "Product Management (up to 500 products)",
-    "Store Analytics & Traffic Insights",
+    "Product Management (up to 12 products)",
+    "Store Analytics & Traffic Insights (Store Views)",
     "Curated Collections & Taxonomies",
     "Advanced Customization & Branding",
-    "Craft Store Classic template personalization",
+    "Creative discounts & promo codes",
   ],
   business: [
-    "Everything in Pro Plan",
-    "Product Management (up to 5000 products)",
+    "Everything in Growth Plan",
+    "Product Management (up to 100 products)",
     "Direct Razorpay Payment Gateway & Checkout",
     "Order Management & Customer Invoicing",
     "Shipping Integration & Tracking Labels",
@@ -87,7 +89,7 @@ export default function ChoosePlanPage() {
     {
       id: "starter",
       name: PLANS.starter.name,
-      planName: "Starter Plan",
+      planName: "Starter",
       price: `₹${PLANS.starter.priceMonthly}`,
       amount: PLANS.starter.priceMonthly,
       description: PLANS.starter.description,
@@ -96,7 +98,7 @@ export default function ChoosePlanPage() {
     {
       id: "pro",
       name: PLANS.pro.name,
-      planName: "Pro Plan",
+      planName: "pro", // internally maps to database tier name 'pro' (which is Growth)
       price: `₹${PLANS.pro.priceMonthly}`,
       amount: PLANS.pro.priceMonthly,
       description: PLANS.pro.description,
@@ -107,11 +109,12 @@ export default function ChoosePlanPage() {
     {
       id: "business",
       name: PLANS.business.name,
-      planName: "Business Plan",
+      planName: "business", // internally maps to database tier name 'business' (which is Pro/Business)
       price: `₹${PLANS.business.priceMonthly}`,
       amount: PLANS.business.priceMonthly,
       description: PLANS.business.description,
       badge: "FULL E-COMMERCE",
+      setupFee: "₹999 setup fee (one-time charge)",
       features: planFeaturesDisplay.business,
     },
   ];
@@ -287,6 +290,11 @@ export default function ChoosePlanPage() {
                       </span>
                       <span className="text-xs text-zinc-500 font-mono">/ month</span>
                     </div>
+                    {plan.setupFee && (
+                      <p className="text-[10px] text-amber-500 font-mono mt-1 font-semibold">
+                        + {plan.setupFee}
+                      </p>
+                    )}
                   </div>
 
                   <ul className="space-y-3 pt-4 border-t border-white/5 text-[11px] text-zinc-300 font-body">
@@ -297,6 +305,10 @@ export default function ChoosePlanPage() {
                       </li>
                     ))}
                   </ul>
+
+                  <div className="text-[9px] text-zinc-400 font-body text-center bg-white/5 p-2 rounded-xl border border-white/5 mt-2">
+                    🎁 Includes a 3-Day Free Trial (requires automatic recurring authorization)
+                  </div>
                 </div>
 
                 <Button

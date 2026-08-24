@@ -271,14 +271,20 @@ export default function DashboardOverview() {
             icon={<Package className="w-4 h-4" />}
             isLoading={showSkeletons}
           />
-          <StatCard
-            title="Store Views"
-            value={analytics.views > 0 ? analytics.views.toLocaleString() : "0"}
-            delta={analytics.views > 0 ? { value: "Unique visitors", isPositive: true } : undefined}
-            subtitle={analytics.views > 0 ? "Storefront visits" : "No visits tracked yet"}
-            icon={<Users className="w-4 h-4" />}
-            isLoading={showSkeletons}
-          />
+          <PlanGate
+            requiredPlan="Pro Plan"
+            featureName="Store Views Analytics"
+            description="Upgrade to the Growth Plan (₹299/mo) to track storefront visits and unique visitors."
+          >
+            <StatCard
+              title="Store Views"
+              value={analytics.views > 0 ? analytics.views.toLocaleString() : "0"}
+              delta={analytics.views > 0 ? { value: "Unique visitors", isPositive: true } : undefined}
+              subtitle={analytics.views > 0 ? "Storefront visits" : "No visits tracked yet"}
+              icon={<Users className="w-4 h-4" />}
+              isLoading={showSkeletons}
+            />
+          </PlanGate>
           <StatCard
             title="Creative Orders"
             value={`${creativeOrdersCount} Active`}

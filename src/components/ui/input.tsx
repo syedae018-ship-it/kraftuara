@@ -1,7 +1,6 @@
-"use client";
-
-import React, { forwardRef, useId } from "react";
+import React, { forwardRef, useId, useState } from "react";
 import { cn } from "@/lib/utils";
+import { Eye, EyeOff } from "lucide-react";
 
 export interface InputProps
   extends React.InputHTMLAttributes<HTMLInputElement> {
@@ -30,6 +29,10 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
   ) => {
     const generatedId = useId();
     const inputId = id || generatedId;
+    const [showPassword, setShowPassword] = useState(false);
+
+    const isPasswordType = type === "password";
+    const inputType = isPasswordType ? (showPassword ? "text" : "password") : type;
 
     return (
       <div className="w-full flex flex-col gap-1.5">
@@ -48,7 +51,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             </div>
           )}
           <input
-            type={type}
+            type={inputType}
             id={inputId}
             ref={ref}
             disabled={disabled}
@@ -57,17 +60,26 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
               "hover:border-white/20 focus:border-maroon-700/70 focus:ring-2 focus:ring-maroon-700/20 focus:bg-[#151515]",
               "disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-white/10",
               leftIcon && "pl-10",
-              rightIcon && "pr-10",
+              (rightIcon || isPasswordType) && "pr-10",
               error && "border-red-500/60 focus:border-red-500 focus:ring-red-500/20",
               className
             )}
             {...props}
           />
-          {rightIcon && (
+          {isPasswordType ? (
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3.5 text-zinc-500 hover:text-zinc-300 transition-colors shrink-0 flex items-center justify-center select-none cursor-pointer"
+              aria-label={showPassword ? "Hide password" : "Show password"}
+            >
+              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          ) : rightIcon ? (
             <div className="absolute right-3.5 text-zinc-500 shrink-0 flex items-center justify-center">
               {rightIcon}
             </div>
-          )}
+          ) : null}
         </div>
         {error ? (
           <p className="text-xs text-red-400 font-body">{error}</p>

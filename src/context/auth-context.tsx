@@ -181,6 +181,30 @@ export function DummyAuthProvider({ children }: { children: React.ReactNode }) {
   }, [supabase]);
 
   useEffect(() => {
+    // Session Lifecycle Enforcement (Remember Me and Tab Session expiration checks)
+    if (typeof window !== "undefined") {
+      const rememberMe = localStorage.getItem("symar_remember_me") === "true";
+      
+      if (rememberMe) {
+        const loginTime = localStorage.getItem("symar_session_login_time");
+        if (loginTime) {
+          const diffMs = Date.now() - Number(loginTime);
+          const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+          if (diffMs > sevenDaysMs) {
+            supabase.auth.signOut();
+            localStorage.removeItem("symar_session_login_time");
+            localStorage.removeItem("symar_remember_me");
+          }
+        }
+      } else {
+        const hasTabSession = sessionStorage.getItem("symar_tab_session") === "true";
+        if (!hasTabSession) {
+          supabase.auth.signOut();
+        }
+      }
+      sessionStorage.setItem("symar_tab_session", "true");
+    }
+
     getSession();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
@@ -266,6 +290,15 @@ export function DummyAuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
+
+      if (typeof window !== "undefined") {
+        const rememberMe = localStorage.getItem("symar_remember_me") === "true";
+        if (rememberMe) {
+          localStorage.setItem("symar_session_login_time", Date.now().toString());
+        } else {
+          localStorage.removeItem("symar_session_login_time");
+        }
+      }
 
       const sessionData = await getSession();
       const isAdmin = isAdminUser(email);

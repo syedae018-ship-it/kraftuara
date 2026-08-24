@@ -18,8 +18,8 @@ const bodyFont = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Catalog Platform | Enterprise Multi-Tenant SaaS",
-  description: "Next-generation multi-tenant catalog store builder.",
+  title: "Craftaura | Multi-Tenant Catalog SaaS Platform",
+  description: "Craftaura is the next-generation multi-tenant catalog store builder.",
 };
 
 export default function RootLayout({
@@ -30,7 +30,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark scroll-smooth" suppressHydrationWarning>
       <body
-        className={`${headingFont.variable} ${bodyFont.variable} bg-[#080808] text-white antialiased min-h-screen selection:bg-maroon-800/80 selection:text-white`}
+        className={`${headingFont.variable} ${bodyFont.variable} [--font-brand:var(--font-heading)] bg-[#080808] text-white antialiased min-h-screen selection:bg-maroon-800/80 selection:text-white`}
       >
         <Providers>{children}</Providers>
       </body>

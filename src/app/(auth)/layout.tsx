@@ -18,8 +18,8 @@ export default function AuthLayout({
           <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-maroon-800 to-maroon-950 border border-maroon-600/40 flex items-center justify-center text-white shadow-glow mb-1">
             <Store className="w-6 h-6 text-white" />
           </div>
-          <Badge variant="maroon" className="gap-1 text-[11px]">
-            <Sparkles className="w-3 h-3 text-maroon-300" /> Catalog Platform
+          <Badge variant="maroon" className="gap-1 text-[11px] font-brand uppercase tracking-wider">
+            <Sparkles className="w-3 h-3 text-maroon-300" /> Craftaura
           </Badge>
         </div>
 

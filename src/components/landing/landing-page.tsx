@@ -83,68 +83,57 @@ const featuresList = [
 
 const pricingPlans = [
   {
-    name: "FREE",
-    price: `₹${PLANS.free.priceMonthly}`,
-    period: "forever",
-    description: PLANS.free.description,
-    features: [
-      "Up to 5 Products",
-      "Basic Dashboard",
-      "Craft Store Classic Theme",
-      "Demo Order Mode",
-    ],
-    cta: "Start Demo",
-    href: "/signup",
-    popular: false,
-  },
-  {
     name: "STARTER",
     price: `₹${PLANS.starter.priceMonthly}`,
-    period: "per month",
+    period: "month",
     description: PLANS.starter.description,
     features: [
-      "WhatsApp Ordering",
-      "Basic Catalog Engine",
-      "Up to 50 Products",
-      "Basic Store Dashboard",
-      "Store Settings & Custom Logo",
+      "WhatsApp Catalog Order Buttons",
+      "Basic Dashboard Overview",
+      "Product Management (up to 10 products)",
+      "Dedicated Storefront URL Link",
+      "Craftaura Classic template access",
+      "Custom Logo Upload",
     ],
     cta: "Choose Starter",
     href: "/signup?plan=starter",
     popular: false,
   },
   {
-    name: "PRO",
+    name: "GROWTH",
     price: `₹${PLANS.pro.priceMonthly}`,
-    period: "per month",
+    period: "month",
     description: PLANS.pro.description,
     features: [
-      "Everything in Starter",
-      "Craft Store Classic Customization",
-      "Full Store Analytics (Visitors, Clicks)",
-      "Product Collections & Filters",
-      "Advanced Customization & Creative Discounts",
-      "Up to 500 Products",
+      "Everything in Starter Plan",
+      "Product Management (up to 12 products)",
+      "Store Analytics & Traffic Insights (Store Views)",
+      "Curated Collections & Taxonomies",
+      "Advanced Customization & Branding",
+      "Creative discounts & promo codes",
     ],
-    cta: "Choose Pro",
+    cta: "Choose Growth",
     href: "/signup?plan=pro",
     popular: true,
   },
   {
-    name: "BUSINESS",
+    name: "PRO / BUSINESS",
     price: `₹${PLANS.business.priceMonthly}`,
-    period: "per month",
+    period: "month",
     description: PLANS.business.description,
+    setupFee: "₹999 setup fee (one-time charge)",
     features: [
-      "Everything in Pro",
-      "Razorpay Gateway Integration",
-      "Order & Inventory Management",
-      "Automated Shipping & Tracking",
-      "Revenue & Sales Dashboard",
-      "Coupons & Promotional Rules",
-      "Up to 5,000 Products",
+      "Everything in Growth Plan",
+      "Product Management (up to 100 products)",
+      "Direct Razorpay Payment Gateway & Checkout",
+      "Order Management & Customer Invoicing",
+      "Shipping Integration & Tracking Labels",
+      "Revenue Analytics & Sales Graphs",
+      "Discount Coupons & Promotional Banners",
+      "Real-time Inventory & Stock Alerts",
+      "Custom Domain Mapping",
     ],
-    cta: "Choose Business",
+    cta: "Choose Pro",
     href: "/signup?plan=business",
     popular: false,
   },
@@ -493,12 +482,12 @@ export function LandingPage() {
             Transparent Pricing for Every Business Tier
           </h2>
           <p className="text-sm text-zinc-400 max-w-xl mx-auto">
-            Start free, then upgrade as your store catalog and sales volume grow.
+            Get started with a 3-day free trial on any of our plans.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 items-stretch">
-          {pricingPlans.map((plan) => (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch max-w-5xl mx-auto">
+          {pricingPlans.map((plan: any) => (
             <div
               key={plan.name}
               className={cn(
@@ -523,16 +512,25 @@ export function LandingPage() {
                     <span className="text-3xl font-extrabold font-heading text-white">{plan.price}</span>
                     <span className="text-xs text-zinc-500 font-body">/{plan.period}</span>
                   </div>
+                  {plan.setupFee && (
+                    <p className="text-[10px] text-amber-500 font-mono mt-1 font-semibold">
+                      + {plan.setupFee}
+                    </p>
+                  )}
                   <p className="text-xs text-zinc-400 mt-2 font-body">{plan.description}</p>
                 </div>
 
                 <div className="space-y-2.5 border-t border-white/10 pt-4">
-                  {plan.features.map((feat, idx) => (
+                  {plan.features.map((feat: any, idx: number) => (
                     <div key={idx} className="flex items-center gap-2 text-xs text-zinc-300 font-body">
                       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                       <span>{feat}</span>
                     </div>
                   ))}
+                </div>
+
+                <div className="text-[9px] text-zinc-400 font-body text-center bg-white/5 p-2 rounded-xl border border-white/5 mt-2">
+                  🎁 Includes a 3-Day Free Trial (requires automatic recurring authorization)
                 </div>
               </div>
 
@@ -604,7 +602,7 @@ export function LandingPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
           {[
             {
-              quote: "Symar transformed our luxury perfume business. Customers love the instant WhatsApp order link!",
+              quote: "Craftaura transformed our luxury perfume business. Customers love the instant WhatsApp order link!",
               author: "Tariq Al-Mansoor",
               role: "Owner, Aroma Perfumes",
               img: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150",
@@ -647,10 +645,10 @@ export function LandingPage() {
       <footer className="border-t border-white/10 bg-[#060606] py-12 px-4 sm:px-6 lg:px-12 font-body text-xs text-zinc-500">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-maroon-800 to-maroon-950 border border-maroon-600/40 flex items-center justify-center text-white">
-              <Store className="w-4 h-4" />
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-maroon-800 to-maroon-950 border border-maroon-600/40 flex items-center justify-center text-white font-brand font-bold text-xs uppercase tracking-wider">
+              CA
             </div>
-            <span className="font-heading font-bold text-white text-sm">Symar SaaS Platform</span>
+            <span className="font-brand font-bold text-white text-sm uppercase tracking-wider">Craftaura SaaS Platform</span>
           </div>
 
           <div className="flex flex-wrap items-center gap-6">
@@ -661,7 +659,7 @@ export function LandingPage() {
           </div>
 
           <div>
-            &copy; {new Date().getFullYear()} Symar Platform Inc. All rights reserved.
+            &copy; {new Date().getFullYear()} Craftaura Platform. All rights reserved.
           </div>
         </div>
       </footer>

@@ -170,7 +170,11 @@ export async function middleware(request: NextRequest) {
       return withCookies(NextResponse.redirect(new URL("/login", request.url)));
     }
 
-    if (isAdminRoute && isSupabaseConfigured && supabase) {
+    if (isLoggedIn && isUserAdmin) {
+      if (isDashboardRoute) {
+        return withCookies(NextResponse.redirect(new URL("/admin", request.url)));
+      }
+    } else if (isAdminRoute && isSupabaseConfigured && supabase) {
       if (!isUserAdmin) {
         return withCookies(NextResponse.redirect(new URL("/dashboard", request.url)));
       }

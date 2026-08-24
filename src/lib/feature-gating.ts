@@ -2,7 +2,7 @@
  * Plan Tiers & Feature Gating Engine
  */
 
-export type PlanTier = "free" | "starter" | "pro" | "business";
+export type PlanTier = "starter" | "pro" | "business";
 
 export type FeatureKey =
   | "dashboard"
@@ -34,17 +34,9 @@ export interface PlanConfig {
 }
 
 export const PLANS: Record<PlanTier, PlanConfig> = {
-  free: {
-    id: "free",
-    name: "Free Demo",
-    priceMonthly: 0,
-    description: "Ideal for testing features and creating demo catalogs.",
-    allowedFeatures: ["dashboard", "products", "categories", "appearance"],
-    productLimit: 5,
-  },
   starter: {
     id: "starter",
-    name: "Starter Plan",
+    name: "Starter",
     priceMonthly: 99,
     description: "Perfect for new merchants & WhatsApp ordering stores.",
     allowedFeatures: [
@@ -55,11 +47,11 @@ export const PLANS: Record<PlanTier, PlanConfig> = {
       "appearance",
       "whatsapp_orders",
     ],
-    productLimit: 50,
+    productLimit: 10,
   },
   pro: {
     id: "pro",
-    name: "Pro Plan",
+    name: "Growth",
     priceMonthly: 299,
     description: "Enhanced growth with Analytics, Collections & Premium Themes.",
     allowedFeatures: [
@@ -74,14 +66,14 @@ export const PLANS: Record<PlanTier, PlanConfig> = {
       "premium_themes",
       "creative_discounts",
     ],
-    productLimit: 500,
+    productLimit: 12,
     popular: true,
   },
   business: {
     id: "business",
-    name: "Business Suite",
+    name: "Pro / Business",
     priceMonthly: 499,
-    description: "Complete E-commerce platform with Razorpay, Shipping & Inventory.",
+    description: "Complete E-commerce platform with Razorpay, Custom Domain & Advanced Features.",
     allowedFeatures: [
       "dashboard",
       "products",
@@ -101,7 +93,7 @@ export const PLANS: Record<PlanTier, PlanConfig> = {
       "inventory",
       "custom_domain",
     ],
-    productLimit: 5000,
+    productLimit: 100,
   },
 };
 
@@ -112,10 +104,9 @@ export function hasFeatureAccess(planName: string, feature: FeatureKey): boolean
   const normalized = planName.toLowerCase().replace(/[^a-z]/g, "");
   
   let tier: PlanTier = "starter";
-  if (normalized.includes("free")) tier = "free";
-  else if (normalized.includes("business") || normalized.includes("enterprise")) tier = "business";
-  else if (normalized.includes("pro")) tier = "pro";
-  else if (normalized.includes("starter") || normalized.includes("basic")) tier = "starter";
+  if (normalized.includes("business") || normalized.includes("enterprise")) tier = "business";
+  else if (normalized.includes("pro") || normalized.includes("growth")) tier = "pro";
+  else if (normalized.includes("starter") || normalized.includes("basic") || normalized.includes("free")) tier = "starter";
 
   const config = PLANS[tier];
   if (!config) return true;

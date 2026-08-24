@@ -1,7 +1,7 @@
 import { Product, ProductFilterState, ProductImage } from "@/types/product";
 import { createClient } from "@/lib/supabase/client";
 import { IProductRepository } from "../product-repository";
-import { PLANS } from "@/lib/feature-gating";
+import { PLANS, PlanTier } from "@/lib/feature-gating";
 
 export class SupabaseProductRepository implements IProductRepository {
   private getSupabase() {
@@ -32,12 +32,15 @@ export class SupabaseProductRepository implements IProductRepository {
       .eq("store_id", storeId)
       .maybeSingle();
 
-    let plan: "free" | "starter" | "pro" | "business" = "free";
+    let plan: PlanTier = "starter";
     let status = subRow?.status || "active";
     const expiresAt = subRow?.current_period_end;
 
     if (subRow) {
-      plan = subRow.plan as any;
+      const dbPlan = subRow.plan;
+      if (dbPlan === "pro" || dbPlan === "business" || dbPlan === "starter") {
+        plan = dbPlan;
+      }
       if (expiresAt) {
         if (new Date(expiresAt) < new Date()) {
           status = "expired";
@@ -45,13 +48,13 @@ export class SupabaseProductRepository implements IProductRepository {
       }
     }
 
-    // Downgrade resolved entitlement to free if expired or cancelled
+    // Downgrade resolved entitlement to starter if expired or cancelled
     if (status === "expired" || status === "cancelled") {
-      plan = "free";
+      plan = "starter";
     }
 
     // Get limit based on PLANS gating
-    const config = PLANS[plan] || PLANS.free;
+    const config = PLANS[plan] || PLANS.starter;
     const limit = config.productLimit;
 
     const { count } = await supabase

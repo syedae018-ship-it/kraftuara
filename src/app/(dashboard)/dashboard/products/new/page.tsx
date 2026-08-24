@@ -14,10 +14,11 @@ import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/auth-context";
 import { productRepository } from "@/lib/repositories/product-repository";
 import { categoryRepository } from "@/lib/repositories/category-repository";
+import { PLANS, PlanTier } from "@/lib/feature-gating";
 
 export default function NewProductPage() {
   const router = useRouter();
-  const { activeStore } = useAuth();
+  const { activeStore, user } = useAuth();
   const [categories, setCategories] = useState<CategoryOption[]>([]);
 
   const [liveProduct, setLiveProduct] = useState<Partial<Product>>({
@@ -75,6 +76,21 @@ export default function NewProductPage() {
     setIsSubmitting(true);
 
     try {
+      // Server-side backed validation query
+      const { products: pList } = await productRepository.getAll(activeStore.id);
+      const planTier = (user?.plan || "starter") as PlanTier;
+      const planConfig = PLANS[planTier];
+      const limit = planConfig?.productLimit ?? 10;
+
+      if (pList.length >= limit) {
+        toast.error(
+          "Upgrade Required",
+          `You have reached the product limit of your ${planConfig?.name || "Starter"} plan (${limit} products). Please upgrade your plan to add more products.`
+        );
+        setIsSubmitting(false);
+        return;
+      }
+
       await productRepository.create(activeStore.id, {
         name: productData.name.trim(),
         sku: productData.sku || `SKU-${Date.now().toString().slice(-4)}`,
