@@ -64,6 +64,16 @@ export type AppearanceSettings = {
   updatedAt: string;
 };
 
+export type AppearanceSettingsUpdate = {
+  themeId?: string;
+  branding?: Partial<StoreBranding>;
+  colors?: Partial<ThemeColors>;
+  typography?: Partial<TypographyConfig>;
+  homepageSections?: HomepageSectionConfig[];
+  seo?: Partial<HomepageSEOConfig>;
+  updatedAt?: string;
+};
+
 export type Theme = {
   id: string;
   name: string;

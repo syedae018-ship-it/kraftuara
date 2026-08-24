@@ -9,6 +9,7 @@ import { WhatsAppButton } from "./whatsapp-button";
 import { StoreSearch } from "./store-search";
 import { cn } from "@/lib/utils";
 import { getStoreBasePath } from "@/lib/urls";
+import { resolveImageUrl } from "@/lib/image-resolver";
 
 export interface StoreNavbarProps {
   store: StoreData;
@@ -19,6 +20,7 @@ export interface StoreNavbarProps {
 export function StoreNavbar({ store, className, isSubdomain = false }: StoreNavbarProps) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [logoError, setLogoError] = useState(false);
 
   const pathname = usePathname();
   const isDemo = pathname?.startsWith("/demo");
@@ -45,8 +47,13 @@ export function StoreNavbar({ store, className, isSubdomain = false }: StoreNavb
           </button>
 
           <Link href={storePrefix} className="flex items-center gap-2.5 group">
-            {branding.logoUrl ? (
-              <img src={branding.logoUrl} alt={store.name} className="w-8 h-8 rounded-lg object-cover" />
+            {branding.logoUrl && !logoError ? (
+              <img
+                src={resolveImageUrl(branding.logoUrl)}
+                alt={store.name}
+                className="w-8 h-8 rounded-lg object-cover"
+                onError={() => setLogoError(true)}
+              />
             ) : (
               <div
                 className="w-8 h-8 rounded-lg border border-maroon-600/40 flex items-center justify-center text-white font-bold font-heading text-xs shadow-glow"

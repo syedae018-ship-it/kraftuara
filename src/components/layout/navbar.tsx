@@ -27,7 +27,7 @@ export function Navbar({
   return (
     <header
       className={cn(
-        "sticky top-0 z-20 h-16 w-full border-b border-white/10 bg-[#080808]/80 backdrop-blur-md px-4 lg:px-8 flex items-center justify-between transition-all",
+        "sticky top-0 z-20 h-16 w-full border-b border-white/10 bg-[#080808]/80 backdrop-blur-md px-3.5 sm:px-6 lg:px-8 flex items-center justify-between transition-all",
         className
       )}
     >

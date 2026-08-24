@@ -22,6 +22,7 @@ export default function OrderSummary({ store }: { store: StoreData }) {
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
   const [pinCode, setPinCode] = useState("");
+  const [customerNotes, setCustomerNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
@@ -122,24 +123,29 @@ export default function OrderSummary({ store }: { store: StoreData }) {
 
       const cartItemsText = order.items
         ?.map(
-          (item) =>
-            `• *${item.productName}* × ${item.quantity} — ${formatCurrency(item.price * item.quantity)}`
+          (item, idx) =>
+            `${idx + 1}. *${item.productName}* × ${item.quantity} — ${formatCurrency(item.price * item.quantity)}`
         )
         .join("\n") || "";
+
+      const notesSection = customerNotes.trim()
+        ? `\n*Notes / Instructions:*\n${customerNotes.trim()}\n`
+        : "";
 
       const message =
         `🛍️ *NEW ORDER — ${store.name}*\n` +
         `Order #: *${order.orderNumber}*\n\n` +
-        `*Customer Details*\n` +
-        `Name: ${order.customerName}\n` +
-        `Phone: ${order.customerPhone}\n` +
-        `Address: ${order.shippingAddress}\n\n` +
-        `*Ordered Items*\n` +
+        `*Items:*\n` +
         `${cartItemsText}\n\n` +
         `Subtotal: ${formatCurrency(subtotal)}\n` +
         `Shipping: ${shipping === 0 ? "Free" : formatCurrency(shipping)}\n` +
         `*Total: ${formatCurrency(total)}*\n\n` +
-        `Please confirm my order and share delivery details. Thank you!`;
+        `*Customer:*\n` +
+        `Name: ${order.customerName}\n` +
+        `Phone: ${order.customerPhone}\n` +
+        `Delivery Address: ${order.shippingAddress}\n` +
+        `${notesSection}\n` +
+        `Please confirm this order. Thank you!`;
 
       const whatsappUrl = `https://wa.me/${destinationNumber}?text=${encodeURIComponent(message)}`;
 
@@ -150,6 +156,7 @@ export default function OrderSummary({ store }: { store: StoreData }) {
       setCity("");
       setState("");
       setPinCode("");
+      setCustomerNotes("");
       clearCart();
 
       toast.success("Order Placed!", `Order #${order.orderNumber} confirmed. Opening WhatsApp...`);
@@ -321,6 +328,20 @@ export default function OrderSummary({ store }: { store: StoreData }) {
                   maxLength={10}
                 />
               </div>
+
+              <div>
+                <label className="text-[10px] text-bloom-muted block mb-1 font-heading">
+                  Order Notes / Instructions (Optional)
+                </label>
+                <textarea
+                  placeholder="e.g. Ring doorbell, special packaging, color/size preference..."
+                  value={customerNotes}
+                  onChange={(e) => setCustomerNotes(e.target.value)}
+                  disabled={isSubmitting}
+                  rows={2}
+                  className="w-full bg-bloom-background border border-bloom-border rounded-lg p-2.5 text-xs text-bloom-foreground outline-none focus:border-bloom-primary transition-all font-body placeholder:text-zinc-500 disabled:opacity-50 resize-none"
+                />
+              </div>
             </div>
           </div>
 
@@ -328,12 +349,17 @@ export default function OrderSummary({ store }: { store: StoreData }) {
             type="submit"
             size="lg"
             disabled={isSubmitting || cart.length === 0 || !hasWhatsApp}
-            className="w-full bg-bloom-primary text-bloom-primary-foreground hover:bg-bloom-primary/90 flex items-center justify-center gap-2 text-sm font-semibold h-11"
+            className="w-full bg-bloom-primary text-bloom-primary-foreground hover:bg-bloom-primary/90 flex items-center justify-center gap-2 text-sm font-semibold h-11 disabled:opacity-50"
           >
             {isSubmitting ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Processing Order...
+              </>
+            ) : !hasWhatsApp ? (
+              <>
+                <MessageCircle className="h-4 w-4" />
+                WhatsApp Ordering Unavailable
               </>
             ) : (
               <>

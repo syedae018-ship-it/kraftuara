@@ -9,6 +9,7 @@ import { Modal } from "@/components/ui/modal";
 import { Input } from "@/components/ui/input";
 import { formatCurrency } from "@/lib/utils";
 import { getStoreBasePath } from "@/lib/urls";
+import { resolveImageUrl, FALLBACK_PRODUCT_IMAGE } from "@/lib/image-resolver";
 
 export interface StoreSearchProps {
   isOpen: boolean;
@@ -18,7 +19,7 @@ export interface StoreSearchProps {
   isSubdomain?: boolean;
 }
 
-export function StoreSearch({ isOpen, onClose, products, storeSlug, isSubdomain = false }: StoreSearchProps) {
+export function StoreSearch({ isOpen, onClose, products = [], storeSlug, isSubdomain = false }: StoreSearchProps) {
   const pathname = usePathname();
   const isDemo = pathname?.startsWith("/demo");
   const demoTheme = pathname?.split("/")[2] || "luxury";
@@ -62,7 +63,14 @@ export function StoreSearch({ isOpen, onClose, products, storeSlug, isSubdomain 
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-lg bg-[#111111] border border-white/10 overflow-hidden flex items-center justify-center shrink-0">
                       {coverImg ? (
-                        <img src={coverImg.url} alt={p.name} className="w-full h-full object-cover" />
+                        <img 
+                          src={resolveImageUrl(coverImg.url)} 
+                          alt={p.name} 
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = FALLBACK_PRODUCT_IMAGE;
+                          }}
+                        />
                       ) : (
                         <Package className="w-4 h-4 text-zinc-600" />
                       )}

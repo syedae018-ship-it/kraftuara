@@ -12,6 +12,7 @@ import { formatCurrency } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { getStoreBasePath } from "@/lib/urls";
+import { resolveImageUrl, FALLBACK_PRODUCT_IMAGE } from "@/lib/image-resolver";
 
 export interface StoreProductCardProps {
   product: Product;
@@ -30,10 +31,12 @@ export function StoreProductCard({
   className,
   isSubdomain = false,
 }: StoreProductCardProps) {
+  const [copied, setCopied] = useState(false);
   const pathname = usePathname();
   const isDemo = pathname?.startsWith("/demo");
   const demoTheme = pathname?.split("/")[2] || "luxury";
   const storePrefix = getStoreBasePath(storeSlug, isSubdomain, isDemo, demoTheme);
+  const productUrl = `${storePrefix}/product/${product.slug}`;
 
   const coverImage = product.images.find((img) => img.isCover) || product.images[0];
 
@@ -49,9 +52,12 @@ export function StoreProductCard({
       <div className="relative aspect-square w-full bg-[#111111] border-b border-white/5 overflow-hidden flex items-center justify-center">
         {coverImage ? (
           <img
-            src={coverImage.url}
+            src={resolveImageUrl(coverImage.url)}
             alt={coverImage.altText || product.name}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = FALLBACK_PRODUCT_IMAGE;
+            }}
           />
         ) : (
           <Package className="w-10 h-10 text-zinc-600" />

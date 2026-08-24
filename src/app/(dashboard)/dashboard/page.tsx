@@ -195,43 +195,46 @@ export default function DashboardOverview() {
 
       <div className="space-y-8 pb-16">
         {/* Active Store URL Highlight Card */}
-        <div className="p-5 rounded-3xl bg-gradient-to-r from-[#161215] via-[#121014] to-[#0D0B0E] border border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-2xl">
-          <div className="flex items-center gap-3 text-left">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-maroon-800 to-maroon-950 border border-maroon-600/40 flex items-center justify-center text-white shrink-0 shadow-glow">
-              <Globe className="w-6 h-6 text-maroon-300" />
+        <div className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-gradient-to-r from-[#161215] via-[#121014] to-[#0D0B0E] border border-white/10 flex flex-col lg:flex-row lg:items-center justify-between gap-4 shadow-2xl overflow-hidden">
+          <div className="flex items-center gap-3 text-left min-w-0 flex-1">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-gradient-to-br from-maroon-800 to-maroon-950 border border-maroon-600/40 flex items-center justify-center text-white shrink-0 shadow-glow">
+              <Globe className="w-5 h-5 sm:w-6 sm:h-6 text-maroon-300" />
             </div>
-            <div>
+            <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <span className="text-xs font-mono font-bold uppercase tracking-wider text-amber-400">
+                <span className="text-[11px] sm:text-xs font-mono font-bold uppercase tracking-wider text-amber-400">
                   Live Merchant Store
                 </span>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                <span className="text-[9px] sm:text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
                   ● Published
                 </span>
               </div>
-              <p className="text-sm font-bold font-mono text-white tracking-tight mt-0.5">
+              <p
+                className="text-xs sm:text-sm font-bold font-mono text-white tracking-tight mt-0.5 truncate block"
+                title={liveStoreUrl}
+              >
                 {liveStoreUrl}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 w-full lg:w-auto shrink-0">
             <Button
               variant="outline"
               size="sm"
               onClick={handlePublishChanges}
               isLoading={isPublishing}
               leftIcon={<Sparkles className="w-3.5 h-3.5 text-amber-400" />}
-              className="border-maroon-800 text-maroon-300 hover:bg-maroon-950/20 text-xs w-full sm:w-auto"
+              className="border-maroon-800 text-maroon-300 hover:bg-maroon-950/20 text-xs h-9 justify-center w-full sm:w-auto"
             >
-              Publish Changes
+              Publish
             </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={copyStoreUrl}
               leftIcon={<Copy className="w-3.5 h-3.5" />}
-              className="border-white/10 text-xs w-full sm:w-auto"
+              className="border-white/10 text-xs h-9 justify-center w-full sm:w-auto"
             >
               Copy Link
             </Button>
@@ -240,7 +243,7 @@ export default function DashboardOverview() {
                 variant="secondary"
                 size="sm"
                 leftIcon={<ExternalLink className="w-3.5 h-3.5" />}
-                className="text-xs border-white/20 w-full sm:w-auto"
+                className="text-xs border-white/20 h-9 justify-center w-full sm:w-auto"
               >
                 Visit Store
               </Button>
@@ -250,7 +253,7 @@ export default function DashboardOverview() {
                 variant="primary"
                 size="sm"
                 leftIcon={<Zap className="w-3.5 h-3.5 text-amber-400" />}
-                className="text-xs font-bold shadow-glow w-full sm:w-auto"
+                className="text-xs font-bold shadow-glow h-9 justify-center w-full sm:w-auto"
               >
                 Change Plan
               </Button>

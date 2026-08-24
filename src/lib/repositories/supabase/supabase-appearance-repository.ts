@@ -1,4 +1,4 @@
-import { AppearanceSettings } from "@/types/theme";
+import { AppearanceSettings, AppearanceSettingsUpdate } from "@/types/theme";
 import type { IAppearanceRepository } from "@/lib/repositories/appearance-repository";
 import { initialAppearanceSettings } from "@/lib/repositories/appearance-constants";
 import { createClient } from "@/lib/supabase/client";
@@ -80,7 +80,7 @@ export class SupabaseAppearanceRepository implements IAppearanceRepository {
     };
   }
 
-  async updateSettings(storeId: string, settings: Partial<AppearanceSettings>, client?: any): Promise<AppearanceSettings> {
+  async updateSettings(storeId: string, settings: AppearanceSettingsUpdate, client?: any): Promise<AppearanceSettings> {
     const supabase = client || this.getSupabase();
     const current = await this.getSettings(storeId, supabase);
     const merged: AppearanceSettings = {

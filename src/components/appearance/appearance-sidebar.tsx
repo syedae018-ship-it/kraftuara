@@ -167,11 +167,17 @@ export function AppearanceSidebar({ settings, onChange, className }: AppearanceS
                 value={settings.branding.phone || ""}
                 onChange={(e) => onChange({ branding: { ...settings.branding, phone: e.target.value } })}
               />
-              <Input
-                label="WhatsApp Business Number"
-                value={settings.branding.whatsapp || ""}
-                onChange={(e) => onChange({ branding: { ...settings.branding, whatsapp: e.target.value } })}
-              />
+              <div className="space-y-1">
+                <Input
+                  label="WhatsApp Business Number (Cart Orders)"
+                  placeholder="e.g. +91 98765 43210"
+                  value={settings.branding.whatsapp || ""}
+                  onChange={(e) => onChange({ branding: { ...settings.branding, whatsapp: e.target.value } })}
+                />
+                <p className="text-[10px] text-zinc-500 font-body">
+                  Customers will send their completed cart orders to this WhatsApp number.
+                </p>
+              </div>
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-zinc-300 font-heading">Business Physical Address</label>
                 <textarea

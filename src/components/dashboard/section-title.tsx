@@ -29,7 +29,7 @@ export function SectionTitle({
           <p className="text-xs text-zinc-400 font-body">{description}</p>
         )}
       </div>
-      {action && <div className="flex items-center gap-2 shrink-0">{action}</div>}
+      {action && <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto shrink-0">{action}</div>}
     </div>
   );
 }

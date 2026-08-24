@@ -25,6 +25,7 @@ import {
   Package,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { resolveImageUrl, FALLBACK_PRODUCT_IMAGE } from "@/lib/image-resolver";
 
 export interface PreviewWindowProps {
   settings: AppearanceSettings;
@@ -181,7 +182,14 @@ export function PreviewWindow({
           <header className="p-4 border-b border-[var(--bloom-border)] flex items-center justify-between sticky top-0 z-30 bg-[var(--bloom-background)]/95 backdrop-blur-md">
             <div className="flex items-center gap-3">
               {settings.branding.logoUrl ? (
-                <img src={settings.branding.logoUrl} alt={settings.branding.name} className="w-8 h-8 rounded-lg object-cover" />
+                <img
+                  src={resolveImageUrl(settings.branding.logoUrl)}
+                  alt={settings.branding.name}
+                  className="w-8 h-8 rounded-lg object-cover"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = "none";
+                  }}
+                />
               ) : (
                 <div
                   style={{ backgroundColor: "var(--bloom-primary)" }}
@@ -214,7 +222,11 @@ export function PreviewWindow({
             >
               {settings.branding.heroBannerUrl && (
                 <div className="absolute inset-0 z-0 opacity-10">
-                  <img src={settings.branding.heroBannerUrl} alt="Hero" className="w-full h-full object-cover" />
+                  <img
+                    src={resolveImageUrl(settings.branding.heroBannerUrl)}
+                    alt="Hero"
+                    className="w-full h-full object-cover"
+                  />
                 </div>
               )}
               <div className="relative z-10 space-y-3 max-w-2xl mx-auto">
@@ -239,7 +251,14 @@ export function PreviewWindow({
                     style={{ backgroundColor: "var(--bloom-primary)" }}
                     className="px-5 py-2.5 text-xs font-bold text-white shadow-sm rounded-xl hover:opacity-90 transition-opacity"
                   >
-                    Explore Shop
+                    View All Products
+                  </button>
+                  <button
+                    type="button"
+                    style={{ borderColor: "var(--bloom-border)", color: "var(--bloom-foreground)" }}
+                    className="px-5 py-2.5 text-xs font-semibold border rounded-xl hover:bg-white/50 transition-colors"
+                  >
+                    About Us
                   </button>
                 </div>
               </div>
@@ -248,15 +267,24 @@ export function PreviewWindow({
             {/* Products Grid */}
             <section className="space-y-4 text-left">
               <div className="flex items-center justify-between">
-                <h3 style={{ fontFamily: "var(--font-heading)" }} className="text-base font-bold text-[var(--bloom-foreground)]">Products</h3>
-                <span className="text-xs font-semibold cursor-pointer" style={{ color: "var(--bloom-primary)" }}>View All →</span>
+                <div>
+                  <h3 style={{ fontFamily: "var(--font-heading)" }} className="text-base font-bold text-[var(--bloom-foreground)]">Our Catalog</h3>
+                  <p className="text-xs text-[var(--bloom-foreground)] opacity-70">Handmade with love &amp; premium materials</p>
+                </div>
+                <button
+                  type="button"
+                  style={{ color: "var(--bloom-primary)" }}
+                  className="text-xs font-semibold hover:underline"
+                >
+                  View All →
+                </button>
               </div>
+
               {!products || products.length === 0 ? (
-                <div className="flex flex-col items-center justify-center p-8 border border-dashed border-[var(--bloom-border)] rounded-xl text-center space-y-2">
-                  <Package className="w-8 h-8 text-zinc-300 animate-pulse" />
-                  <span className="text-xs font-bold text-[var(--bloom-foreground)]" style={{ fontFamily: "var(--font-heading)" }}>No products yet</span>
-                  <span className="text-[10px] text-gray-500 max-w-[200px]">
-                    Add your first product from the dashboard once setup is complete.
+                <div className="p-8 text-center bg-[var(--bloom-secondary)] rounded-2xl border border-[var(--bloom-border)]">
+                  <Package className="w-8 h-8 mx-auto text-zinc-400 mb-2" />
+                  <span className="text-xs text-[var(--bloom-foreground)] opacity-70 block">
+                    No products added yet. Add products from the dashboard to display them here.
                   </span>
                 </div>
               ) : (
@@ -265,7 +293,14 @@ export function PreviewWindow({
                     <div key={prod.id} className="group relative bg-[var(--bloom-background)] border border-[var(--bloom-border)] rounded-2xl overflow-hidden hover:shadow-md transition-all flex flex-col justify-between p-3 space-y-2 text-left">
                       <div className="aspect-square rounded-xl bg-[var(--bloom-secondary)] overflow-hidden relative">
                         {prod.images && prod.images.length > 0 ? (
-                          <img src={prod.images[0].url} alt={prod.name} className="w-full h-full object-cover" />
+                          <img
+                            src={resolveImageUrl(prod.images[0].url)}
+                            alt={prod.name}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = FALLBACK_PRODUCT_IMAGE;
+                            }}
+                          />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-zinc-300">
                             <Package className="w-6 h-6" />

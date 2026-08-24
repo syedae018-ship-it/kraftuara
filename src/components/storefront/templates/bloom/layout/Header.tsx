@@ -8,12 +8,14 @@ import { useCallback, useEffect, useState } from "react";
 import { Button } from "../ui/button";
 import { getStoreBasePath } from "@/lib/urls";
 import { StoreData } from "@/types/store";
+import { resolveImageUrl } from "@/lib/image-resolver";
 
 export default function Header({ store, isSubdomain = false }: { store: StoreData; isSubdomain?: boolean }) {
   const { cart } = useCart();
   const cartCount = cart?.reduce((total, item) => total + item.quantity, 0) || 0;
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [logoError, setLogoError] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const pathname = usePathname();
@@ -64,11 +66,12 @@ export default function Header({ store, isSubdomain = false }: { store: StoreDat
               href={homeLink}
               aria-label={`${store.name} Home`}
             >
-              {store.appearance.branding.logoUrl ? (
+              {store.appearance.branding.logoUrl && !logoError ? (
                 <img
-                  src={store.appearance.branding.logoUrl}
+                  src={resolveImageUrl(store.appearance.branding.logoUrl)}
                   alt={store.name}
                   className="w-8 h-8 rounded-lg object-cover"
+                  onError={() => setLogoError(true)}
                 />
               ) : (
                 <div
