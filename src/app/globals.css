@@ -1,0 +1,108 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 3.1%; /* #080808 */
+    --surface: 0 0% 6.7%; /* #111111 */
+    --card: 0 0% 8.2%; /* #151515 */
+    --foreground: 0 0% 100%;
+    --primary-maroon: 345 100% 25.1%; /* #800020 */
+    --primary-maroon-hover: 345 70% 35%; /* #9b1b30 */
+    --border-alpha: rgba(255, 255, 255, 0.06);
+  }
+
+  * {
+    border-color: var(--border-alpha);
+  }
+
+  html,
+  body {
+    background-color: #080808;
+    color: #ffffff;
+    font-family: var(--font-body), sans-serif;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading), sans-serif;
+  }
+
+  ::selection {
+    background-color: rgba(128, 0, 32, 0.6);
+    color: #ffffff;
+  }
+}
+
+/* Custom Sleek Dark Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #080808;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #222222;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #333333;
+}
+
+/* Linear & Apple aesthetic utility classes */
+.glass-panel {
+  background: rgba(17, 17, 17, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.glass-card {
+  background: rgba(21, 21, 21, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.maroon-glow {
+  box-shadow: 0 0 30px -5px rgba(128, 0, 32, 0.35);
+}
+
+.maroon-gradient-border {
+  position: relative;
+  background: linear-gradient(#151515, #151515) padding-box,
+              linear-gradient(135deg, rgba(128,0,32,0.6) 0%, rgba(255,255,255,0.06) 100%) border-box;
+  border: 1px solid transparent;
+}
+
+/* Bloom Storefront Theme Variables (Template #1) */
+.bloom-theme {
+  --bloom-background: #FFFFFF;
+  --bloom-foreground: #1F2937;
+  --bloom-muted: #6B7280;
+  --bloom-card: #FFFFFF;
+  --bloom-border: #E5E7EB;
+  --bloom-primary: #F97316;
+  --bloom-primary-foreground: #FFFFFF;
+  --bloom-accent: #FFF7ED;
+  --bloom-secondary: #F3F4F6;
+  
+  background-color: var(--bloom-background) !important;
+  color: var(--bloom-foreground) !important;
+}
+
+.bloom-theme input, 
+.bloom-theme textarea,
+.bloom-theme select {
+  background-color: var(--bloom-background);
+  color: var(--bloom-foreground);
+  border-color: var(--bloom-border);
+}
+

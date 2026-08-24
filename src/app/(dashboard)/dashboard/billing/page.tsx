@@ -1,0 +1,424 @@
+"use client";
+
+import React, { useState, useEffect } from "react";
+import { DashboardLayout } from "@/components/layout/dashboard-layout";
+import { CreditCard, CheckCircle2, AlertCircle, Loader2, Calendar, ShieldCheck, Zap } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/table";
+import { useAuth } from "@/context/auth-context";
+import { toast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
+import { getStoreSubscriptionAction, updateStoreSubscriptionAction, StoreSubscription } from "@/lib/actions/subscription";
+import { isAdminUser } from "@/lib/services/admin-roles";
+import { createClient } from "@/lib/supabase/client";
+
+const PLANS_CATALOG = [
+  { id: "free", name: "Free Demo", price: "₹0", desc: "Basic storefront catalog, up to 5 products.", limit: 5 },
+  { id: "starter", name: "Starter Plan", price: "₹99/mo", desc: "WhatsApp ordering enabled, up to 50 products.", limit: 50 },
+  { id: "pro", name: "Pro Plan", price: "₹299/mo", desc: "Premium templates, visitor analytics, up to 500 products.", limit: 500 },
+  { id: "business", name: "Business Suite", price: "₹499/mo", desc: "Payments integration, shipping, up to 5000 products.", limit: 5000 },
+];
+
+export default function MerchantBillingPage() {
+  const { activeStore, user } = useAuth();
+  const [subscription, setSubscription] = useState<StoreSubscription | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [adminPlan, setAdminPlan] = useState<"free" | "starter" | "pro" | "business">("starter");
+  const [adminExpiryDays, setAdminExpiryDays] = useState(30);
+  const [isUpdatingAdmin, setIsUpdatingAdmin] = useState(false);
+  const [payments, setPayments] = useState<any[]>([]);
+  const [processingUpgrade, setProcessingUpgrade] = useState<string | null>(null);
+
+  // Load Razorpay SDK checkout overlay script on billing mount
+  useEffect(() => {
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.async = true;
+    document.body.appendChild(script);
+    return () => {
+      if (document.body.contains(script)) {
+        document.body.removeChild(script);
+      }
+    };
+  }, []);
+
+  const fetchSubscription = async () => {
+    if (!activeStore?.id) return;
+    setIsLoading(true);
+    try {
+      const response = await getStoreSubscriptionAction(activeStore.id);
+      if (response.success && response.subscription) {
+        setSubscription(response.subscription);
+      } else {
+        toast.error("Error", response.error || "Failed to load subscription details.");
+      }
+    } catch (e) {
+      toast.error("Error", "Could not query subscription status.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchPayments = async () => {
+    if (!activeStore?.id) return;
+
+    try {
+      const supabase = createClient();
+      const { data, error } = await (supabase.from("payments") as any)
+        .select("*")
+        .eq("store_id", activeStore.id)
+        .order("created_at", { ascending: false });
+
+      if (data && !error) {
+        setPayments(data);
+      }
+    } catch (e) {
+      console.error("Failed to load payment history:", e);
+    }
+  };
+
+  useEffect(() => {
+    fetchSubscription();
+    fetchPayments();
+    // Check if user is admin
+    if (user?.email) {
+      setIsAdmin(isAdminUser(user.email));
+    }
+  }, [activeStore, user]);
+
+  const handleRequestUpgrade = async (planName: string) => {
+    if (!activeStore?.id) return;
+    setProcessingUpgrade(planName);
+
+    try {
+      const { createStoreSubscriptionAction } = await import("@/lib/actions/payment");
+      const res = await createStoreSubscriptionAction(activeStore.id, planName.toLowerCase().replace(/[^a-z]/g, "") as any);
+
+      if (!res.success) {
+        toast.error("Upgrade Error", res.error || "Failed to create subscription order.");
+        setProcessingUpgrade(null);
+        return;
+      }
+
+      const { subscriptionId, keyId, isSimulated } = res.data;
+
+      if (isSimulated) {
+        toast.warning(
+          "Test Mode: Simulating Upgrade",
+          "Razorpay credentials are placeholders. Transitioning to simulated sandbox checkout."
+        );
+        
+        const { verifySubscriptionPaymentAction } = await import("@/lib/actions/payment");
+        const verRes = await verifySubscriptionPaymentAction({
+          storeId: activeStore.id,
+          paymentId: `pay_mock_${Date.now()}`,
+          subscriptionId,
+          signature: "mock_signature",
+        });
+
+        if (verRes.success) {
+          toast.success("Upgrade Successful", `Store upgraded to ${planName}.`);
+          fetchSubscription();
+          fetchPayments();
+        } else {
+          toast.error("Verification Failed", verRes.error || "Mock verification mismatch.");
+        }
+        setProcessingUpgrade(null);
+        return;
+      }
+
+      const options = {
+        key: keyId,
+        subscription_id: subscriptionId,
+        name: "Symar Platform Upgrade",
+        description: `Upgrade to ${planName}`,
+        image: "https://api.dicebear.com/7.x/initials/svg?seed=Symar",
+        handler: async function (response: any) {
+          setProcessingUpgrade(planName);
+          const { verifySubscriptionPaymentAction } = await import("@/lib/actions/payment");
+          const verRes = await verifySubscriptionPaymentAction({
+            storeId: activeStore.id,
+            paymentId: response.razorpay_payment_id,
+            subscriptionId: response.razorpay_subscription_id,
+            signature: response.razorpay_signature,
+          });
+
+          if (verRes.success) {
+            toast.success("Upgrade Successful", `Payment verified. Store upgraded to ${planName}!`);
+            fetchSubscription();
+            fetchPayments();
+          } else {
+            toast.error("Signature Verification Failed", verRes.error || "Crypto mismatch.");
+          }
+          setProcessingUpgrade(null);
+        },
+        prefill: {
+          email: user?.email || "",
+          name: user?.name || "",
+        },
+        theme: {
+          color: "#800020",
+        },
+      };
+
+      const rzp = new (window as any).Razorpay(options);
+      rzp.on("payment.failed", function (resp: any) {
+        toast.error("Upgrade Failed", resp.error?.description || "Payment failed or cancelled.");
+        setProcessingUpgrade(null);
+      });
+      rzp.open();
+    } catch (err: any) {
+      toast.error("Checkout Launch Error", err.message || "Failed to load checkout.");
+      setProcessingUpgrade(null);
+    }
+  };
+
+  const handleAdminOverride = async () => {
+    if (!activeStore?.id) return;
+    setIsUpdatingAdmin(true);
+    try {
+      const response = await updateStoreSubscriptionAction(
+        activeStore.id,
+        adminPlan,
+        "active",
+        adminExpiryDays
+      );
+      if (response.success) {
+        toast.success("Success", `Override applied: store is now on ${adminPlan}.`);
+        fetchSubscription();
+      } else {
+        toast.error("Access Denied", response.error || "Super Admin override failed.");
+      }
+    } catch (e) {
+      toast.error("Error", "Failed to apply admin overrides.");
+    } finally {
+      setIsUpdatingAdmin(false);
+    }
+  };
+
+  if (!activeStore) {
+    return (
+      <DashboardLayout breadcrumbs={[{ label: "Overview", href: "/dashboard" }, { label: "Billing & Plans" }]}>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <Loader2 className="w-8 h-8 animate-spin text-maroon-500" />
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  const activePlanConfig = PLANS_CATALOG.find((p) => p.id === subscription?.plan) || PLANS_CATALOG[0];
+
+  return (
+    <DashboardLayout breadcrumbs={[{ label: "Overview", href: "/dashboard" }, { label: "Billing & Plans" }]}>
+      <div className="space-y-6 text-left">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold font-heading text-white">Billing & Subscriptions</h1>
+          <p className="text-xs text-zinc-400 font-body">Manage merchant subscriptions, invoices, and growth plan quotas.</p>
+        </div>
+
+        {/* Current Active Plan Card */}
+        {isLoading ? (
+          <Card className="bg-[#111111] border-white/10 p-5 flex items-center justify-center min-h-[100px]">
+            <Loader2 className="w-6 h-6 animate-spin text-maroon-500" />
+          </Card>
+        ) : subscription ? (
+          <Card className="bg-[#111111] border-white/10 p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="space-y-1">
+              <span className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider block font-heading">
+                Current Active Subscription
+              </span>
+              <div className="flex items-center gap-2">
+                <h3 className="text-lg font-bold text-white font-heading uppercase">
+                  {(subscription as any).selectedPlan || subscription.plan} Plan
+                </h3>
+                <Badge
+                  className={cn(
+                    "text-[10px] py-0.5 uppercase tracking-wider font-mono",
+                    subscription.status === "active" && "bg-emerald-950/80 border border-emerald-700/50 text-emerald-400",
+                    subscription.status === "expired" && "bg-rose-950/80 border border-rose-700/50 text-rose-400",
+                    subscription.status === "cancelled" && "bg-zinc-800/80 border border-zinc-700 text-zinc-400",
+                    (subscription.status === "pending" || subscription.status === "payment_pending") && "bg-amber-950/80 border border-amber-700/50 text-amber-400"
+                  )}
+                >
+                  {subscription.status === "payment_pending" ? "payment pending" : subscription.status}
+                </Badge>
+              </div>
+              
+              <div className="space-y-1 pt-1.5 font-body text-xs text-zinc-400">
+                <div className="flex items-center gap-1">
+                  <Calendar className="w-3.5 h-3.5 text-zinc-500" />
+                  <span>
+                    {subscription.expiresAt ? (
+                      <>
+                        Renewal/Expiry Date: <span className="font-mono text-white">{new Date(subscription.expiresAt).toLocaleDateString()}</span>
+                      </>
+                    ) : (
+                      "No expiration date (Unlimited Free Tier)"
+                    )}
+                  </span>
+                </div>
+                
+                {subscription.expiresAt && subscription.daysRemaining !== null && (
+                  <p className="text-maroon-400 font-semibold">
+                    {subscription.daysRemaining > 0 
+                      ? `${subscription.daysRemaining} days remaining in billing cycle.`
+                      : "Expired: entitlement features downgraded to Free tier."
+                    }
+                  </p>
+                )}
+              </div>
+            </div>
+          </Card>
+        ) : null}
+
+        {/* Super Admin Control Override Panel */}
+        {isAdmin && (
+          <Card className="bg-maroon-950/20 border border-maroon-700/40 p-5 rounded-2xl space-y-4">
+            <div className="flex items-center gap-2 text-maroon-400">
+              <ShieldCheck className="w-5 h-5" />
+              <h3 className="text-sm font-bold font-heading uppercase tracking-wide">
+                Super Admin Override Controls
+              </h3>
+            </div>
+            <p className="text-[11px] text-zinc-400 font-body leading-relaxed">
+              As an authorized platform admin, you can manually override this store&apos;s active subscription tier without payment confirmations.
+            </p>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
+              <div className="space-y-1.5">
+                <label className="text-[10px] text-zinc-400 block font-heading uppercase">Plan Tier</label>
+                <select
+                  value={adminPlan}
+                  onChange={(e: any) => setAdminPlan(e.target.value)}
+                  className="w-full h-9 bg-black border border-white/10 rounded-xl px-3 text-xs text-white"
+                >
+                  <option value="free">Free Demo</option>
+                  <option value="starter">Starter Plan</option>
+                  <option value="pro">Pro Plan</option>
+                  <option value="business">Business Suite</option>
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] text-zinc-400 block font-heading uppercase">Validity (Days)</label>
+                <select
+                  value={adminExpiryDays}
+                  onChange={(e: any) => setAdminExpiryDays(Number(e.target.value))}
+                  className="w-full h-9 bg-black border border-white/10 rounded-xl px-3 text-xs text-white"
+                >
+                  <option value={30}>30 Days</option>
+                  <option value={90}>90 Days</option>
+                  <option value={365}>1 Year</option>
+                </select>
+              </div>
+
+              <Button
+                onClick={handleAdminOverride}
+                disabled={isUpdatingAdmin}
+                className="bg-maroon-800 hover:bg-maroon-700 text-white font-bold h-9 text-xs"
+              >
+                {isUpdatingAdmin ? "Applying Override..." : "Apply Override"}
+              </Button>
+            </div>
+          </Card>
+        )}
+
+        {/* Upgrade/Change Plans Grid */}
+        <div className="space-y-3.5">
+          <h3 className="text-xs font-bold font-heading uppercase tracking-wider text-zinc-500">
+            Available Platform Plans
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            {PLANS_CATALOG.map((p) => {
+              const isCurrent = subscription?.plan === p.id && subscription.status === "active";
+              return (
+                <Card
+                  key={p.id}
+                  className={`p-6 bg-[#111111] border-white/10 flex flex-col justify-between space-y-4 rounded-2xl ${
+                    isCurrent && "border-maroon-700/80 shadow-glow"
+                  }`}
+                >
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-start">
+                      <h4 className="text-sm font-bold font-heading text-white">{p.name}</h4>
+                      {isCurrent && <CheckCircle2 className="w-4 h-4 text-maroon-400 shrink-0" />}
+                    </div>
+                    <div className="text-lg font-bold font-mono text-white">{p.price}</div>
+                    <p className="text-xs text-zinc-400 font-body leading-relaxed">{p.desc}</p>
+                    <span className="text-[10px] font-mono text-zinc-500 block pt-1">
+                      Max Products limit: {p.limit}
+                    </span>
+                  </div>
+
+                  <div className="pt-4 border-t border-white/5">
+                    <Button
+                      onClick={() => handleRequestUpgrade(p.name)}
+                      variant={isCurrent ? "outline" : "primary"}
+                      disabled={isCurrent || processingUpgrade !== null}
+                      isLoading={processingUpgrade === p.name}
+                      className="w-full justify-center text-xs h-9 font-semibold"
+                    >
+                      {isCurrent ? "Current Active" : "Select Plan"}
+                    </Button>
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Payment History Log */}
+        <div className="space-y-3.5 mt-8">
+          <h3 className="text-xs font-bold font-heading uppercase tracking-wider text-zinc-500">
+            Payment History Log
+          </h3>
+          <Card className="bg-[#111111] border-white/10 overflow-hidden rounded-2xl">
+            {payments.length === 0 ? (
+              <div className="p-8 text-center text-xs text-zinc-500 font-mono">
+                No past transactions recorded for this store.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs font-mono text-zinc-400">
+                  <thead className="bg-white/5 text-[10px] text-zinc-500 uppercase font-semibold">
+                    <tr>
+                      <th className="px-4 py-3">Date</th>
+                      <th className="px-4 py-3">Plan</th>
+                      <th className="px-4 py-3">Transaction ID</th>
+                      <th className="px-4 py-3">Amount</th>
+                      <th className="px-4 py-3">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {payments.map((pay) => (
+                      <tr key={pay.id} className="hover:bg-white/[0.02]">
+                        <td className="px-4 py-3 text-zinc-300">
+                          {new Date(pay.created_at).toLocaleDateString("en-IN", {
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric",
+                          })}
+                        </td>
+                        <td className="px-4 py-3 font-semibold text-white uppercase">{pay.plan}</td>
+                        <td className="px-4 py-3 text-zinc-500 truncate max-w-[150px]">{pay.razorpay_payment_id || "N/A"}</td>
+                        <td className="px-4 py-3 text-white">₹{pay.amount}</td>
+                        <td className="px-4 py-3">
+                          <span className="text-[10px] uppercase font-bold text-emerald-400">
+                            {pay.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Card>
+        </div>
+      </div>
+    </DashboardLayout>
+  );
+}
