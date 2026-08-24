@@ -13,7 +13,7 @@ import { Product } from "@/types/product";
 import { Category } from "@/types/category";
 import { toast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
-
+import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/auth-context";
 
 export default function AppearancePage() {
@@ -138,6 +138,8 @@ export default function AppearancePage() {
     }
   };
 
+  const [mobileTab, setMobileTab] = useState<"controls" | "preview">("controls");
+
   if (isLoading || !settings) {
     return (
       <DashboardLayout breadcrumbs={[{ label: "Store Dashboard", href: "/dashboard" }, { label: "Appearance" }]}>
@@ -150,23 +152,55 @@ export default function AppearancePage() {
 
   return (
     <DashboardLayout breadcrumbs={[{ label: "Store Dashboard", href: "/dashboard" }, { label: "Appearance Customizer" }]}>
-      <div className="flex flex-col lg:flex-row h-[calc(100vh-4rem)] -m-4 lg:-m-8 overflow-hidden">
+      {/* Mobile Tab Switcher for Screens < lg */}
+      <div className="lg:hidden flex items-center p-1 bg-[#151515] border border-white/10 rounded-xl mb-4">
+        <button
+          type="button"
+          onClick={() => setMobileTab("controls")}
+          className={cn(
+            "flex-1 py-2 rounded-lg text-xs font-semibold font-heading transition-all flex items-center justify-center gap-1.5",
+            mobileTab === "controls"
+              ? "bg-maroon-800 text-white shadow-glow"
+              : "text-zinc-400 hover:text-white"
+          )}
+        >
+          Customize
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobileTab("preview")}
+          className={cn(
+            "flex-1 py-2 rounded-lg text-xs font-semibold font-heading transition-all flex items-center justify-center gap-1.5",
+            mobileTab === "preview"
+              ? "bg-maroon-800 text-white shadow-glow"
+              : "text-zinc-400 hover:text-white"
+          )}
+        >
+          Live Preview
+        </button>
+      </div>
+
+      <div className="flex flex-col lg:flex-row h-[calc(100vh-8rem)] lg:h-[calc(100vh-4rem)] -m-4 lg:-m-8 overflow-hidden">
         {/* Left Controls Customizer Panel */}
-        <AppearanceSidebar settings={settings} onChange={handleChange} />
+        <div className={cn("w-full lg:w-auto h-full overflow-y-auto", mobileTab !== "controls" && "hidden lg:block")}>
+          <AppearanceSidebar settings={settings} onChange={handleChange} />
+        </div>
 
         {/* Right Live Storefront Website Preview Panel */}
-        <PreviewWindow
-          settings={settings}
-          products={products}
-          categories={categories}
-          onUndo={handleUndo}
-          onRedo={handleRedo}
-          onReset={handleReset}
-          onSave={handleSave}
-          canUndo={activeStore ? appearanceRepository.canUndo(activeStore.id) : false}
-          canRedo={activeStore ? appearanceRepository.canRedo(activeStore.id) : false}
-          isSaving={isSaving}
-        />
+        <div className={cn("flex-1 h-full overflow-hidden", mobileTab !== "preview" && "hidden lg:block")}>
+          <PreviewWindow
+            settings={settings}
+            products={products}
+            categories={categories}
+            onUndo={handleUndo}
+            onRedo={handleRedo}
+            onReset={handleReset}
+            onSave={handleSave}
+            canUndo={activeStore ? appearanceRepository.canUndo(activeStore.id) : false}
+            canRedo={activeStore ? appearanceRepository.canRedo(activeStore.id) : false}
+            isSaving={isSaving}
+          />
+        </div>
       </div>
     </DashboardLayout>
   );

@@ -18,6 +18,7 @@ import { Product } from "@/types/product";
 import { StatusBadge } from "./status-badge";
 import { formatCurrency } from "@/lib/utils";
 import { cn } from "@/lib/utils";
+import { resolveProductImageUrl, FALLBACK_PRODUCT_IMAGE } from "@/lib/image-resolver";
 
 export interface ProductCardProps {
   product: Product;
@@ -148,9 +149,12 @@ export function ProductCard({
       <div className="relative aspect-square w-full bg-[#111111] border-b border-white/5 overflow-hidden flex items-center justify-center">
         {coverImage ? (
           <img
-            src={coverImage.url}
+            src={resolveProductImageUrl(coverImage.url)}
             alt={coverImage.altText || product.name}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = FALLBACK_PRODUCT_IMAGE;
+            }}
           />
         ) : (
           <Package className="w-10 h-10 text-zinc-600" />

@@ -43,7 +43,7 @@ export function DashboardLayout({ children, breadcrumbs }: DashboardLayoutProps)
               transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
               className="relative z-10 w-[280px] h-full"
             >
-              <Sidebar collapsed={false} />
+              <Sidebar collapsed={false} onNavigate={() => setMobileMenuOpen(false)} />
             </motion.div>
           </div>
         )}

@@ -8,6 +8,7 @@ import { Product } from "@/types/product";
 import { StatusBadge } from "./status-badge";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { formatCurrency, formatRelativeTime } from "@/lib/utils";
+import { resolveProductImageUrl, FALLBACK_PRODUCT_IMAGE } from "@/lib/image-resolver";
 
 export interface ProductTableProps {
   products: Product[];
@@ -75,7 +76,14 @@ export function ProductTable({
               <TableCell>
                 <div className="w-10 h-10 rounded-lg bg-[#151515] border border-white/10 overflow-hidden flex items-center justify-center shrink-0">
                   {coverImage ? (
-                    <img src={coverImage.url} alt={product.name} className="w-full h-full object-cover" />
+                    <img
+                      src={resolveProductImageUrl(coverImage.url)}
+                      alt={product.name}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = FALLBACK_PRODUCT_IMAGE;
+                      }}
+                    />
                   ) : (
                     <Package className="w-4 h-4 text-zinc-500" />
                   )}

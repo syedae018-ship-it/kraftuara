@@ -25,6 +25,7 @@ import { StoreData } from "@/types/store";
 import { Product } from "@/types/product";
 import { getStoreBasePath } from "@/lib/urls";
 import { formatCurrency } from "@/lib/utils";
+import { resolveProductImageUrl, FALLBACK_PRODUCT_IMAGE } from "@/lib/image-resolver";
 import { toast } from "@/hooks/use-toast";
 import { trackClientEvent } from "@/components/storefront/storefront-tracker";
 import { useEffect } from "react";
@@ -48,7 +49,8 @@ export default function BloomProductDetail({
   const [isLiked, setIsLiked] = useState(false);
 
   const coverImage = product.images.find((img) => img.isCover) || product.images[0];
-  const imageUrl = coverImage?.url || "";
+  const rawImageUrl = coverImage?.url || "";
+  const imageUrl = resolveProductImageUrl(rawImageUrl);
   const basePath = getStoreBasePath(store.slug, isSubdomain);
 
   useEffect(() => {
@@ -130,6 +132,9 @@ export default function BloomProductDetail({
                     src={imageUrl}
                     alt={product.name}
                     className="object-cover w-full h-full max-h-[500px]"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = FALLBACK_PRODUCT_IMAGE;
+                    }}
                   />
                 ) : (
                   <div className="text-bloom-muted text-sm">Image not available</div>

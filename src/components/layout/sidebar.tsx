@@ -72,10 +72,11 @@ const navigationSections: NavSection[] = [
 export interface SidebarProps {
   collapsed?: boolean;
   onToggleCollapse?: () => void;
+  onNavigate?: () => void;
   className?: string;
 }
 
-export function Sidebar({ collapsed = false, onToggleCollapse, className }: SidebarProps) {
+export function Sidebar({ collapsed = false, onToggleCollapse, onNavigate, className }: SidebarProps) {
   const pathname = usePathname();
   const { user, activeStore, stores, switchStore, logout } = useAuth();
   const [tenantDropdownOpen, setTenantDropdownOpen] = useState(false);
@@ -93,7 +94,7 @@ export function Sidebar({ collapsed = false, onToggleCollapse, className }: Side
         <button
           onClick={() => setTenantDropdownOpen(!tenantDropdownOpen)}
           className={cn(
-            "w-full flex items-center justify-between p-2 rounded-xl bg-[#151515] border border-white/10 hover:border-white/20 transition-all text-left group",
+            "w-full flex items-center justify-between p-2 rounded-xl bg-[#151515] border border-white/10 hover:border-white/20 transition-all text-left group min-h-[44px]",
             collapsed && "justify-center p-2.5"
           )}
         >
@@ -139,8 +140,9 @@ export function Sidebar({ collapsed = false, onToggleCollapse, className }: Side
                   onClick={() => {
                     switchStore(tenant.id);
                     setTenantDropdownOpen(false);
+                    onNavigate?.();
                   }}
-                  className="w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs hover:bg-white/5 transition-colors text-left font-body"
+                  className="w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs hover:bg-white/5 transition-colors text-left font-body min-h-[36px]"
                 >
                   <div className="font-medium text-white">{tenant.name}</div>
                   {activeStore?.id === tenant.id && (
@@ -151,7 +153,8 @@ export function Sidebar({ collapsed = false, onToggleCollapse, className }: Side
               <div className="border-t border-white/10 pt-1 mt-1">
                 <a
                   href="/create-store"
-                  className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs text-maroon-400 hover:bg-maroon-950/40 transition-colors font-medium font-body"
+                  onClick={() => onNavigate?.()}
+                  className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs text-maroon-400 hover:bg-maroon-950/40 transition-colors font-medium font-body min-h-[36px]"
                 >
                   <PlusCircle className="w-3.5 h-3.5" />
                   Create New Store
@@ -187,8 +190,9 @@ export function Sidebar({ collapsed = false, onToggleCollapse, className }: Side
                   <a
                     key={item.href}
                     href={item.href}
+                    onClick={() => onNavigate?.()}
                     className={cn(
-                      "relative flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium font-body transition-all duration-150 group",
+                      "relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium font-body transition-all duration-150 group min-h-[40px]",
                       isActive
                         ? "text-white bg-maroon-950/60 border border-maroon-700/40 shadow-glow"
                         : "text-zinc-400 hover:text-white hover:bg-white/[0.04]",

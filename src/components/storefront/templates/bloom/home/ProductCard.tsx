@@ -11,7 +11,7 @@ import { useState } from "react";
 import { Product } from "@/types/product";
 import { getStoreBasePath } from "@/lib/urls";
 import { formatCurrency } from "@/lib/utils";
-
+import { resolveProductImageUrl } from "@/lib/image-resolver";
 import { trackClientEvent } from "@/components/storefront/storefront-tracker";
 
 export default function ProductCard({
@@ -36,6 +36,8 @@ export default function ProductCard({
   const coverImage = product.images.find((img) => img.isCover) || product.images[0];
   const imageUrl = coverImage?.url || "";
 
+  const resolvedImageUrl = resolveProductImageUrl(imageUrl);
+
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -47,7 +49,7 @@ export default function ProductCard({
       id: product.id,
       name: product.name,
       price: product.price,
-      image: imageUrl,
+      image: resolvedImageUrl,
       quantity: 1,
       sku: product.sku,
     });
@@ -91,9 +93,9 @@ export default function ProductCard({
 
         <Link href={productLink} className="block relative">
           <div className="aspect-square overflow-hidden bg-bloom-secondary flex items-center justify-center">
-            {imageUrl && !imageError ? (
+            {resolvedImageUrl && !imageError ? (
               <img
-                src={imageUrl}
+                src={resolvedImageUrl}
                 alt={product.name}
                 className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                 onError={() => setImageError(true)}

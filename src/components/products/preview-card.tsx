@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card";
 import { StatusBadge } from "./status-badge";
 import { formatCurrency } from "@/lib/utils";
 import { cn } from "@/lib/utils";
+import { resolveProductImageUrl, FALLBACK_PRODUCT_IMAGE } from "@/lib/image-resolver";
 
 export interface PreviewCardProps {
   product: Partial<Product>;
@@ -73,7 +74,14 @@ export function PreviewCard({ product, images, className }: PreviewCardProps) {
         {/* Main Cover Image */}
         <div className="relative aspect-square w-full bg-[#111111] border border-white/5 rounded-xl overflow-hidden flex items-center justify-center">
           {activeImage ? (
-            <img src={activeImage.url} alt={product.name || "Product"} className="w-full h-full object-cover" />
+            <img
+              src={resolveProductImageUrl(activeImage.url)}
+              alt={product.name || "Product"}
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = FALLBACK_PRODUCT_IMAGE;
+              }}
+            />
           ) : (
             <Package className="w-10 h-10 text-zinc-600" />
           )}
@@ -98,7 +106,14 @@ export function PreviewCard({ product, images, className }: PreviewCardProps) {
                   selectedImgIndex === idx ? "border-maroon-500 shadow-glow" : "border-white/10 opacity-70"
                 )}
               >
-                <img src={img.url} alt="" className="w-full h-full object-cover" />
+                <img
+                  src={resolveProductImageUrl(img.url)}
+                  alt=""
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = FALLBACK_PRODUCT_IMAGE;
+                  }}
+                />
               </button>
             ))}
           </div>

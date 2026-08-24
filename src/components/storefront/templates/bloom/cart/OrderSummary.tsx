@@ -252,6 +252,8 @@ export default function OrderSummary({ store }: { store: StoreData }) {
                 <label className="text-[10px] text-bloom-muted block mb-1 font-heading">Your Phone Number *</label>
                 <input
                   type="tel"
+                  inputMode="tel"
+                  autoComplete="tel"
                   required
                   placeholder="e.g. +91 98765 43210"
                   value={customerPhone}
@@ -265,6 +267,7 @@ export default function OrderSummary({ store }: { store: StoreData }) {
                 <label className="text-[10px] text-bloom-muted block mb-1 font-heading">Street Address *</label>
                 <input
                   type="text"
+                  autoComplete="street-address"
                   required
                   placeholder="Building / Street / Area"
                   value={addressLine}
@@ -279,6 +282,7 @@ export default function OrderSummary({ store }: { store: StoreData }) {
                   <label className="text-[10px] text-bloom-muted block mb-1 font-heading">City *</label>
                   <input
                     type="text"
+                    autoComplete="address-level2"
                     required
                     placeholder="e.g. Mumbai"
                     value={city}
@@ -291,6 +295,7 @@ export default function OrderSummary({ store }: { store: StoreData }) {
                   <label className="text-[10px] text-bloom-muted block mb-1 font-heading">State *</label>
                   <input
                     type="text"
+                    autoComplete="address-level1"
                     required
                     placeholder="e.g. Maharashtra"
                     value={state}
@@ -305,6 +310,8 @@ export default function OrderSummary({ store }: { store: StoreData }) {
                 <label className="text-[10px] text-bloom-muted block mb-1 font-heading">PIN / Postal Code *</label>
                 <input
                   type="text"
+                  inputMode="numeric"
+                  autoComplete="postal-code"
                   required
                   placeholder="e.g. 400001"
                   value={pinCode}

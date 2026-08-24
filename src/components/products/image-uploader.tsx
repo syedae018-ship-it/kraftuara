@@ -10,34 +10,9 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/auth-context";
 import { StorageService } from "@/lib/services/storage-service";
 
-export function resolveOnlineImageUrl(url: string): string {
-  const trimmed = url.trim();
-  
-  // 1. Google Drive
-  const gdFileMatch = trimmed.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
-  const gdIdMatch = trimmed.match(/drive\.google\.com\/(?:open|uc)\?.*id=([a-zA-Z0-9_-]+)/);
-  const gdId = gdFileMatch ? gdFileMatch[1] : (gdIdMatch ? gdIdMatch[1] : null);
-  if (gdId) {
-    return `https://drive.google.com/uc?export=download&id=${gdId}`;
-  }
+import { resolveProductImageUrl, FALLBACK_PRODUCT_IMAGE } from "@/lib/image-resolver";
 
-  // 2. YouTube
-  const ytWatchMatch = trimmed.match(/youtube\.com\/watch\?.*v=([a-zA-Z0-9_-]+)/);
-  const ytBeMatch = trimmed.match(/youtu\.be\/([a-zA-Z0-9_-]+)/);
-  const ytEmbedMatch = trimmed.match(/youtube\.com\/embed\/([a-zA-Z0-9_-]+)/);
-  const ytId = ytWatchMatch ? ytWatchMatch[1] : (ytBeMatch ? ytBeMatch[1] : (ytEmbedMatch ? ytEmbedMatch[1] : null));
-  if (ytId) {
-    return `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`;
-  }
-
-  // 3. Instagram
-  const igMatch = trimmed.match(/instagram\.com\/(?:p|reel)\/([a-zA-Z0-9_-]+)/);
-  if (igMatch) {
-    return `https://www.instagram.com/p/${igMatch[1]}/media/?size=l`;
-  }
-
-  return trimmed;
-}
+export { resolveProductImageUrl as resolveOnlineImageUrl };
 
 export interface ImageUploaderProps {
   images: ProductImage[];
@@ -54,7 +29,7 @@ export function ImageUploader({ images, onChange, className }: ImageUploaderProp
   const handleAddUrl = () => {
     if (!urlInput.trim()) return;
 
-    const resolvedUrl = resolveOnlineImageUrl(urlInput);
+    const resolvedUrl = resolveProductImageUrl(urlInput);
 
     const newImg: ProductImage = {
       id: `img-${Date.now()}`,
@@ -258,7 +233,7 @@ export function ImageUploader({ images, onChange, className }: ImageUploaderProp
                 alt={img.altText || "Product image"}
                 className="w-full h-full object-cover"
                 onError={(e) => {
-                  (e.target as HTMLImageElement).style.display = "none";
+                  (e.target as HTMLImageElement).src = FALLBACK_PRODUCT_IMAGE;
                 }}
               />
 

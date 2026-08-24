@@ -5,6 +5,7 @@ import { Separator } from "../ui/separator";
 import { useCart } from "@/context/CartContext";
 import { Minus, Plus, Trash2 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
+import { resolveProductImageUrl, FALLBACK_PRODUCT_IMAGE } from "@/lib/image-resolver";
 
 interface CartItemProps {
   item: {
@@ -26,9 +27,12 @@ export default function CartItem({ item, isLast }: CartItemProps) {
         <div className="relative w-[100px] h-[100px] bg-bloom-secondary rounded-lg overflow-hidden shrink-0">
           {item.image ? (
             <img
-              src={item.image}
+              src={resolveProductImageUrl(item.image)}
               alt={item.name}
               className="w-full h-full object-cover"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = FALLBACK_PRODUCT_IMAGE;
+              }}
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-[10px] text-bloom-muted">
