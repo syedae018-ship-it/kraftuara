@@ -6,15 +6,28 @@ import { supabaseCollectionRepository } from "./supabase-collection-repository";
 import { supabaseAppearanceRepository } from "./supabase-appearance-repository";
 import { createClient } from "@/lib/supabase/client";
 
+import { DEMO_STORE_DATA } from "@/lib/demo-data";
+
 export class SupabaseStorefrontRepository implements IStorefrontRepository {
   private getSupabase() {
     return createClient();
   }
 
   async getStoreBySlug(slug: string, client?: any): Promise<StoreData | null> {
+    const isDemoSlug = ["demo", "demo-craft-classic", "craft-classic", "aroma-perfumes", "tech-haven", "creative-threads"].includes(slug);
+    
     const supabase = client || this.getSupabase();
     const { data: storeRow, error: storeErr } = await supabase.from("stores").select("*").eq("slug", slug).maybeSingle();
-    if (storeErr || !storeRow) return null;
+    
+    if (storeErr || !storeRow) {
+      if (isDemoSlug) {
+        return {
+          ...DEMO_STORE_DATA,
+          slug,
+        };
+      }
+      return null;
+    }
     const s = storeRow as any;
 
     if (s.status === "suspended") return null;

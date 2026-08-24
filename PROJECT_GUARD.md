@@ -69,8 +69,7 @@ The application supports the following explicit routes:
 | `/dashboard/billing` | Page | Protected | Billing & Plan Subscriptions |
 | `/dashboard/support` | Page | Protected | Support Helpdesk Ticketing |
 | `/admin` | Page | Protected | Super Admin User/Store Management Overview |
-| `/demo` | Page | Public | Live Showcase Template Catalog (Redirect) |
-| `/demo/[theme]` | Page | Public | Specialized Theme Redirect (`luxury`, `modern`, `creative`) |
+| `/demo` | Page | Public | Live Showcase Demo of Craft Store Classic |
 | `/store/[slug]` | Page | Public | Branded customer storefront renderer |
 
 ---
@@ -123,6 +122,7 @@ Key UI elements are isolated inside `/src/components`:
 - **Storefront Rendering (`/storefront`):**
   - `StoreRenderer`: Master component which organizes homepage sections dynamically matching appearance configurations.
   - `ProductGrid` & `StoreProductCard`: Visual listings with WhatsApp checkout and Quick View Modals.
+  - `templates/bloom`: Signature Craft Store Classic template system.
 
 ---
 
@@ -132,7 +132,7 @@ Storefront catalog fetching is isolated into repository contracts under `/src/li
 
 - **`StorefrontRepository`:** Contract interface defining:
   - `getStoreBySlug(slug: string)`: Fetches configuration, categories, and products for a merchant's custom site.
-  - Intercepts demo store slugs (`aroma-perfumes`, `tech-haven`, `creative-threads`) to inject rich static data directly from `src/lib/demo-data.ts` if database entries are missing, ensuring live demos always compile and run cleanly.
+  - Intercepts demo store slug (`demo`, `demo-craft-classic`) to inject rich static data directly from `src/lib/demo-data.ts` if database entries are missing, ensuring live demos always compile and run cleanly without 404s.
 
 ---
 

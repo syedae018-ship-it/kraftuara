@@ -167,44 +167,19 @@ export async function middleware(request: NextRequest) {
       pathname.startsWith("/choose-template");
     const isAdminRoute = pathname.startsWith("/admin");
 
+    const adminEmails = (process.env.ADMIN_EMAILS || "syed.ae018@gmail.com")
+      .split(",")
+      .map((e) => e.trim().toLowerCase());
+    const userEmail = (user?.email || "").toLowerCase();
+    const isUserAdmin = !!userEmail && adminEmails.includes(userEmail);
+
     if ((isDashboardRoute || isAdminRoute) && !isLoggedIn) {
       return withCookies(NextResponse.redirect(new URL("/login", request.url)));
     }
 
-    const isMfaRoute = pathname === "/login/mfa" || pathname === "/login/mfa-setup";
-    if (isMfaRoute && user && supabase) {
-      const adminEmails = (process.env.ADMIN_EMAILS || "syed.ae018@gmail.com").split(",");
-      if (!adminEmails.includes(user.email || "")) {
+    if (isAdminRoute && isSupabaseConfigured && supabase) {
+      if (!isUserAdmin) {
         return withCookies(NextResponse.redirect(new URL("/dashboard", request.url)));
-      }
-
-      try {
-        const { data: mfaData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-        if (mfaData && mfaData.currentLevel === "aal2") {
-          return withCookies(NextResponse.redirect(new URL("/admin", request.url)));
-        }
-      } catch (e) {
-        console.error("MFA Level Check on MFA route error:", e);
-      }
-    }
-
-    if (isAdminRoute && user && supabase) {
-      const adminEmails = (process.env.ADMIN_EMAILS || "syed.ae018@gmail.com").split(",");
-      if (!adminEmails.includes(user.email || "")) {
-        return withCookies(NextResponse.redirect(new URL("/dashboard", request.url)));
-      }
-
-      try {
-        const { data: mfaData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-        if (mfaData && mfaData.currentLevel !== "aal2") {
-          if (mfaData.nextLevel === "aal2") {
-            return withCookies(NextResponse.redirect(new URL("/login/mfa", request.url)));
-          } else {
-            return withCookies(NextResponse.redirect(new URL("/login/mfa-setup", request.url)));
-          }
-        }
-      } catch (e) {
-        console.error("MFA Assurance Level Check Error:", e);
       }
     }
 

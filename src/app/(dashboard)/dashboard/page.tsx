@@ -172,14 +172,6 @@ export default function DashboardOverview() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setShowSkeletons(!showSkeletons)}
-              leftIcon={<Loader2 className={showSkeletons ? "w-3.5 h-3.5 animate-spin text-maroon-400" : "w-3.5 h-3.5"} />}
-            >
-              {showSkeletons ? "Show Live Data" : "Preview Skeletons"}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
               className="border-maroon-800 text-maroon-300 hover:bg-maroon-950/20 text-xs"
               onClick={handlePublishChanges}
               isLoading={isPublishing}

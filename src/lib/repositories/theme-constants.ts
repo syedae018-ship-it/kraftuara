@@ -3,9 +3,9 @@ import { Theme } from "@/types/theme";
 export const initialThemes: Theme[] = [
   {
     id: "bloom",
-    name: "Bloom",
-    description: "Sleek, high-converting light e-commerce layout tailored for boutique storefronts, modern brands, and clean aesthetics.",
-    thumbnail: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600",
+    name: "Craft Store Classic",
+    description: "Sleek, high-converting light e-commerce layout tailored for boutique storefronts, handcrafted artisan goods, and modern brands.",
+    thumbnail: "https://images.unsplash.com/photo-1612196808214-b8e1d6145a8c?w=600",
     previewImages: [],
     version: "1.0.0",
     author: "Symar",

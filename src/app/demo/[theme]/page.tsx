@@ -1,64 +1,31 @@
 import React from "react";
-import { notFound } from "next/navigation";
-import { storefrontRepository } from "@/lib/repositories/storefront-repository";
-import { LuxuryStore } from "@/components/demo/themes/luxury-store";
-import { ModernStore } from "@/components/demo/themes/modern-store";
-import { CreativeStore } from "@/components/demo/themes/creative-store";
+import BloomStorefront from "@/components/storefront/templates/bloom/home/BloomStorefront";
+import { DEMO_STORE_DATA } from "@/lib/demo-data";
 import { Metadata } from "next";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
 
-export async function generateMetadata({
-  params,
-}: {
-  params: Promise<{ theme: string }>;
-}): Promise<Metadata> {
-  const { theme } = await params;
+export const dynamic = "force-dynamic";
 
-  const storeSlugMap: Record<string, string> = {
-    luxury: "aroma-perfumes",
-    modern: "tech-haven",
-    creative: "creative-threads",
-  };
-
-  const storeSlug = storeSlugMap[theme];
-  if (!storeSlug) return {};
-
-  const supabase = await createServerSupabaseClient();
-  const store = await storefrontRepository.getStoreBySlug(storeSlug, supabase);
-  if (!store) return {};
-
+export async function generateMetadata(): Promise<Metadata> {
   return {
-    title: `Live Demo - ${store.name} Storefront`,
-    description: `Interactive live demo of the ${store.name} theme.`,
+    title: "Craft Store Classic — Live Demo Storefront",
+    description: "Interactive live demo of the Craft Store Classic storefront with WhatsApp ordering.",
   };
 }
 
 export default async function DemoThemePage({
-  params,
+  searchParams,
 }: {
   params: Promise<{ theme: string }>;
+  searchParams: Promise<{ category?: string; collection?: string }>;
 }) {
-  const { theme } = await params;
+  const { category, collection } = await searchParams;
 
-  const storeSlugMap: Record<string, string> = {
-    luxury: "aroma-perfumes",
-    modern: "tech-haven",
-    creative: "creative-threads",
-  };
-
-  const storeSlug = storeSlugMap[theme] || "aroma-perfumes";
-  const supabase = await createServerSupabaseClient();
-  const store = await storefrontRepository.getStoreBySlug(storeSlug, supabase);
-  if (!store) return notFound();
-
-  if (theme === "modern") {
-    return <ModernStore store={store} />;
-  }
-
-  if (theme === "creative") {
-    return <CreativeStore store={store} />;
-  }
-
-  // Default to Luxury Store theme
-  return <LuxuryStore store={store} />;
+  return (
+    <BloomStorefront
+      store={DEMO_STORE_DATA}
+      isSubdomain={false}
+      initialCategory={category}
+      initialCollection={collection}
+    />
+  );
 }

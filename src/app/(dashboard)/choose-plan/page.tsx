@@ -37,7 +37,7 @@ const planFeaturesDisplay = {
     "Basic Dashboard Overview",
     "Product Management (up to 50 products)",
     "Dedicated Storefront URL Link",
-    "Bloom storefront template access",
+    "Craft Store Classic template access",
   ],
   pro: [
     "Everything in Starter Plan",
@@ -45,7 +45,7 @@ const planFeaturesDisplay = {
     "Store Analytics & Traffic Insights",
     "Curated Collections & Taxonomies",
     "Advanced Customization & Branding",
-    "Bloom storefront template personalization",
+    "Craft Store Classic template personalization",
   ],
   business: [
     "Everything in Pro Plan",

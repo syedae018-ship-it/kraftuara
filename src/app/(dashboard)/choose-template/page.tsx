@@ -12,11 +12,11 @@ import { cn } from "@/lib/utils";
 const templates = [
   {
     id: "bloom",
-    name: "Bloom",
-    tag: "E-Commerce, Clean, Modern",
-    desc: "Sleek, high-converting light e-commerce layout tailored for boutique storefronts, modern brands, and clean aesthetics.",
-    desktopImg: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=1000",
-    accent: "from-orange-500/20 to-zinc-900/30",
+    name: "Craft Store Classic",
+    tag: "Artisan, Homeware, Boutique & Modern Catalog",
+    desc: "Sleek, high-converting light e-commerce layout tailored for boutique storefronts, handcrafted artisan goods, and modern brands.",
+    desktopImg: "https://images.unsplash.com/photo-1612196808214-b8e1d6145a8c?w=1000",
+    accent: "from-amber-500/20 to-maroon-900/30",
   }
 ];
 

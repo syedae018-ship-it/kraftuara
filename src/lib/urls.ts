@@ -8,7 +8,7 @@
  */
 export function getStoreUrl(storeSlug: string, isDemo?: boolean, demoTheme?: string): string {
   if (isDemo) {
-    return `/demo/${demoTheme || "luxury"}`;
+    return "/demo";
   }
 
   // Get root domain from environment
@@ -48,7 +48,7 @@ export function getStoreUrl(storeSlug: string, isDemo?: boolean, demoTheme?: str
  */
 export function getStoreBasePath(storeSlug: string, isSubdomain: boolean, isDemo?: boolean, demoTheme?: string): string {
   if (isDemo) {
-    return `/demo/${demoTheme || "luxury"}`;
+    return "/demo";
   }
   
   if (isSubdomain) {

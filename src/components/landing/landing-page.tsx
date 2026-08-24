@@ -32,36 +32,16 @@ import { Badge } from "@/components/ui/table";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
-// 3 Premium Templates Mock Data for Landing Showcase
-const showcaseTemplates = [
-  {
-    id: "luxury",
-    name: "Luxury Oud",
-    tag: "Perfumes, Jewelry, Fashion",
-    desc: "Obsidian dark backdrop with gold metallic borders and serif headings for high-end artisan products.",
-    desktopImg: "https://images.unsplash.com/photo-1594035910387-fea47794261f?w=1000",
-    mobileImg: "https://images.unsplash.com/photo-1547887537-6158d64c35b3?w=500",
-    accent: "from-amber-500/20 to-maroon-900/30",
-  },
-  {
-    id: "modern-store",
-    name: "Modern Store",
-    tag: "Electronics, General, Accessories",
-    desc: "Clean, ultra-fast tech grid layout with subtle borders and clear call-to-actions.",
-    desktopImg: "https://images.unsplash.com/photo-1523293182086-7651a899d37f?w=1000",
-    mobileImg: "https://images.unsplash.com/photo-1588405748880-12d1d2a59f75?w=500",
-    accent: "from-blue-500/20 to-zinc-900/30",
-  },
-  {
-    id: "creative-store",
-    name: "Creative Store",
-    tag: "Clothing, Lifestyle, Boutique",
-    desc: "Asymmetric fashion layout with dynamic grid cards, rich media banners, and instant WhatsApp buy.",
-    desktopImg: "https://images.unsplash.com/photo-1616949755610-8c9bbc08f138?w=1000",
-    mobileImg: "https://images.unsplash.com/photo-1608571423902-eed4a5ad8108?w=500",
-    accent: "from-purple-500/20 to-maroon-900/30",
-  },
-];
+// Craft Store Classic Template for Landing Showcase
+const craftStoreClassicTemplate = {
+  id: "bloom",
+  name: "Craft Store Classic",
+  tag: "Artisan, Homeware, Boutique & Modern Catalog",
+  desc: "Clean, high-converting light aesthetic tailored for boutique storefronts, handcrafted artisan goods, and modern brands with instant WhatsApp buy.",
+  desktopImg: "https://images.unsplash.com/photo-1612196808214-b8e1d6145a8c?w=1400",
+  mobileImg: "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=600",
+  accent: "from-amber-500/20 to-maroon-900/30",
+};
 
 const featuresList = [
   {
@@ -90,8 +70,8 @@ const featuresList = [
     icon: Paintbrush,
   },
   {
-    title: "Premium Themes",
-    desc: "Switch between curated luxury, modern, and creative theme presets with full font & color control.",
+    title: "Storefront Design",
+    desc: "Craft Store Classic layout with complete typography, palette customizer, and instant responsive layouts.",
     icon: Sparkles,
   },
   {
@@ -110,7 +90,7 @@ const pricingPlans = [
     features: [
       "Up to 5 Products",
       "Basic Dashboard",
-      "Standard Theme",
+      "Craft Store Classic Theme",
       "Demo Order Mode",
     ],
     cta: "Start Demo",
@@ -140,7 +120,7 @@ const pricingPlans = [
     description: PLANS.pro.description,
     features: [
       "Everything in Starter",
-      "Premium Templates (Luxury, Modern, Creative)",
+      "Craft Store Classic Customization",
       "Full Store Analytics (Visitors, Clicks)",
       "Product Collections & Filters",
       "Advanced Customization & Creative Discounts",
@@ -191,11 +171,9 @@ const faqs = [
 
 export function LandingPage() {
   const [activeDevice, setActiveDevice] = useState<"desktop" | "mobile">("desktop");
-  const [selectedTemplate, setSelectedTemplate] = useState<string>("luxury");
   const [openFaq, setOpenFaq] = useState<number | null>(0);
-  const [previewModalOpen, setPreviewModalOpen] = useState(false);
 
-  const currentTemplateObj = showcaseTemplates.find((t) => t.id === selectedTemplate) || showcaseTemplates[0];
+  const currentTemplateObj = craftStoreClassicTemplate;
 
   return (
     <div className="min-h-screen bg-[#080808] text-white selection:bg-maroon-800 selection:text-white font-body relative overflow-hidden">
@@ -227,7 +205,7 @@ export function LandingPage() {
 
           {/* Subheadline */}
           <p className="text-base sm:text-lg text-zinc-400 max-w-2xl mx-auto font-body leading-relaxed">
-            Turn social followers into instant buyers. Launch a high-converting storefront with WhatsApp checkout, luxury themes, and real-time store analytics in under 2 minutes.
+            Turn social followers into instant buyers. Launch a high-converting storefront with WhatsApp checkout, Craft Store Classic theme, and real-time store analytics in under 2 minutes.
           </p>
         </div>
 
@@ -243,7 +221,7 @@ export function LandingPage() {
               Start Free
             </Button>
           </Link>
-          <a href="#templates" className="w-full sm:w-auto">
+          <Link href="/demo" className="w-full sm:w-auto">
             <Button
               variant="secondary"
               size="lg"
@@ -252,7 +230,7 @@ export function LandingPage() {
             >
               View Live Demo
             </Button>
-          </a>
+          </Link>
         </div>
 
         {/* Trust Badges & Statistics */}
@@ -286,7 +264,7 @@ export function LandingPage() {
                 <span className="w-3 h-3 rounded-full bg-emerald-500/80 inline-block" />
               </div>
               <div className="px-4 py-1 rounded-lg bg-[#151515] border border-white/10 text-[11px] font-mono text-zinc-400">
-                aroma-perfumes.platform.com
+                craft-store.platform.com
               </div>
               <div className="text-[10px] text-emerald-400 font-mono flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> Live Store
@@ -295,36 +273,38 @@ export function LandingPage() {
 
             <div className="relative aspect-[16/9] rounded-xl overflow-hidden group">
               <img
-                src="https://images.unsplash.com/photo-1594035910387-fea47794261f?w=1400"
-                alt="Storefront Desktop Preview"
+                src={craftStoreClassicTemplate.desktopImg}
+                alt="Craft Store Classic Preview"
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-[#080808] via-transparent to-black/30 flex items-end p-6 sm:p-10 text-left">
                 <div className="space-y-2">
                   <Badge variant="maroon" className="text-xs uppercase tracking-widest font-heading">
-                    Luxury Oud Theme
+                    Craft Store Classic
                   </Badge>
                   <h3 className="text-xl sm:text-3xl font-bold font-heading text-white">
-                    Aroma Perfumes & Attars
+                    Artisan Living & Modern Essentials
                   </h3>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Mobile Mockup (Overlaps desktop on larger screens, stands alone on mobile) */}
+          {/* Mobile Mockup */}
           <div className="relative md:absolute md:-right-8 md:-bottom-8 z-20 w-[260px] sm:w-[300px] rounded-[36px] border-4 border-zinc-700 bg-black p-2.5 shadow-[0_20px_50px_rgba(0,0,0,0.8)] overflow-hidden">
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-6 bg-zinc-700 rounded-b-3xl z-30"></div>
             <div className="relative w-full h-[450px] sm:h-[550px] rounded-[24px] overflow-hidden bg-[#111111]">
               <img
-                src="https://images.unsplash.com/photo-1547887537-6158d64c35b3?w=500"
-                alt="Storefront Mobile Preview"
+                src={craftStoreClassicTemplate.mobileImg}
+                alt="Craft Store Classic Mobile Preview"
                 className="w-full h-full object-cover"
               />
               <div className="absolute bottom-4 left-0 w-full px-4">
-                 <Button variant="primary" className="w-full text-[10px] h-10 shadow-glow" leftIcon={<ShoppingBag className="w-3.5 h-3.5" />}>
-                   Buy Now on WhatsApp
-                 </Button>
+                 <Link href="/demo">
+                   <Button variant="primary" className="w-full text-[10px] h-10 shadow-glow" leftIcon={<ShoppingBag className="w-3.5 h-3.5" />}>
+                     Buy Now on WhatsApp
+                   </Button>
+                 </Link>
               </div>
             </div>
           </div>
@@ -335,38 +315,18 @@ export function LandingPage() {
       <section id="templates" className="pt-12 pb-24 px-4 sm:px-6 lg:px-12 max-w-7xl mx-auto space-y-12 border-t border-white/10">
         <div className="text-center space-y-3">
           <Badge variant="maroon" className="text-xs uppercase tracking-wider">
-            Premium Design System
+            Signature Design System
           </Badge>
           <h2 className="text-3xl sm:text-4xl font-bold font-heading text-white tracking-tight">
-            Curated Premium Templates
+            Craft Store Classic
           </h2>
           <p className="text-sm text-zinc-400 max-w-xl mx-auto">
-            Choose from architect-crafted store themes tailored for luxury perfumeries, electronics, and fashion boutiques.
+            Architect-crafted storefront theme tailored for boutique merchants, artisan makers, and modern lifestyle brands.
           </p>
         </div>
 
-        {/* Template Selector Tabs + Viewport Switcher */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-[#111111] p-2 rounded-2xl border border-white/10">
-          <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto p-1">
-            {showcaseTemplates.map((tmpl) => {
-              const isSelected = selectedTemplate === tmpl.id;
-              return (
-                <button
-                  key={tmpl.id}
-                  onClick={() => setSelectedTemplate(tmpl.id)}
-                  className={cn(
-                    "px-4 py-2 rounded-xl text-xs font-semibold font-heading transition-all whitespace-nowrap",
-                    isSelected
-                      ? "bg-maroon-800 text-white shadow-glow"
-                      : "text-zinc-400 hover:text-white hover:bg-white/5"
-                  )}
-                >
-                  {tmpl.name}
-                </button>
-              );
-            })}
-          </div>
-
+        {/* Device Switcher */}
+        <div className="flex items-center justify-end">
           <div className="flex items-center gap-1 bg-[#151515] p-1 rounded-xl border border-white/10">
             <button
               onClick={() => setActiveDevice("desktop")}
@@ -395,13 +355,13 @@ export function LandingPage() {
             <div className="lg:col-span-5 space-y-6 text-left">
               <div>
                 <span className="text-xs text-maroon-400 font-mono font-semibold uppercase tracking-widest block mb-1">
-                  {currentTemplateObj.tag}
+                  {craftStoreClassicTemplate.tag}
                 </span>
                 <h3 className="text-2xl sm:text-3xl font-bold font-heading text-white">
-                  {currentTemplateObj.name} Template
+                  Craft Store Classic Template
                 </h3>
                 <p className="text-xs sm:text-sm text-zinc-400 leading-relaxed mt-2 font-body">
-                  {currentTemplateObj.desc}
+                  {craftStoreClassicTemplate.desc}
                 </p>
               </div>
 
@@ -418,19 +378,14 @@ export function LandingPage() {
                   <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
                   Integrated Direct WhatsApp & Razorpay Buttons
                 </div>
+                <div className="flex items-center gap-2 text-xs text-zinc-300 font-body">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                  Fast Catalog Filtering & Search
+                </div>
               </div>
 
               <div className="flex items-center gap-3 pt-4">
-                <Link
-                  href={`/demo/${
-                    currentTemplateObj.id === "modern-store"
-                      ? "modern"
-                      : currentTemplateObj.id === "creative-store"
-                      ? "creative"
-                      : "luxury"
-                  }`}
-                  className="w-full sm:w-auto"
-                >
+                <Link href="/demo" className="w-full sm:w-auto">
                   <Button
                     variant="primary"
                     size="md"
@@ -438,6 +393,16 @@ export function LandingPage() {
                     leftIcon={<Eye className="w-4 h-4 text-white" />}
                   >
                     Preview Live Demo
+                  </Button>
+                </Link>
+                <Link href="/signup" className="w-full sm:w-auto">
+                  <Button
+                    variant="outline"
+                    size="md"
+                    className="px-6 text-xs uppercase tracking-wider font-heading font-bold border-white/10"
+                    rightIcon={<ArrowRight className="w-4 h-4" />}
+                  >
+                    Use Template
                   </Button>
                 </Link>
               </div>
@@ -456,8 +421,8 @@ export function LandingPage() {
                     className="w-full rounded-2xl border border-white/10 bg-[#151515] p-2 shadow-2xl overflow-hidden"
                   >
                     <img
-                      src={currentTemplateObj.desktopImg}
-                      alt={currentTemplateObj.name}
+                      src={craftStoreClassicTemplate.desktopImg}
+                      alt={craftStoreClassicTemplate.name}
                       className="w-full h-[320px] sm:h-[400px] object-cover rounded-xl"
                     />
                   </motion.div>
@@ -471,8 +436,8 @@ export function LandingPage() {
                     className="w-[280px] sm:w-[320px] rounded-[36px] border-4 border-zinc-700 bg-black p-3 shadow-2xl overflow-hidden"
                   >
                     <img
-                      src={currentTemplateObj.mobileImg}
-                      alt={currentTemplateObj.name}
+                      src={craftStoreClassicTemplate.mobileImg}
+                      alt={craftStoreClassicTemplate.name}
                       className="w-full h-[450px] object-cover rounded-[24px]"
                     />
                   </motion.div>

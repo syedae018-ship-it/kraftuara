@@ -10,3 +10,6 @@ dist/
 .DS_Store
 *.log
 npm-debug.log*
+.vercel
+.env*
+*.tsbuildinfo
