@@ -26,6 +26,7 @@ import { Product } from "@/types/product";
 import { getStoreBasePath } from "@/lib/urls";
 import { formatCurrency } from "@/lib/utils";
 import { resolveProductImageUrl, FALLBACK_PRODUCT_IMAGE } from "@/lib/image-resolver";
+import ProductImage from "@/components/storefront/product-image";
 import { toast } from "@/hooks/use-toast";
 import { trackClientEvent } from "@/components/storefront/storefront-tracker";
 import { useEffect } from "react";
@@ -127,14 +128,11 @@ export default function BloomProductDetail({
           <div className="space-y-4">
             <div className="w-full max-w-[500px] mx-auto flex flex-col items-center">
               <div className="rounded-xl overflow-hidden mb-4 w-full aspect-square bg-bloom-secondary border border-bloom-border flex items-center justify-center">
-                {imageUrl ? (
-                  <img
-                    src={imageUrl}
+                {rawImageUrl ? (
+                  <ProductImage
+                    src={rawImageUrl}
                     alt={product.name}
                     className="object-cover w-full h-full max-h-[500px]"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src = FALLBACK_PRODUCT_IMAGE;
-                    }}
                   />
                 ) : (
                   <div className="text-bloom-muted text-sm">Image not available</div>
@@ -152,17 +150,6 @@ export default function BloomProductDetail({
               <h1 className="text-3xl lg:text-4xl font-bold text-bloom-foreground tracking-tight font-heading">
                 {product.name}
               </h1>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-0.5">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} className="h-4 w-4 fill-bloom-primary text-bloom-primary" />
-                ))}
-              </div>
-              <span className="text-xs text-bloom-muted font-mono">
-                (4.8) • 127 reviews
-              </span>
             </div>
 
             <div className="flex items-center gap-3">
@@ -213,11 +200,11 @@ export default function BloomProductDetail({
                 </div>
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-4 pt-2">
+              <div className="pt-2">
                 <Button
                   size="lg"
                   className={cn(
-                    "flex-1 transition-all duration-300 text-sm font-semibold h-11",
+                    "w-full transition-all duration-300 text-sm font-semibold h-11",
                     justAdded
                       ? "bg-green-600 text-white hover:bg-green-600"
                       : "bg-bloom-primary text-bloom-primary-foreground hover:bg-bloom-primary/90"
@@ -226,49 +213,25 @@ export default function BloomProductDetail({
                   disabled={isAdding}
                 >
                   {isAdding ? (
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center justify-center gap-2">
                       <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
                       Adding...
                     </div>
                   ) : justAdded ? (
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center justify-center gap-2">
                       <Check className="h-4 w-4" />
                       Added!
                     </div>
                   ) : (
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center justify-center gap-2">
                       <ShoppingCart className="h-4 w-4" />
                       Add to Cart
                     </div>
                   )}
                 </Button>
-
-                <Button
-                  size="lg"
-                  variant="outline"
-                  onClick={handleBuyNow}
-                  className="flex-1 border-bloom-border bg-bloom-background text-bloom-foreground hover:bg-bloom-secondary hover:text-bloom-primary h-11"
-                >
-                  Buy Now
-                </Button>
               </div>
 
               <div className="flex items-center gap-4 pt-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setIsLiked(!isLiked)}
-                  className={cn(
-                    "text-bloom-muted hover:text-bloom-foreground border-0",
-                    isLiked && "text-red-500 hover:text-red-500"
-                  )}
-                >
-                  <Heart
-                    className={cn("h-4 w-4 mr-2", isLiked && "fill-current")}
-                  />
-                  Add to Wishlist
-                </Button>
-
                 <Button
                   variant="ghost"
                   size="sm"
@@ -283,7 +246,7 @@ export default function BloomProductDetail({
           </div>
         </div>
 
-        <Features />
+        <Features shipping={store.shipping} />
 
         <RelatedProducts
           relatedProducts={relatedProducts}

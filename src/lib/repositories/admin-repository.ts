@@ -24,6 +24,7 @@ export interface IAdminRepository {
   getSupportTickets(): Promise<SupportTicket[]>;
   updateTicketStatus(ticketId: string, status: SupportTicket["status"]): Promise<void>;
   getPayments(): Promise<AdminPayment[]>;
+  getCatalogOrders(): Promise<any[]>;
 }
 
 const mockStats: PlatformStats = {

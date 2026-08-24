@@ -20,7 +20,72 @@ export function StoreTable({ stores, onToggleStatus }: StoreTableProps) {
 
   return (
     <>
-      <div className="rounded-2xl border border-white/10 overflow-hidden bg-[#151515] font-body">
+      {/* Mobile Card Layout */}
+      <div className="md:hidden space-y-4">
+        {stores.map((s) => (
+          <div key={s.id} className="bg-[#151515] border border-white/10 rounded-2xl p-4 space-y-3 font-body">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-maroon-950/60 border border-maroon-800/40 flex items-center justify-center text-maroon-400 font-bold font-heading text-xs shrink-0">
+                {s.name.charAt(0)}
+              </div>
+              <div className="min-w-0 flex-1 text-left">
+                <h5 className="font-bold font-heading text-white text-xs block truncate">{s.name}</h5>
+                <span className="text-[10px] text-zinc-500 font-mono block truncate">{s.slug}.platform.com</span>
+              </div>
+              <Badge
+                variant={s.status === "live" ? "success" : s.status === "draft" ? "outline" : "error"}
+                className="capitalize text-[9px] shrink-0"
+              >
+                {s.status}
+              </Badge>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 text-xs border-t border-white/5 pt-2 text-left">
+              <div>
+                <span className="text-zinc-500 block text-[9px] uppercase font-semibold">Owner</span>
+                <span className="font-semibold text-white block truncate text-[11px] mt-0.5">{s.ownerName}</span>
+                <span className="text-[9px] text-zinc-500 font-mono block truncate">{s.ownerEmail}</span>
+              </div>
+              <div>
+                <span className="text-zinc-500 block text-[9px] uppercase font-semibold">Catalog</span>
+                <span className="font-mono text-zinc-300 font-bold block text-[11px] mt-0.5">{s.productCount} Products</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 text-xs border-t border-white/5 pt-2 text-left">
+              <div>
+                <span className="text-zinc-500 block text-[9px] uppercase font-semibold">Plan</span>
+                <Badge variant="maroon" className="font-mono text-[9px] mt-0.5 px-1.5 py-0">
+                  {s.plan}
+                </Badge>
+              </div>
+              <div>
+                <span className="text-zinc-500 block text-[9px] uppercase font-semibold">Theme</span>
+                <span className="text-zinc-400 font-heading text-[11px] block mt-0.5 truncate">{s.themeName}</span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between gap-2 border-t border-white/5 pt-2">
+              <span className="font-mono text-zinc-500 text-[10px]">
+                Created {new Date(s.createdAt).toLocaleDateString()}
+              </span>
+              <div className="flex items-center gap-1.5">
+                <Button variant="outline" size="sm" className="h-7 text-[10px]" onClick={() => setSelectedStore(s)}>
+                  <Eye className="w-3 h-3 mr-1" /> Details
+                </Button>
+                <Link href={getStoreUrl(s.slug)} target="_blank">
+                  <Button variant="ghost" size="sm" className="h-7 px-2" title="Visit Storefront">
+                    <ExternalLink className="w-3 h-3" />
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop Table Layout */}
+      <div className="hidden md:block rounded-2xl border border-white/10 overflow-hidden bg-[#151515] font-body">
         <Table>
           <TableHeader>
             <TableRow>

@@ -1,25 +1,38 @@
 "use client";
 
-import React, { useState } from "react";
-import { Search, Bell, ShieldCheck, User } from "lucide-react";
+import { Search, Bell, ShieldCheck, User, Menu } from "lucide-react";
 import { AdminSearch } from "../admin-search";
 import { NotificationPanel } from "../notification-panel";
 
-export function AdminNavbar() {
+export interface AdminNavbarProps {
+  onOpenMobileMenu?: () => void;
+}
+
+export function AdminNavbar({ onOpenMobileMenu }: AdminNavbarProps = {}) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
 
   return (
     <>
-      <header className="h-16 border-b border-white/10 bg-[#080808]/85 backdrop-blur-md px-6 flex items-center justify-between sticky top-0 z-20 font-body">
+      <header className="h-16 border-b border-white/10 bg-[#080808]/85 backdrop-blur-md px-4 sm:px-6 flex items-center justify-between sticky top-0 z-20 font-body gap-4">
+        {onOpenMobileMenu && (
+          <button
+            onClick={onOpenMobileMenu}
+            className="md:hidden p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-white/5 border border-white/10 shrink-0"
+            aria-label="Open navigation menu"
+          >
+            <Menu className="w-4 h-4" />
+          </button>
+        )}
+
         {/* Global Search Trigger */}
         <button
           onClick={() => setSearchOpen(true)}
           className="flex items-center gap-3 px-3.5 py-1.5 rounded-xl bg-[#111111] border border-white/10 hover:border-white/20 text-xs text-zinc-400 font-body transition-all max-w-sm w-full"
         >
           <Search className="w-3.5 h-3.5 text-zinc-500" />
-          <span>Global Search Users, Stores, Orders...</span>
-          <kbd className="ml-auto font-mono text-[10px] bg-white/5 px-1.5 py-0.5 rounded text-zinc-500">⌘K</kbd>
+          <span className="truncate">Global Search Users, Stores, Orders...</span>
+          <kbd className="ml-auto font-mono text-[10px] bg-white/5 px-1.5 py-0.5 rounded text-zinc-500 hidden sm:inline-block">⌘K</kbd>
         </button>
 
         {/* Right Admin Profile & Notifications */}

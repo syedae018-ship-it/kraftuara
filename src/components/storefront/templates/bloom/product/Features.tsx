@@ -1,31 +1,31 @@
-import { Card, CardContent } from "../ui/card";
-import { RotateCcw, Shield, Truck } from "lucide-react";
+import { Truck } from "lucide-react";
+import { formatCurrency } from "@/lib/utils";
 
-export default function Features() {
-  const features = [
-    { icon: Truck, title: "Free Shipping", desc: "On orders over $50" },
-    { icon: Shield, title: "Warranty", desc: "1 year guarantee" },
-    { icon: RotateCcw, title: "Easy Returns", desc: "30-day return policy" },
-  ];
+export default function Features({
+  shipping,
+}: {
+  shipping?: {
+    freeShippingEnabled: boolean;
+    freeShippingThreshold: number;
+  };
+}) {
+  if (!shipping?.freeShippingEnabled) {
+    return null;
+  }
+
   return (
-    <Card className="mb-16 border-bloom-border bg-bloom-card text-bloom-foreground">
-      <CardContent className="p-8">
-        <div className="grid md:grid-cols-3 gap-8">
-          {features.map((feature, index) => (
-            <div key={index} className="flex items-start gap-4">
-              <div className="p-3 bg-bloom-accent rounded-lg">
-                <feature.icon className="h-6 w-6 text-bloom-primary" />
-              </div>
-              <div>
-                <h2 className="font-semibold text-bloom-foreground mb-1 font-heading">
-                  {feature.title}
-                </h2>
-                <p className="text-sm text-bloom-muted">{feature.desc}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
+    <div className="mb-12 p-5 rounded-2xl border border-bloom-border bg-bloom-secondary text-bloom-foreground flex items-center gap-4 max-w-md mx-auto sm:mx-0">
+      <div className="p-3 bg-bloom-accent rounded-xl shrink-0">
+        <Truck className="h-5 w-5 text-bloom-primary" />
+      </div>
+      <div className="text-left">
+        <h2 className="font-semibold text-bloom-foreground mb-0.5 font-heading text-sm">
+          Free Shipping Eligible
+        </h2>
+        <p className="text-xs text-bloom-muted">
+          Free shipping on orders over {formatCurrency(shipping.freeShippingThreshold)}
+        </p>
+      </div>
+    </div>
   );
 }

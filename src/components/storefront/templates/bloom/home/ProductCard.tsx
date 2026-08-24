@@ -12,6 +12,7 @@ import { Product } from "@/types/product";
 import { getStoreBasePath } from "@/lib/urls";
 import { formatCurrency } from "@/lib/utils";
 import { resolveProductImageUrl } from "@/lib/image-resolver";
+import ProductImage from "@/components/storefront/product-image";
 import { trackClientEvent } from "@/components/storefront/storefront-tracker";
 
 export default function ProductCard({
@@ -75,30 +76,13 @@ export default function ProductCard({
   return (
     <Card className="group overflow-hidden bg-bloom-card border-bloom-border hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
       <div className="relative overflow-hidden">
-        <Button
-          variant="ghost"
-          size="icon"
-          name="Like Button"
-          className={cn(
-            "absolute top-3 right-3 z-10 opacity-0 group-hover:opacity-100 transition-all duration-200 bg-white/80 backdrop-blur-sm hover:bg-white text-bloom-foreground",
-            isLiked && "opacity-100 text-red-500"
-          )}
-          onClick={handleToggleLike}
-        >
-          <Heart
-            name="Like Icon"
-            className={cn("h-4 w-4", isLiked && "fill-current")}
-          />
-        </Button>
-
         <Link href={productLink} className="block relative">
           <div className="aspect-square overflow-hidden bg-bloom-secondary flex items-center justify-center">
-            {resolvedImageUrl && !imageError ? (
-              <img
-                src={resolvedImageUrl}
+            {imageUrl ? (
+              <ProductImage
+                src={imageUrl}
                 alt={product.name}
                 className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                onError={() => setImageError(true)}
               />
             ) : (
               <div className="w-full h-full bg-bloom-secondary flex items-center justify-center">

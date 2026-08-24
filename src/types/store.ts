@@ -11,4 +11,8 @@ export type StoreData = {
   categories: Category[];
   collections: Collection[];
   products: Product[];
+  shipping?: {
+    freeShippingEnabled: boolean;
+    freeShippingThreshold: number;
+  };
 };

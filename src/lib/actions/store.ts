@@ -410,6 +410,8 @@ export async function publishStoreChangesAction(storeId: string): Promise<Action
       .maybeSingle();
 
     const existingMetadata = (settingsRow as any)?.metadata || {};
+    const shipping = existingMetadata.shipping || { freeShippingEnabled: true, freeShippingThreshold: 999 };
+
     const updatedMetadata = {
       ...existingMetadata,
       published_snapshot: {
@@ -420,6 +422,7 @@ export async function publishStoreChangesAction(storeId: string): Promise<Action
         categories,
         collections,
         products,
+        shipping,
       }
     };
 
@@ -449,3 +452,170 @@ export async function publishStoreChangesAction(storeId: string): Promise<Action
     return errorResponse(getErrorMessage(err));
   }
 }
+
+/**
+ * Fetch free shipping settings for a store
+ */
+export async function getStoreShippingSettingsAction(
+  storeId: string
+): Promise<ActionResponse<{ freeShippingEnabled: boolean; freeShippingThreshold: number }>> {
+  try {
+    const supabase = await createServerSupabaseClient();
+    
+    // Tenant check
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return errorResponse("Unauthorized");
+
+    const { data: storeRow } = await supabase.from("stores")
+      .select("id")
+      .eq("id", storeId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (!storeRow) {
+      return errorResponse("Store not found or access denied.");
+    }
+
+    const { data: settingsRow, error } = await (supabase.from("store_settings") as any)
+      .select("metadata")
+      .eq("store_id", storeId)
+      .maybeSingle();
+
+    if (error) {
+      return errorResponse(error.message);
+    }
+
+    const metadata = settingsRow?.metadata || {};
+    const shipping = metadata.shipping || { freeShippingEnabled: true, freeShippingThreshold: 999 };
+
+    return successResponse(shipping);
+  } catch (err) {
+    return errorResponse(getErrorMessage(err));
+  }
+}
+
+/**
+ * Update free shipping settings for a store
+ */
+export async function updateStoreShippingSettingsAction(
+  storeId: string,
+  freeShippingEnabled: boolean,
+  freeShippingThreshold: number
+): Promise<ActionResponse<void>> {
+  try {
+    const supabase = await createServerSupabaseClient();
+    
+    // Tenant check
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return errorResponse("Unauthorized");
+
+    const { data: storeRow } = await supabase.from("stores")
+      .select("id")
+      .eq("id", storeId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (!storeRow) {
+      return errorResponse("Store not found or access denied.");
+    }
+
+    const { data: settingsRow, error } = await (supabase.from("store_settings") as any)
+      .select("id, metadata")
+      .eq("store_id", storeId)
+      .maybeSingle();
+
+    if (error) {
+      return errorResponse(error.message);
+    }
+
+    const existingMetadata = settingsRow?.metadata || {};
+    const updatedMetadata = {
+      ...existingMetadata,
+      shipping: {
+        freeShippingEnabled,
+        freeShippingThreshold,
+      },
+    };
+
+    if (settingsRow) {
+      const { error: updateErr } = await (supabase.from("store_settings") as any)
+        .update({ metadata: updatedMetadata })
+        .eq("id", settingsRow.id);
+      if (updateErr) throw updateErr;
+    } else {
+      const { error: insertErr } = await (supabase.from("store_settings") as any)
+        .insert({
+          store_id: storeId,
+          metadata: updatedMetadata
+        });
+      if (insertErr) throw insertErr;
+    }
+
+    return successResponse(undefined, "Shipping settings updated successfully.");
+  } catch (err) {
+    return errorResponse(getErrorMessage(err));
+  }
+}
+
+/**
+ * Attempt to resolve OG image from a webpage URL server-side
+ */
+export async function resolveOgImageAction(url: string): Promise<ActionResponse<{ imageUrl: string | null }>> {
+  if (!url || typeof url !== "string") {
+    return errorResponse("Invalid URL");
+  }
+
+  const trimmed = url.trim();
+  if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")) {
+    return errorResponse("URL must use HTTP or HTTPS protocol");
+  }
+
+  // Sanitization check
+  if (trimmed.toLowerCase().includes("javascript:") || trimmed.toLowerCase().includes("data:") || trimmed.toLowerCase().includes("file:")) {
+    return errorResponse("Unsafe URL protocol detected.");
+  }
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
+
+    const res = await fetch(trimmed, {
+      signal: controller.signal,
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.5",
+      }
+    });
+    
+    clearTimeout(timeoutId);
+
+    if (!res.ok) {
+      return successResponse({ imageUrl: null }, "Webpage returned non-200 status.");
+    }
+
+    const html = await res.text();
+    
+    // Extract og:image using regex
+    const ogImageRegex = /<meta\s+[^>]*property=["']og:image["']\s+[^>]*content=["']([^"']+)["']/i;
+    const twitterImageRegex = /<meta\s+[^>]*name=["']twitter:image["']\s+[^>]*content=["']([^"']+)["']/i;
+    
+    let ogImageUrl = html.match(ogImageRegex)?.[1] || html.match(twitterImageRegex)?.[1];
+    
+    // Resolve relative URL if needed
+    if (ogImageUrl && !ogImageUrl.startsWith("http://") && !ogImageUrl.startsWith("https://")) {
+      try {
+        const base = new URL(trimmed);
+        ogImageUrl = new URL(ogImageUrl, base.origin).toString();
+      } catch {
+        // Ignore parsing errors
+      }
+    }
+
+    return successResponse({ imageUrl: ogImageUrl || null });
+  } catch (err) {
+    console.error("Failed to resolve OG image:", err);
+    return successResponse({ imageUrl: null }, "Failed to fetch webpage or parse metadata.");
+  }
+}
+

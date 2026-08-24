@@ -36,6 +36,12 @@ export default function MerchantSettingsPage() {
   const [whatsappNumber, setWhatsappNumber] = useState("");
   const [supportPhone, setSupportPhone] = useState("");
   const [supportEmail, setSupportEmail] = useState("");
+  
+  // Shipping Configuration State
+  const [freeShippingEnabled, setFreeShippingEnabled] = useState(true);
+  const [freeShippingThreshold, setFreeShippingThreshold] = useState(999);
+  const [isSavingShipping, setIsSavingShipping] = useState(false);
+
   const [isLoadingSettings, setIsLoadingSettings] = useState(true);
   const [isSavingWhatsApp, setIsSavingWhatsApp] = useState(false);
   const [isSavingGeneral, setIsSavingGeneral] = useState(false);
@@ -56,6 +62,12 @@ export default function MerchantSettingsPage() {
             setWhatsappNumber(settings.branding.whatsapp || "");
             setSupportPhone(settings.branding.phone || "");
             setSupportEmail(settings.branding.email || "");
+          }
+          const { getStoreShippingSettingsAction } = await import("@/lib/actions/store");
+          const shipRes = await getStoreShippingSettingsAction(activeStore.id);
+          if (shipRes.success && shipRes.data) {
+            setFreeShippingEnabled(shipRes.data.freeShippingEnabled);
+            setFreeShippingThreshold(shipRes.data.freeShippingThreshold);
           }
         } catch (err) {
           console.error("Failed to load store settings:", err);
@@ -190,6 +202,29 @@ export default function MerchantSettingsPage() {
       toast.error("Save Failed", err.message || "Failed to update settings.");
     } finally {
       setIsSavingGeneral(false);
+    }
+  };
+
+  const handleSaveShipping = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSavingShipping(true);
+    try {
+      const { updateStoreShippingSettingsAction } = await import("@/lib/actions/store");
+      const res = await updateStoreShippingSettingsAction(
+        activeStore.id,
+        freeShippingEnabled,
+        Number(freeShippingThreshold) || 0
+      );
+      if (res.success) {
+        toast.success("Shipping Settings Saved", "Free shipping threshold updated successfully.");
+      } else {
+        toast.error("Save Failed", res.error || "Could not save shipping configuration.");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Error", "An unexpected error occurred.");
+    } finally {
+      setIsSavingShipping(false);
     }
   };
 
@@ -365,6 +400,65 @@ export default function MerchantSettingsPage() {
                 leftIcon={<Save className="w-4 h-4" />}
               >
                 Save General Settings
+              </Button>
+            </div>
+          </form>
+        </Card>
+
+        {/* 3. Shipping Configuration Card */}
+        <Card className="bg-[#111111] border-white/10 p-6 sm:p-8 space-y-6">
+          <div className="pb-4 border-b border-white/10 flex items-center gap-3 text-left">
+            <div className="w-10 h-10 rounded-xl bg-maroon-950/80 border border-maroon-700/50 flex items-center justify-center text-maroon-400 shrink-0 shadow-glow">
+              <Settings className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold font-heading text-white">Shipping Configuration</h2>
+              <p className="text-xs text-zinc-400 font-body">Configure store-wide shipping rates and free shipping threshold.</p>
+            </div>
+          </div>
+
+          <form onSubmit={handleSaveShipping} className="space-y-4 text-left">
+            <div className="flex items-center gap-2 py-1 select-none">
+              <input
+                type="checkbox"
+                id="freeShippingEnabled"
+                checked={freeShippingEnabled}
+                onChange={(e) => setFreeShippingEnabled(e.target.checked)}
+                className="w-3.5 h-3.5 accent-maroon-600 rounded bg-[#111111] border-white/10"
+              />
+              <label htmlFor="freeShippingEnabled" className="text-xs text-zinc-300 font-body cursor-pointer hover:text-white transition-colors font-semibold">
+                Enable Free Shipping Promotion
+              </label>
+            </div>
+
+            {freeShippingEnabled && (
+              <div>
+                <label className="text-xs font-semibold text-zinc-300 font-heading block mb-1.5">
+                  Free Shipping Minimum Threshold Amount (₹) *
+                </label>
+                <Input
+                  type="number"
+                  placeholder="e.g. 999"
+                  value={freeShippingThreshold}
+                  onChange={(e) => setFreeShippingThreshold(Number(e.target.value) || 0)}
+                  leftIcon={<span className="text-zinc-500 font-bold text-xs select-none">₹</span>}
+                />
+                <p className="text-[11px] text-zinc-500 font-body mt-1">
+                  Orders equal to or above this amount will display as eligible for Free Shipping on the storefront.
+                </p>
+              </div>
+            )}
+
+            <div className="pt-4 border-t border-white/10">
+              <Button
+                type="submit"
+                variant="primary"
+                size="sm"
+                className="shadow-glow"
+                isLoading={isSavingShipping}
+                leftIcon={<Save className="w-4 h-4" />}
+              >
+                Save Shipping Settings
               </Button>
             </div>
           </form>

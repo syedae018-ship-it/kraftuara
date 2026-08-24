@@ -45,7 +45,12 @@ const navItems: NavItem[] = [
   { label: "System Settings", href: "/admin/settings", icon: Settings },
 ];
 
-export function AdminSidebar() {
+export interface AdminSidebarProps {
+  onNavigate?: () => void;
+  hideCollapseButton?: boolean;
+}
+
+export function AdminSidebar({ onNavigate, hideCollapseButton = false }: AdminSidebarProps = {}) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
 
@@ -59,7 +64,7 @@ export function AdminSidebar() {
       {/* Top Header & Logo */}
       <div className="p-4 space-y-4">
         <div className="flex items-center justify-between">
-          <Link href="/admin" className="flex items-center gap-2.5 overflow-hidden">
+          <Link href="/admin" onClick={onNavigate} className="flex items-center gap-2.5 overflow-hidden">
             <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-maroon-800 to-maroon-950 border border-maroon-600/50 flex items-center justify-center text-white shrink-0 shadow-glow">
               <ShieldAlert className="w-4 h-4 text-maroon-300" />
             </div>
@@ -73,12 +78,14 @@ export function AdminSidebar() {
             )}
           </Link>
 
-          <button
-            onClick={() => setCollapsed(!collapsed)}
-            className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/5 transition-colors"
-          >
-            {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-          </button>
+          {!hideCollapseButton && (
+            <button
+              onClick={() => setCollapsed(!collapsed)}
+              className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/5 transition-colors"
+            >
+              {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+            </button>
+          )}
         </div>
 
         {/* Navigation Items */}
@@ -91,6 +98,7 @@ export function AdminSidebar() {
               <Link
                 key={item.href}
                 href={item.href}
+                onClick={onNavigate}
                 className={cn(
                   "flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all group relative",
                   isActive

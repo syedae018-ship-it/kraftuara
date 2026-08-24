@@ -48,7 +48,43 @@ export function ThemeTable({ templates, onCreateTemplate }: ThemeTableProps) {
         </Button>
       </div>
 
-      <div className="rounded-2xl border border-white/10 overflow-hidden bg-[#151515]">
+      {/* Mobile Card Layout */}
+      <div className="md:hidden space-y-4">
+        {templates.map((t) => (
+          <div key={t.id} className="bg-[#151515] border border-white/10 rounded-2xl p-4 space-y-3 font-body">
+            <div className="flex items-center gap-3">
+              <img src={t.thumbnail} alt={t.name} className="w-10 h-10 rounded-lg object-cover border border-white/10 shrink-0" />
+              <div className="min-w-0 flex-1 text-left">
+                <h5 className="font-bold font-heading text-white text-xs block truncate">{t.name}</h5>
+                <span className="text-[10px] text-zinc-500 font-body block truncate">{t.description}</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 text-xs border-t border-white/5 pt-2 text-left">
+              <div>
+                <span className="text-zinc-500 block text-[9px] uppercase font-semibold">Version</span>
+                <span className="font-mono text-zinc-300 block text-[11px] mt-0.5">{t.version}</span>
+              </div>
+              <div>
+                <span className="text-zinc-500 block text-[9px] uppercase font-semibold">Active Usage</span>
+                <span className="font-mono text-emerald-400 font-bold block text-[11px] mt-0.5">{t.activeStoresCount} Stores</span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between gap-2 border-t border-white/5 pt-2">
+              <Badge variant={t.status === "active" ? "success" : "outline"} className="capitalize text-[9px] px-1.5 py-0">
+                {t.status}
+              </Badge>
+              <Button variant="outline" size="sm" className="h-7 text-[10px]">
+                <Edit className="w-3 h-3 mr-1" /> Edit
+              </Button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop Table Layout */}
+      <div className="hidden md:block rounded-2xl border border-white/10 overflow-hidden bg-[#151515]">
         <Table>
           <TableHeader>
             <TableRow>

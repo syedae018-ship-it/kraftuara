@@ -40,13 +40,16 @@ export class SupabaseStorefrontRepository implements IStorefrontRepository {
       .maybeSingle();
 
     const metadata = settingsRow?.metadata || {};
+    const shipping = metadata.shipping || { freeShippingEnabled: true, freeShippingThreshold: 999 };
+
     if (metadata.published_snapshot) {
       const snapshot = metadata.published_snapshot;
       return {
         ...snapshot,
         id: s.id,
         name: s.name,
-        slug: s.slug
+        slug: s.slug,
+        shipping: snapshot.shipping || shipping
       };
     }
 
@@ -63,6 +66,7 @@ export class SupabaseStorefrontRepository implements IStorefrontRepository {
       categories,
       collections,
       products,
+      shipping,
     };
   }
 
