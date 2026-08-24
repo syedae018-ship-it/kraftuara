@@ -248,11 +248,11 @@ export default function CreateStoreWizard() {
                   <label className="text-xs text-zinc-300 font-medium block">
                     Store URL (Automatically Generated)
                   </label>
-                  <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-xs font-mono text-zinc-400">
+                  <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-xs font-mono text-zinc-400 overflow-hidden">
                     <Globe className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
-                    <span>https://</span>
-                    <span className="text-emerald-400 font-bold">{previewSlug || "your-slug"}</span>
-                    <span>.symar.com</span>
+                    <span className="text-emerald-400 font-bold truncate">
+                      {getStoreUrl(previewSlug || "your-slug")}
+                    </span>
                   </div>
                   <p className="text-[10px] text-zinc-500 font-mono">
                     This URL is automatically generated from your store name.
@@ -386,7 +386,7 @@ export default function CreateStoreWizard() {
                 <div className="space-y-2 text-xs text-zinc-400">
                   <p className="font-semibold text-zinc-200">What happens next:</p>
                   <ul className="list-disc pl-4 space-y-1">
-                    <li>Your store goes live at <span className="text-emerald-400 font-mono">{previewSlug}.symar.com</span></li>
+                    <li>Your store goes live at <span className="text-emerald-400 font-mono">/store/{previewSlug || "your-slug"}</span></li>
                     <li>Add products from the Products dashboard</li>
                     <li>Customise colors &amp; fonts from the Appearance page</li>
                     <li>Set up WhatsApp ordering so customers can place orders</li>

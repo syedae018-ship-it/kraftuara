@@ -28,14 +28,20 @@ export async function middleware(request: NextRequest) {
       return newResponse;
     };
 
+    const rawRootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "";
+    const isVercelOrLocalHost = hostname.includes("vercel.app") || hostname.includes("localhost") || hostname.includes("127.0.0.1");
+
     // Multi-Tenant Subdomain / Custom Domain Resolution Architecture
     const isSubdomain =
-      hostname.endsWith(`.${rootDomain}`) &&
-      hostname !== rootDomain &&
+      !isVercelOrLocalHost &&
+      rawRootDomain !== "" &&
+      !rawRootDomain.includes("vercel.app") &&
+      hostname.endsWith(`.${rawRootDomain}`) &&
+      hostname !== rawRootDomain &&
       !hostname.startsWith("app.") &&
       !hostname.startsWith("www.");
 
-    const subdomain = isSubdomain ? hostname.replace(`.${rootDomain}`, "") : null;
+    const subdomain = isSubdomain ? hostname.replace(`.${rawRootDomain}`, "") : null;
     const isAlreadyRewritten = pathname.startsWith(`/store/`);
 
     if (isSubdomain) {
