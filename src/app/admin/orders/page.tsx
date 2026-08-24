@@ -6,13 +6,18 @@ import { SectionTitle } from "@/components/dashboard/section-title";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell, Badge } from "@/components/ui/table";
 import { ShoppingBag } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
+import { adminRepository } from "@/lib/repositories/admin-repository";
 
 export default function AdminCatalogOrdersPage() {
-  const mockCatalogOrders = [
-    { id: "ord-cat-101", storeName: "Aroma Perfumes", customer: "Farhan K.", total: 140.00, itemsCount: 2, status: "completed", date: "2026-02-05" },
-    { id: "ord-cat-102", storeName: "Royal Fashion", customer: "Yasmin A.", total: 320.00, itemsCount: 4, status: "processing", date: "2026-02-04" },
-    { id: "ord-cat-103", storeName: "Al Noor Electronics", customer: "Bilal M.", total: 85.00, itemsCount: 1, status: "completed", date: "2026-02-03" },
-  ];
+  const [catalogOrders, setCatalogOrders] = useState<any[]>([]);
+
+  useEffect(() => {
+    async function loadData() {
+      const orders = await adminRepository.getCatalogOrders();
+      setCatalogOrders(orders);
+    }
+    loadData();
+  }, []);
 
   return (
     <AdminLayout>
@@ -26,7 +31,39 @@ export default function AdminCatalogOrdersPage() {
         }
       />
 
-      <div className="rounded-2xl border border-white/10 overflow-hidden bg-[#151515] font-body pb-20">
+      {/* Mobile Card Layout */}
+      <div className="md:hidden space-y-4 pb-20">
+        {catalogOrders.map((o) => (
+          <div key={o.id} className="bg-[#151515] border border-white/10 rounded-2xl p-4 space-y-3 font-body">
+            <div className="flex items-center justify-between">
+              <span className="font-mono text-xs text-maroon-300 font-bold truncate">{o.id.slice(0, 12)}...</span>
+              <Badge variant={o.status === "completed" ? "success" : "maroon"} className="capitalize text-[9px] px-1.5 py-0">
+                {o.status}
+              </Badge>
+            </div>
+            <div className="grid grid-cols-2 gap-2 border-t border-white/5 pt-2 text-xs text-left">
+              <div>
+                <span className="text-zinc-500 block text-[9px] uppercase font-semibold">Storefront</span>
+                <span className="font-semibold text-white block text-[11px] mt-0.5 truncate">{o.storeName}</span>
+              </div>
+              <div>
+                <span className="text-zinc-500 block text-[9px] uppercase font-semibold">Customer</span>
+                <span className="text-zinc-300 block text-[11px] mt-0.5 truncate">{o.customer}</span>
+              </div>
+            </div>
+            <div className="flex items-center justify-between border-t border-white/5 pt-2 text-xs">
+              <span className="font-mono text-zinc-400">{o.itemsCount} items</span>
+              <span className="font-mono font-bold text-white">{formatCurrency(o.total)}</span>
+            </div>
+          </div>
+        ))}
+        {catalogOrders.length === 0 && (
+          <p className="text-center text-zinc-500 text-xs py-8">No orders found yet.</p>
+        )}
+      </div>
+
+      {/* Desktop Table Layout */}
+      <div className="hidden md:block rounded-2xl border border-white/10 overflow-hidden bg-[#151515] font-body pb-20">
         <Table>
           <TableHeader>
             <TableRow>
@@ -39,9 +76,9 @@ export default function AdminCatalogOrdersPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {mockCatalogOrders.map((o) => (
+            {catalogOrders.map((o) => (
               <TableRow key={o.id}>
-                <TableCell className="font-mono text-xs text-maroon-300 font-bold">{o.id}</TableCell>
+                <TableCell className="font-mono text-xs text-maroon-300 font-bold">{o.id.slice(0, 12)}...</TableCell>
                 <TableCell className="font-semibold text-white text-xs">{o.storeName}</TableCell>
                 <TableCell className="text-zinc-300 text-xs">{o.customer}</TableCell>
                 <TableCell className="font-mono text-xs text-zinc-400">{o.itemsCount} items</TableCell>
@@ -53,6 +90,11 @@ export default function AdminCatalogOrdersPage() {
                 </TableCell>
               </TableRow>
             ))}
+            {catalogOrders.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={6} className="text-center text-zinc-500 text-xs py-8">No orders found yet.</TableCell>
+              </TableRow>
+            )}
           </TableBody>
         </Table>
       </div>

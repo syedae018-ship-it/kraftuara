@@ -160,6 +160,10 @@ class MockAdminRepositoryImpl implements IAdminRepository {
   async getPayments(): Promise<AdminPayment[]> {
     return [...mockPayments];
   }
+
+  async getCatalogOrders(): Promise<any[]> {
+    return [];
+  }
 }
 
 import { supabaseAdminRepository } from "./supabase/supabase-admin-repository";

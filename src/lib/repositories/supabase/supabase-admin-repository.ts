@@ -285,6 +285,26 @@ export class SupabaseAdminRepository implements IAdminRepository {
 
     return adminPaymentsList;
   }
+
+  async getCatalogOrders(): Promise<any[]> {
+    const supabase = this.getSupabase();
+    const { data, error } = await (supabase.from("orders") as any)
+      .select("*, stores(name)")
+      .order("created_at", { ascending: false })
+      .limit(100);
+
+    if (error || !data) return [];
+
+    return data.map((o: any) => ({
+      id: o.id,
+      storeName: o.stores?.name || "Unknown Store",
+      customer: o.customer_name || "Customer",
+      total: Number(o.total_amount || 0),
+      itemsCount: o.items_count || 1,
+      status: o.status || "pending",
+      date: o.created_at?.split("T")[0] || new Date().toISOString().split("T")[0],
+    }));
+  }
 }
 
 export const supabaseAdminRepository = new SupabaseAdminRepository();
