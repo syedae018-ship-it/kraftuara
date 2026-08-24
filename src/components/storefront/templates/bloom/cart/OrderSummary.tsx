@@ -37,7 +37,7 @@ export default function OrderSummary({ store }: { store: StoreData }) {
   // Resolve merchant WhatsApp number from database (never from client, never hardcoded)
   const merchantWhatsApp = store.appearance?.branding?.whatsapp?.trim() || "";
   const merchantPhone = store.appearance?.branding?.phone?.trim() || "";
-  const hasWhatsApp = !!(merchantWhatsApp || merchantPhone);
+  const hasWhatsApp = !!merchantWhatsApp;
 
   const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -125,33 +125,37 @@ export default function OrderSummary({ store }: { store: StoreData }) {
       trackClientEvent(store.id, "order_conversion");
 
       // Use merchant's configured WhatsApp — never the customer's phone, never hardcoded
-      const destinationNumber = (merchantWhatsApp || merchantPhone).replace(/[^0-9]/g, "");
+      const destinationNumber = merchantWhatsApp.replace(/[^0-9]/g, "");
 
       const cartItemsText = order.items
         ?.map(
-          (item, idx) =>
-            `${idx + 1}. *${item.productName}* × ${item.quantity} — ${formatCurrency(item.price * item.quantity)}`
+          (item) =>
+            `${item.productName} × ${item.quantity} — ${formatCurrency(item.price * item.quantity)}`
         )
         .join("\n") || "";
 
       const notesSection = customerNotes.trim()
-        ? `\n*Notes / Instructions:*\n${customerNotes.trim()}\n`
+        ? `\nOrder Notes:\n${customerNotes.trim()}\n`
         : "";
 
       const message =
-        `🛍️ *NEW ORDER — ${store.name}*\n` +
-        `Order #: *${order.orderNumber}*\n\n` +
-        `*Items:*\n` +
-        `${cartItemsText}\n\n` +
+        `Hello, I would like to place an order from ${store.name}.\n\n` +
+        `Order Summary:\n` +
+        `━━━━━━━━━━━━━━\n` +
+        `${cartItemsText}\n` +
+        `━━━━━━━━━━━━━━\n` +
         `Subtotal: ${formatCurrency(subtotal)}\n` +
         `Shipping: ${shipping === 0 ? "Free" : formatCurrency(shipping)}\n` +
-        `*Total: ${formatCurrency(total)}*\n\n` +
-        `*Customer:*\n` +
+        `Total: ${formatCurrency(total)}\n\n` +
+        `Customer Details:\n` +
         `Name: ${order.customerName}\n` +
         `Phone: ${order.customerPhone}\n` +
-        `Delivery Address: ${order.shippingAddress}\n` +
+        `Address: ${addressLine.trim()}\n` +
+        `City: ${city.trim()}\n` +
+        `State: ${state.trim()}\n` +
+        `PIN: ${pinCode.trim()}\n` +
         `${notesSection}\n` +
-        `Please confirm this order. Thank you!`;
+        `Order Reference: #${order.orderNumber}`;
 
       const whatsappUrl = `https://wa.me/${destinationNumber}?text=${encodeURIComponent(message)}`;
 
@@ -193,7 +197,7 @@ export default function OrderSummary({ store }: { store: StoreData }) {
         {!hasWhatsApp && (
           <div className="flex items-start gap-2 text-sm text-yellow-600/80 bg-yellow-500/10 p-3 rounded-lg mt-4">
             <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-            <span>WhatsApp ordering isn&apos;t configured for this store yet. Contact the store owner directly.</span>
+            <span>WhatsApp ordering isn&apos;t configured for this store yet. Please configure the WhatsApp number in Store Settings.</span>
           </div>
         )}
 

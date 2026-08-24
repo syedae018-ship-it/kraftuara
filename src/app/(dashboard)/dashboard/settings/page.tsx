@@ -84,6 +84,7 @@ export default function MerchantSettingsPage() {
   const handleSaveWhatsApp = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    const cleanWhatsApp = whatsappNumber.replace(/[^0-9]/g, "");
     if (whatsappNumber.trim() && !isWhatsAppValid) {
       toast.error(
         "Invalid WhatsApp Number",
@@ -92,11 +93,21 @@ export default function MerchantSettingsPage() {
       return;
     }
 
+    if (whatsappNumber.trim() && cleanWhatsApp.length === 10) {
+      toast.error(
+        "Country Code Required",
+        "Please include your international country code (e.g. +91 for India, +1 for US)."
+      );
+      return;
+    }
+
+    const normalizedWhatsApp = whatsappNumber.trim() ? `+${cleanWhatsApp}` : "";
+
     setIsSavingWhatsApp(true);
     try {
       await appearanceRepository.updateSettings(activeStore.id, {
         branding: {
-          whatsapp: whatsappNumber.trim() || undefined,
+          whatsapp: normalizedWhatsApp || undefined,
           phone: supportPhone.trim() || undefined,
           email: supportEmail.trim() || undefined,
         },
@@ -104,8 +115,8 @@ export default function MerchantSettingsPage() {
 
       toast.success(
         "WhatsApp Settings Saved",
-        whatsappNumber.trim()
-          ? `Orders for ${activeStore.name} will now be sent to ${whatsappNumber.trim()}.`
+        normalizedWhatsApp
+          ? `Orders for ${activeStore.name} will now be sent to ${normalizedWhatsApp}.`
           : "WhatsApp number removed. Customers will see a contact prompt on checkout."
       );
     } catch (err) {
