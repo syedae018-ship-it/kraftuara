@@ -119,6 +119,27 @@ export class SupabaseAppearanceRepository implements IAppearanceRepository {
       if (error) throw error;
     }
 
+    // Also update the stores table to keep columns in sync
+    if (settings.branding) {
+      const storeUpdate: any = {};
+      if (settings.branding.name !== undefined) storeUpdate.name = settings.branding.name;
+      if (settings.branding.logoUrl !== undefined) storeUpdate.logo_url = settings.branding.logoUrl || null;
+      if (settings.branding.heroBannerUrl !== undefined) storeUpdate.banner_url = settings.branding.heroBannerUrl || null;
+      if (settings.branding.description !== undefined) storeUpdate.description = settings.branding.description || null;
+      if (settings.branding.whatsapp !== undefined) storeUpdate.whatsapp = settings.branding.whatsapp || null;
+      if (settings.branding.email !== undefined) storeUpdate.email = settings.branding.email || null;
+      if (settings.branding.phone !== undefined) storeUpdate.phone = settings.branding.phone || null;
+      if (settings.branding.instagram !== undefined) storeUpdate.instagram = settings.branding.instagram || null;
+      if (settings.branding.facebook !== undefined) storeUpdate.facebook = settings.branding.facebook || null;
+      if (settings.branding.address !== undefined) storeUpdate.business_address = settings.branding.address || null;
+
+      if (Object.keys(storeUpdate).length > 0) {
+        await (supabase.from("stores") as any)
+          .update(storeUpdate)
+          .eq("id", storeId);
+      }
+    }
+
     return merged;
   }
 

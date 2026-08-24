@@ -1,5 +1,6 @@
 import { Order, OrderItemInput, CustomerInput, IOrderRepository } from "../order-repository";
 import { createClient } from "@/lib/supabase/client";
+import { DEMO_STORE_PRODUCTS } from "@/lib/demo-data";
 
 export class SupabaseOrderRepository implements IOrderRepository {
   private getSupabase() {
@@ -9,7 +10,72 @@ export class SupabaseOrderRepository implements IOrderRepository {
   async createOrder(storeId: string, customer: CustomerInput, items: OrderItemInput[]): Promise<Order> {
     const supabase = this.getSupabase();
 
-    // 1. Verify store exists and is published
+    // 1. Catch and simulate demo store orders
+    if (storeId === "demo-craft-classic-id" || storeId.startsWith("demo-") || storeId === "demo") {
+      if (items.length === 0) {
+        throw new Error("Cannot create an order with an empty cart.");
+      }
+
+      const productMap = new Map<string, any>();
+      DEMO_STORE_PRODUCTS.forEach((p) => {
+        productMap.set(p.id, p);
+      });
+
+      let calculatedTotal = 0;
+      const validatedItems = [];
+
+      for (const item of items) {
+        const dbProduct = productMap.get(item.productId);
+        if (!dbProduct) {
+          throw new Error(`Product "${item.name}" is no longer available in the catalog.`);
+        }
+        
+        const quantity = Math.floor(Number(item.quantity));
+        if (isNaN(quantity) || quantity <= 0 || quantity > 999) {
+          throw new Error("Invalid product quantity specified.");
+        }
+
+        const realPrice = Number(dbProduct.price);
+        const lineTotal = realPrice * quantity;
+        calculatedTotal += lineTotal;
+
+        validatedItems.push({
+          productId: dbProduct.id,
+          productName: dbProduct.name,
+          price: realPrice,
+          quantity,
+          lineTotal,
+        });
+      }
+
+      const dateStr = new Date().toISOString().split("T")[0].replace(/-/g, "");
+      const randomSuffix = Math.floor(Math.random() * 9000 + 1000);
+      const orderNumber = `DEMO-${dateStr}-${randomSuffix}`;
+
+      return {
+        id: `demo-order-${Date.now()}`,
+        storeId,
+        orderNumber,
+        customerName: customer.name.trim(),
+        customerPhone: customer.phone.trim(),
+        shippingAddress: customer.shippingAddress.trim(),
+        totalAmount: calculatedTotal,
+        status: "pending",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        items: validatedItems.map((itm, idx) => ({
+          id: `item-${idx}`,
+          orderId: "demo-order",
+          productId: itm.productId,
+          productName: itm.productName,
+          price: itm.price,
+          quantity: itm.quantity,
+          lineTotal: itm.lineTotal,
+        })),
+      };
+    }
+
+    // 2. Verify store exists and is published
     const { data: storeRow, error: storeError } = await (supabase.from("stores") as any)
       .select("id, is_published")
       .eq("id", storeId)
@@ -26,10 +92,10 @@ export class SupabaseOrderRepository implements IOrderRepository {
       throw new Error("Cannot create an order with an empty cart.");
     }
 
-    // 2. Fetch all products to resolve authoritative names and prices
+    // 3. Fetch all products to resolve authoritative names and prices
     const productIds = items.map((i) => i.productId);
     const { data: dbProducts, error: pError } = await (supabase.from("products") as any)
-      .select("id, name, price, store_id, status, sku")
+      .select("id, name, price, store_id, is_published, sku")
       .in("id", productIds);
 
     if (pError || !dbProducts) {
@@ -41,20 +107,20 @@ export class SupabaseOrderRepository implements IOrderRepository {
       productMap.set(p.id, p);
     });
 
-    // 3. Validate items & calculate authoritative server-side totals
+    // 4. Validate items & calculate authoritative server-side totals
     let calculatedTotal = 0;
     const validatedItems = [];
 
     for (const item of items) {
       const dbProduct = productMap.get(item.productId);
       if (!dbProduct) {
-        throw new Error(`Product not found in catalog.`);
+        throw new Error(`Product "${item.name}" is no longer available in the catalog.`);
       }
       if (dbProduct.store_id !== storeId) {
-        throw new Error(`Product mapping mismatch.`);
+        throw new Error(`Product "${dbProduct.name}" does not belong to this store.`);
       }
-      if (dbProduct.status !== "published") {
-        throw new Error(`Product "${dbProduct.name}" is no longer available.`);
+      if (!dbProduct.is_published) {
+        throw new Error(`Product "${dbProduct.name}" is currently unavailable (draft/unpublished).`);
       }
 
       // Quantity validations
@@ -76,12 +142,12 @@ export class SupabaseOrderRepository implements IOrderRepository {
       });
     }
 
-    // 4. Generate unique order reference number
+    // 5. Generate unique order reference number
     const dateStr = new Date().toISOString().split("T")[0].replace(/-/g, "");
     const randomSuffix = Math.floor(Math.random() * 9000 + 1000);
     const orderNumber = `SK-${dateStr}-${randomSuffix}`;
 
-    // 5. Insert order record
+    // 6. Insert order record
     const { data: orderRow, error: orderError } = await (supabase.from("orders") as any)
       .insert({
         store_id: storeId,

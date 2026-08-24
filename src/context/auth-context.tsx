@@ -5,6 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { isAdminUser } from "@/lib/services/admin-roles";
 import { createClient } from "@/lib/supabase/client";
 import { normalizeSlug } from "@/lib/urls";
+import { appearanceRepository } from "@/lib/repositories/appearance-repository";
 
 export type DummyUser = {
   id: string;
@@ -340,7 +341,77 @@ export function DummyAuthProvider({ children }: { children: React.ReactNode }) {
     if (error) throw error;
   };
 
-  const createStore = async () => {};
+  const createStore = async (
+    storeName: string,
+    storeSlug: string,
+    category: string,
+    logoUrl?: string,
+    primaryColor?: string,
+    secondaryColor?: string
+  ) => {
+    setIsLoading(true);
+    try {
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      if (!currentUser) throw new Error("User not authenticated");
+
+      let cleanSlug = normalizeSlug(storeSlug);
+      if (!cleanSlug || cleanSlug.length < 3) {
+        throw new Error("Slug must be at least 3 characters.");
+      }
+
+      if (activeStore?.id) {
+        // Update existing store
+        const { error } = await (supabase.from("stores") as any)
+          .update({
+            name: storeName,
+            slug: cleanSlug,
+            logo_url: logoUrl || null,
+            primary_color: primaryColor || "#800020",
+            secondary_color: secondaryColor || "#111111",
+            category: category,
+          })
+          .eq("id", activeStore.id);
+
+        if (error) throw error;
+        
+        // Also update appearance settings name & logoUrl
+        const settings = await appearanceRepository.getSettings(activeStore.id);
+        await appearanceRepository.updateSettings(activeStore.id, {
+          branding: {
+            ...settings.branding,
+            name: storeName,
+            logoUrl: logoUrl || undefined,
+          },
+          colors: {
+            ...settings.colors,
+            primary: primaryColor || settings.colors.primary,
+            secondary: secondaryColor || settings.colors.secondary,
+          }
+        });
+      } else {
+        // Create new store
+        const { data: store, error: storeError } = await (supabase.from("stores") as any).insert({
+          user_id: currentUser.id,
+          name: storeName,
+          slug: cleanSlug,
+          logo_url: logoUrl || null,
+          primary_color: primaryColor || "#800020",
+          secondary_color: secondaryColor || "#111111",
+          category: category,
+          is_published: true,
+        }).select().single();
+
+        if (storeError) throw storeError;
+      }
+      
+      await getSession();
+    } catch (err: any) {
+      console.error(err);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
   const verifyEmail = () => {};
   const selectPlan = (planName: string) => {
     if (typeof window !== "undefined") {

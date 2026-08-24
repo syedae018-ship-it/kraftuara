@@ -24,23 +24,63 @@ export function ImageUploader({ images, onChange, className }: ImageUploaderProp
   const [urlInput, setUrlInput] = useState("");
   const [dragActive, setDragActive] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isValidatingUrl, setIsValidatingUrl] = useState(false);
   const { activeStore } = useAuth();
 
-  const handleAddUrl = () => {
-    if (!urlInput.trim()) return;
+  const handleAddUrl = async () => {
+    const trimmedInput = urlInput.trim();
+    if (!trimmedInput) return;
 
-    const resolvedUrl = resolveProductImageUrl(urlInput);
+    setIsValidatingUrl(true);
+    try {
+      const resolvedUrl = resolveProductImageUrl(trimmedInput);
 
-    const newImg: ProductImage = {
-      id: `img-${Date.now()}`,
-      url: resolvedUrl,
-      position: images.length,
-      isCover: images.length === 0,
-    };
+      const checkImageLoad = (url: string): Promise<boolean> => {
+        return new Promise((resolve) => {
+          const img = new Image();
+          img.src = url;
+          img.onload = () => resolve(true);
+          img.onerror = () => resolve(false);
+        });
+      };
 
-    onChange([...images, newImg]);
-    setUrlInput("");
-    toast.success("Image Added", "Image URL added to gallery.");
+      const isLoaded = await checkImageLoad(resolvedUrl);
+
+      if (!isLoaded) {
+        if (trimmedInput.includes("drive.google.com")) {
+          toast.error(
+            "Private Google Drive Link",
+            "This Google Drive file is private or requires authorization. Please make the file publicly viewable ('Anyone with the link can view')."
+          );
+        } else if (trimmedInput.includes("instagram.com")) {
+          toast.error(
+            "Private or Invalid Instagram URL",
+            "This Instagram post is private, invalid, or requires authentication. Please use a public post link."
+          );
+        } else {
+          toast.error(
+            "Invalid Image URL",
+            "The URL could not be resolved or loaded as a public image. Please ensure the link is correct and publicly accessible."
+          );
+        }
+        return;
+      }
+
+      const newImg: ProductImage = {
+        id: `img-${Date.now()}`,
+        url: resolvedUrl,
+        position: images.length,
+        isCover: images.length === 0,
+      };
+
+      onChange([...images, newImg]);
+      setUrlInput("");
+      toast.success("Image Added", "Image URL added to gallery.");
+    } catch (err: any) {
+      toast.error("Validation Error", err.message || "Failed to validate image URL.");
+    } finally {
+      setIsValidatingUrl(false);
+    }
   };
 
   const processAndUploadFiles = async (files: FileList) => {
@@ -205,14 +245,21 @@ export function ImageUploader({ images, onChange, className }: ImageUploaderProp
       <div className="flex items-center gap-2">
         <div className="flex-1">
           <Input
-            placeholder="Paste direct Image URL (e.g. https://...)"
+            placeholder={isValidatingUrl ? "Checking image link..." : "Paste direct Image URL (e.g. https://...)"}
             value={urlInput}
             onChange={(e) => setUrlInput(e.target.value)}
+            disabled={isValidatingUrl}
             leftIcon={<LinkIcon className="w-4 h-4 text-zinc-500" />}
           />
         </div>
-        <Button variant="outline" size="sm" onClick={handleAddUrl} leftIcon={<Plus className="w-3.5 h-3.5" />}>
-          Add URL
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleAddUrl}
+          disabled={isValidatingUrl || !urlInput.trim()}
+          leftIcon={isValidatingUrl ? <Loader2 className="w-3.5 h-3.5 animate-spin text-maroon-400" /> : <Plus className="w-3.5 h-3.5" />}
+        >
+          {isValidatingUrl ? "Validating..." : "Add URL"}
         </Button>
       </div>
 

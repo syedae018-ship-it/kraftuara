@@ -22,6 +22,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/table";
 import { useAuth } from "@/context/auth-context";
 import { appearanceRepository } from "@/lib/repositories/appearance-repository";
+import { resolveImageUrl } from "@/lib/image-resolver";
 import { toast } from "@/hooks/use-toast";
 
 export default function MerchantSettingsPage() {
@@ -136,8 +137,46 @@ export default function MerchantSettingsPage() {
     e.preventDefault();
     setIsSavingGeneral(true);
     try {
-      createStore(storeName, slug, category, logoUrl, activeStore.primaryColor, activeStore.secondaryColor);
+      let resolvedLogo = logoUrl.trim();
+      if (resolvedLogo) {
+        resolvedLogo = resolveImageUrl(resolvedLogo);
+        // Validation check
+        const checkImageLoad = (url: string): Promise<boolean> => {
+          return new Promise((resolve) => {
+            const img = new Image();
+            img.src = url;
+            img.onload = () => resolve(true);
+            img.onerror = () => resolve(false);
+          });
+        };
+        const isLoaded = await checkImageLoad(resolvedLogo);
+        if (!isLoaded) {
+          if (logoUrl.includes("drive.google.com")) {
+            toast.error(
+              "Private Google Drive Link",
+              "The custom logo Google Drive file is private or requires authorization. Please make it publicly viewable."
+            );
+          } else if (logoUrl.includes("instagram.com")) {
+            toast.error(
+              "Private Instagram URL",
+              "The custom logo Instagram post is private, invalid, or requires authentication."
+            );
+          } else {
+            toast.error(
+              "Invalid Logo URL",
+              "The logo URL is private, invalid, or unsupported. Please check the link and ensure it is publicly accessible."
+            );
+          }
+          setIsSavingGeneral(false);
+          return;
+        }
+      }
+
+      await createStore(storeName, slug, category, resolvedLogo || undefined, activeStore.primaryColor, activeStore.secondaryColor);
       toast.success("Settings Saved", "General store configurations updated successfully.");
+    } catch (err: any) {
+      console.error(err);
+      toast.error("Save Failed", err.message || "Failed to update settings.");
     } finally {
       setIsSavingGeneral(false);
     }
