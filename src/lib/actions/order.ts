@@ -36,7 +36,20 @@ export async function createOrderAction(
     return { success: true, order };
   } catch (err: any) {
     console.error("Order creation action error:", err);
-    return { success: false, error: err.message || "Failed to place order. Please try again." };
+    let userMessage = "Failed to place order. Please try again.";
+    const errMsg = err.message || "";
+    
+    if (errMsg.includes("row-level security policy")) {
+      userMessage = "Order creation failed due to database security constraints. Please contact support.";
+    } else if (errMsg.includes("no longer available") || errMsg.includes("does not belong") || errMsg.includes("currently unavailable")) {
+      userMessage = errMsg;
+    } else if (errMsg.includes("quantity")) {
+      userMessage = errMsg;
+    } else if (errMsg.includes("violates foreign key constraint") || errMsg.includes("violates unique constraint")) {
+      userMessage = "Failed to record order. The product catalog has changed. Please refresh your cart.";
+    }
+    
+    return { success: false, error: userMessage };
   }
 }
 
@@ -81,13 +94,20 @@ export async function getOrderDetailsAction(orderId: string) {
   }
 }
 
-export async function updateOrderStatusAction(orderId: string, status: "pending" | "processing" | "completed" | "cancelled") {
+export async function updateOrderStatusAction(orderId: string, status: string) {
   try {
     const supabase = await createServerInstance();
     await verifyOrderStoreOwner(supabase, orderId);
     
+    let dbStatus = status;
+    if (status === "processing") {
+      dbStatus = "confirmed";
+    } else if (status === "completed") {
+      dbStatus = "delivered";
+    }
+
     const { error } = await (supabase.from("orders") as any)
-      .update({ status })
+      .update({ status: dbStatus })
       .eq("id", orderId);
       
     if (error) throw error;

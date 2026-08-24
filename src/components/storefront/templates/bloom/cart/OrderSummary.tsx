@@ -60,6 +60,12 @@ export default function OrderSummary({ store }: { store: StoreData }) {
       return;
     }
 
+    const isUrl = (val: string) => /https?:\/\/[^\s]+|www\.[^\s]+/i.test(val);
+    if (isUrl(customerName) || isUrl(addressLine) || isUrl(city) || isUrl(state) || isUrl(pinCode)) {
+      toast.error("Invalid Input", "URLs or image links are not allowed in customer details or address fields.");
+      return;
+    }
+
     const cleanPhone = customerPhone.replace(/[^0-9+]/g, "");
     if (!cleanPhone || cleanPhone.length < 8) {
       toast.error("Invalid Phone", "Please enter a valid phone number.");

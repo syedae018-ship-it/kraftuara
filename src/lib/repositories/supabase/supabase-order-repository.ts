@@ -8,7 +8,15 @@ export class SupabaseOrderRepository implements IOrderRepository {
   }
 
   async createOrder(storeId: string, customer: CustomerInput, items: OrderItemInput[]): Promise<Order> {
-    const supabase = this.getSupabase();
+    let supabase: any = this.getSupabase();
+    if (typeof window === "undefined") {
+      try {
+        const { createAdminClient } = await import("@/lib/supabase/admin");
+        supabase = createAdminClient();
+      } catch (e) {
+        console.error("Failed to load admin client inside createOrder, using default client:", e);
+      }
+    }
 
     // 1. Catch and simulate demo store orders
     if (storeId === "demo-craft-classic-id" || storeId.startsWith("demo-") || storeId === "demo") {
