@@ -59,8 +59,85 @@ export default function SuperAdminOverviewPage() {
         }
       />
 
-      <div className="space-y-6 pb-20">
+      <div className="space-y-6 pb-20 text-left">
         <AdminStatCard stats={stats} />
+
+        {/* SaaS Subscription Billing Metrics Section */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Subscriptions Status Card */}
+          <div className="p-5 rounded-2xl bg-[#111111] border border-white/10 space-y-4">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-maroon-400 font-heading">
+              Platform Subscriptions
+            </h4>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <span className="text-[10px] text-zinc-500 font-mono block">TOTAL SUBSCRIBERS</span>
+                <span className="text-xl font-extrabold text-white font-heading">{stats.totalSubscribers || 0}</span>
+              </div>
+              <div>
+                <span className="text-[10px] text-zinc-500 font-mono block font-bold text-emerald-400">ACTIVE SUBSCRIPTIONS</span>
+                <span className="text-xl font-extrabold text-emerald-400 font-heading">{stats.activeSubscriptions || 0}</span>
+              </div>
+              <div>
+                <span className="text-[10px] text-zinc-500 font-mono block text-amber-400">TRIAL USERS</span>
+                <span className="text-xl font-extrabold text-amber-400 font-heading">{stats.trialUsers || 0}</span>
+              </div>
+              <div>
+                <span className="text-[10px] text-zinc-500 font-mono block text-rose-400">EXPIRED / CANCELLED</span>
+                <span className="text-xl font-extrabold text-rose-400 font-heading">
+                  {(stats.expiredSubscriptions || 0) + (stats.cancelledSubscriptions || 0)}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Payment & Receipts Card */}
+          <div className="p-5 rounded-2xl bg-[#111111] border border-white/10 space-y-4">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-maroon-400 font-heading">
+              Platform Invoices & Payments
+            </h4>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <span className="text-[10px] text-zinc-500 font-mono block font-bold text-emerald-400">SUCCESSFUL PAYMENTS</span>
+                <span className="text-xl font-extrabold text-emerald-400 font-heading">{stats.successfulPaymentsCount || 0}</span>
+              </div>
+              <div>
+                <span className="text-[10px] text-zinc-500 font-mono block text-rose-400">FAILED PAYMENTS</span>
+                <span className="text-xl font-extrabold text-rose-400 font-heading">{stats.failedPaymentsCount || 0}</span>
+              </div>
+              <div>
+                <span className="text-[10px] text-zinc-500 font-mono block">TOTAL REVENUE RECVD</span>
+                <span className="text-xl font-extrabold text-white font-heading">₹{(stats.totalRevenue || 0).toLocaleString()}</span>
+              </div>
+              <div>
+                <span className="text-[10px] text-zinc-500 font-mono block">PLATFORM MRR</span>
+                <span className="text-xl font-extrabold text-white font-heading">₹{(stats.mrr || 0).toLocaleString()}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Plan Distribution Card */}
+          <div className="p-5 rounded-2xl bg-[#111111] border border-white/10 space-y-4 flex flex-col justify-between">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-maroon-400 font-heading">
+              Active Tier Distribution
+            </h4>
+            <div className="space-y-2.5 font-body text-xs flex-grow justify-center flex flex-col">
+              <div className="flex justify-between items-center">
+                <span className="text-zinc-400">Starter Plan (₹99)</span>
+                <span className="font-bold text-white">{stats.planStarterCount || 0} stores</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-zinc-400">Growth Plan (₹299)</span>
+                <span className="font-bold text-white">{stats.planProCount || 0} stores</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-zinc-400">Pro / Business Suite (₹499)</span>
+                <span className="font-bold text-white">{stats.planBusinessCount || 0} stores</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <PlatformHealthCard />
         <AnalyticsChart />
 

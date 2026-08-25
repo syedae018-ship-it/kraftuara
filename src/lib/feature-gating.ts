@@ -66,14 +66,14 @@ export const PLANS: Record<PlanTier, PlanConfig> = {
       "premium_themes",
       "creative_discounts",
     ],
-    productLimit: 12,
+    productLimit: 24,
     popular: true,
   },
   business: {
     id: "business",
-    name: "Pro / Business",
+    name: "Pro",
     priceMonthly: 499,
-    description: "Complete E-commerce platform with Razorpay, Custom Domain & Advanced Features.",
+    description: "Complete E-commerce platform with Custom Domain & Advanced Features.",
     allowedFeatures: [
       "dashboard",
       "products",
@@ -104,8 +104,8 @@ export function hasFeatureAccess(planName: string, feature: FeatureKey): boolean
   const normalized = planName.toLowerCase().replace(/[^a-z]/g, "");
   
   let tier: PlanTier = "starter";
-  if (normalized.includes("business") || normalized.includes("enterprise")) tier = "business";
-  else if (normalized.includes("pro") || normalized.includes("growth")) tier = "pro";
+  if (normalized.includes("business") || normalized.includes("enterprise") || (normalized.includes("pro") && !normalized.includes("growth"))) tier = "business";
+  else if (normalized.includes("growth")) tier = "pro";
   else if (normalized.includes("starter") || normalized.includes("basic") || normalized.includes("free")) tier = "starter";
 
   const config = PLANS[tier];

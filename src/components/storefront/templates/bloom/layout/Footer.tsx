@@ -135,7 +135,7 @@ export default function Footer({ store, isSubdomain = false }: { store: StoreDat
             <span>All Rights Reserved.</span>
           </div>
           <div className="flex items-center gap-6">
-            <span>Powered by Craftaura</span>
+            <span>Powered by Kraftaura</span>
           </div>
         </div>
       </div>

@@ -38,12 +38,12 @@ const planFeaturesDisplay = {
     "Basic Dashboard Overview",
     "Product Management (up to 10 products)",
     "Dedicated Storefront URL Link",
-    "Craftaura Classic template access",
+    "Kraftaura Classic template access",
     "Custom Logo Upload",
   ],
   pro: [
     "Everything in Starter Plan",
-    "Product Management (up to 12 products)",
+    "Product Management (up to 24 products)",
     "Store Analytics & Traffic Insights (Store Views)",
     "Curated Collections & Taxonomies",
     "Advanced Customization & Branding",
@@ -152,9 +152,9 @@ export default function ChoosePlanPage() {
       const options = {
         key: keyId,
         subscription_id: subscriptionId,
-        name: "Symar Catalog Platform",
+        name: "Kraftaura Catalog Platform",
         description: `${selectedPlan.name} Subscription`,
-        image: "https://api.dicebear.com/7.x/initials/svg?seed=Symar",
+        image: "https://api.dicebear.com/7.x/initials/svg?seed=Kraftaura",
         handler: async function (response: any) {
           setProcessingPayment(true);
           const { verifySubscriptionPaymentAction } = await import("@/lib/actions/payment");

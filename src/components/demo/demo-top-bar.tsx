@@ -29,7 +29,7 @@ export function DemoTopBar() {
         </Badge>
         <div className="flex items-center gap-2">
           <span className="text-xs text-zinc-300 font-body">
-            Template: <strong className="text-white font-heading">Craft Store Classic</strong>
+            Template: <strong className="text-white font-heading">Kraftaura Classic</strong>
           </span>
           <span className="text-[11px] text-zinc-500 hidden md:inline font-mono">
             • 6 Realistic Sample Products

@@ -37,6 +37,17 @@ const mockStats: PlatformStats = {
   mrr: 12400.00,
   growthPercent: 24.5,
   platformHealth: "optimal",
+  
+  totalSubscribers: 104,
+  activeSubscriptions: 92,
+  trialUsers: 8,
+  expiredSubscriptions: 3,
+  cancelledSubscriptions: 9,
+  successfulPaymentsCount: 182,
+  failedPaymentsCount: 14,
+  planStarterCount: 45,
+  planProCount: 32,
+  planBusinessCount: 15,
 };
 
 const mockUsers: AdminUser[] = [

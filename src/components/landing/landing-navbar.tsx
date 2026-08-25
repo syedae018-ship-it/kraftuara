@@ -34,9 +34,10 @@ export function LandingNavbar() {
             <Store className="w-5 h-5 text-white" />
           </div>
           <div className="flex flex-col">
-            <span className="font-brand text-lg font-bold text-white tracking-widest flex items-center gap-1 uppercase">
-              CRAFTAURA
-            </span>
+            <div className="text-lg tracking-wide flex items-baseline font-heading">
+              <span className="font-extrabold text-white">Kraft</span>
+              <span className="font-normal text-zinc-300">aura</span>
+            </div>
             <span className="text-[10px] text-zinc-400 font-body -mt-0.5">Shopify Lite for Indian Creators</span>
           </div>
         </Link>

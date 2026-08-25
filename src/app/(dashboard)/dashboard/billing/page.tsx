@@ -12,12 +12,30 @@ import { cn } from "@/lib/utils";
 import { getStoreSubscriptionAction, updateStoreSubscriptionAction, StoreSubscription } from "@/lib/actions/subscription";
 import { isAdminUser } from "@/lib/services/admin-roles";
 import { createClient } from "@/lib/supabase/client";
+import { PLANS } from "@/lib/feature-gating";
 
 const PLANS_CATALOG = [
-  { id: "free", name: "Free Demo", price: "₹0", desc: "Basic storefront catalog, up to 5 products.", limit: 5 },
-  { id: "starter", name: "Starter Plan", price: "₹99/mo", desc: "WhatsApp ordering enabled, up to 50 products.", limit: 50 },
-  { id: "pro", name: "Pro Plan", price: "₹299/mo", desc: "Premium templates, visitor analytics, up to 500 products.", limit: 500 },
-  { id: "business", name: "Business Suite", price: "₹499/mo", desc: "Payments integration, shipping, up to 5000 products.", limit: 5000 },
+  {
+    id: "starter",
+    name: PLANS.starter.name + " Plan",
+    price: `₹${PLANS.starter.priceMonthly}/mo`,
+    desc: PLANS.starter.description + ` Up to ${PLANS.starter.productLimit} products.`,
+    limit: PLANS.starter.productLimit,
+  },
+  {
+    id: "pro",
+    name: PLANS.pro.name + " Plan",
+    price: `₹${PLANS.pro.priceMonthly}/mo`,
+    desc: PLANS.pro.description + ` Up to ${PLANS.pro.productLimit} products.`,
+    limit: PLANS.pro.productLimit,
+  },
+  {
+    id: "business",
+    name: PLANS.business.name + " Plan",
+    price: `₹${PLANS.business.priceMonthly}/mo`,
+    desc: PLANS.business.description + ` Up to ${PLANS.business.productLimit} products.`,
+    limit: PLANS.business.productLimit,
+  },
 ];
 
 export default function MerchantBillingPage() {
@@ -26,7 +44,7 @@ export default function MerchantBillingPage() {
   const [isLoading, setIsLoading] = useState(true);
   
   const [isAdmin, setIsAdmin] = useState(false);
-  const [adminPlan, setAdminPlan] = useState<"free" | "starter" | "pro" | "business">("starter");
+  const [adminPlan, setAdminPlan] = useState<"starter" | "pro" | "business">("starter");
   const [adminExpiryDays, setAdminExpiryDays] = useState(30);
   const [isUpdatingAdmin, setIsUpdatingAdmin] = useState(false);
   const [payments, setPayments] = useState<any[]>([]);
@@ -133,9 +151,9 @@ export default function MerchantBillingPage() {
       const options = {
         key: keyId,
         subscription_id: subscriptionId,
-        name: "Symar Platform Upgrade",
+        name: "Kraftaura Platform Upgrade",
         description: `Upgrade to ${planName}`,
-        image: "https://api.dicebear.com/7.x/initials/svg?seed=Symar",
+        image: "https://api.dicebear.com/7.x/initials/svg?seed=Kraftaura",
         handler: async function (response: any) {
           setProcessingUpgrade(planName);
           const { verifySubscriptionPaymentAction } = await import("@/lib/actions/payment");
@@ -292,13 +310,12 @@ export default function MerchantBillingPage() {
                 <label className="text-[10px] text-zinc-400 block font-heading uppercase">Plan Tier</label>
                 <select
                   value={adminPlan}
-                  onChange={(e: any) => setAdminPlan(e.target.value)}
+                  onChange={(e: any) => setAdminPlan(e.target.value as any)}
                   className="w-full h-9 bg-black border border-white/10 rounded-xl px-3 text-xs text-white"
                 >
-                  <option value="free">Free Demo</option>
                   <option value="starter">Starter Plan</option>
-                  <option value="pro">Pro Plan</option>
-                  <option value="business">Business Suite</option>
+                  <option value="pro">Growth Plan</option>
+                  <option value="business">Pro Plan</option>
                 </select>
               </div>
 
@@ -331,7 +348,7 @@ export default function MerchantBillingPage() {
           <h3 className="text-xs font-bold font-heading uppercase tracking-wider text-zinc-500">
             Available Platform Plans
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {PLANS_CATALOG.map((p) => {
               const isCurrent = subscription?.plan === p.id && subscription.status === "active";
               return (

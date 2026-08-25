@@ -29,22 +29,33 @@ export class SupabaseAdminRepository implements IAdminRepository {
     const { count: productsCount } = await supabase.from("products").select("*", { count: "exact", head: true });
     const { count: ordersCount } = await supabase.from("orders").select("*", { count: "exact", head: true });
 
-    // Platform order value sum
-    const { data: ordersData } = await supabase.from("orders").select("total_amount");
-    const orderValue = ordersData?.reduce((acc: number, o: any) => acc + Number(o.total_amount || 0), 0) || 0;
-
     // Total revenue from successful payments
     const { data: paymentsData } = await (supabase.from("payments") as any)
-      .select("amount")
-      .eq("status", "successful");
-    const totalRevenue = paymentsData?.reduce((acc: number, p: any) => acc + Number(p.amount || 0), 0) || 0;
+      .select("amount, status");
+    
+    const successfulPayments = paymentsData?.filter((p: any) => p.status === "successful" || p.status === "succeeded") || [];
+    const failedPayments = paymentsData?.filter((p: any) => p.status === "failed") || [];
+    const totalRevenue = successfulPayments.reduce((acc: number, p: any) => acc + Number(p.amount || 0), 0) || 0;
+
+    // Subscriptions metrics
+    const { data: subsData } = await (supabase.from("subscriptions") as any)
+      .select("plan, status, trial_end");
+
+    const totalSubscribers = subsData?.length || 0;
+    const activeSubs = subsData?.filter((s: any) => s.status === "active") || [];
+    const expiredSubs = subsData?.filter((s: any) => s.status === "expired") || [];
+    const cancelledSubs = subsData?.filter((s: any) => s.status === "cancelled") || [];
+    
+    const now = new Date();
+    const trialUsers = activeSubs.filter((s: any) => s.trial_end && new Date(s.trial_end) > now).length;
 
     // MRR: Sum of monthly subscription pricing for all active plans
-    const { data: subsData } = await (supabase.from("subscriptions") as any)
-      .select("plan")
-      .eq("status", "active");
-    const planPrices = { free: 0, starter: 99, pro: 299, business: 499 };
-    const mrr = subsData?.reduce((acc: number, s: any) => acc + (planPrices[s.plan as keyof typeof planPrices] || 0), 0) || 0;
+    const planPrices: Record<string, number> = { starter: 99, pro: 299, business: 499 };
+    const mrr = activeSubs.reduce((acc: number, s: any) => acc + (planPrices[s.plan] || 0), 0) || 0;
+
+    const planStarterCount = activeSubs.filter((s: any) => s.plan === "starter").length;
+    const planProCount = activeSubs.filter((s: any) => s.plan === "pro").length;
+    const planBusinessCount = activeSubs.filter((s: any) => s.plan === "business").length;
 
     return {
       totalUsers: usersCount || 0,
@@ -56,6 +67,17 @@ export class SupabaseAdminRepository implements IAdminRepository {
       mrr: mrr,
       growthPercent: totalRevenue > 0 ? 12.5 : 0,
       platformHealth: "optimal",
+
+      totalSubscribers,
+      activeSubscriptions: activeSubs.length,
+      trialUsers,
+      expiredSubscriptions: expiredSubs.length,
+      cancelledSubscriptions: cancelledSubs.length,
+      successfulPaymentsCount: successfulPayments.length,
+      failedPaymentsCount: failedPayments.length,
+      planStarterCount,
+      planProCount,
+      planBusinessCount,
     };
   }
 

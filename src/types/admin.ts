@@ -42,6 +42,18 @@ export type PlatformStats = {
   mrr: number;
   growthPercent: number;
   platformHealth: "optimal" | "degraded";
+  
+  // Platform Subscription Billing metrics
+  totalSubscribers?: number;
+  activeSubscriptions?: number;
+  trialUsers?: number;
+  expiredSubscriptions?: number;
+  cancelledSubscriptions?: number;
+  successfulPaymentsCount?: number;
+  failedPaymentsCount?: number;
+  planStarterCount?: number;
+  planProCount?: number;
+  planBusinessCount?: number;
 };
 
 export type Plan = {

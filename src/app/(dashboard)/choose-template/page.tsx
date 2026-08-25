@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 const templates = [
   {
     id: "bloom",
-    name: "Craft Store Classic",
+    name: "Kraftaura Classic",
     tag: "Artisan, Homeware, Boutique & Modern Catalog",
     desc: "Sleek, high-converting light e-commerce layout tailored for boutique storefronts, handcrafted artisan goods, and modern brands.",
     desktopImg: "https://images.unsplash.com/photo-1612196808214-b8e1d6145a8c?w=1000",

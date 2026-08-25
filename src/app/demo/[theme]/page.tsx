@@ -7,8 +7,8 @@ export const dynamic = "force-dynamic";
 
 export async function generateMetadata(): Promise<Metadata> {
   return {
-    title: "Craft Store Classic — Live Demo Storefront",
-    description: "Interactive live demo of the Craft Store Classic storefront with WhatsApp ordering.",
+    title: "Kraftaura Classic — Live Demo Storefront",
+    description: "Interactive live demo of the Kraftaura Classic storefront with WhatsApp ordering.",
   };
 }
 

@@ -6,8 +6,8 @@ import { Metadata } from "next";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Craft Store Classic — Live Demo Storefront",
-  description: "Interactive live demo of the Craft Store Classic storefront with WhatsApp ordering and 6 curated artisan products.",
+  title: "Kraftaura Classic — Live Demo Storefront",
+  description: "Interactive live demo of the Kraftaura Classic storefront with WhatsApp ordering and 6 curated artisan products.",
 };
 
 export default async function DemoPage({

@@ -42,7 +42,7 @@ export default function AdminMfaSetupPage() {
         // Start enrollment
         const { data: enrollRes, error: enrollError } = await supabase.auth.mfa.enroll({
           factorType: "totp",
-          issuer: "Symar Catalog",
+          issuer: "Kraftaura Catalog",
           friendlyName: "Super Admin",
         });
 

@@ -19,7 +19,7 @@ export default function AuthLayout({
             <Store className="w-6 h-6 text-white" />
           </div>
           <Badge variant="maroon" className="gap-1 text-[11px] font-brand uppercase tracking-wider">
-            <Sparkles className="w-3 h-3 text-maroon-300" /> Craftaura
+            <Sparkles className="w-3 h-3 text-maroon-300" /> Kraftaura
           </Badge>
         </div>
 

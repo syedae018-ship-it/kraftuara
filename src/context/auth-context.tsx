@@ -546,15 +546,29 @@ export function DummyAuthProvider({ children }: { children: React.ReactNode }) {
         display_order: 1,
       });
 
-      // 4. Subscription (default free or selected)
+      // 4. Secure Subscription Setup
       const selectedPlan = (typeof window !== "undefined" && localStorage.getItem("symar_selected_plan")) || "starter";
-      const { error: subError } = await (supabase.from("subscriptions") as any).insert({
-        store_id: store.id,
-        user_id: currentUser.id,
-        plan: selectedPlan,
-        status: "active",
+      const rzpSubId = typeof window !== "undefined" ? localStorage.getItem("symar_checkout_subscription_id") : null;
+      const rzpPaymentId = typeof window !== "undefined" ? localStorage.getItem("symar_checkout_payment_id") : null;
+      const rzpSignature = typeof window !== "undefined" ? localStorage.getItem("symar_checkout_signature") : null;
+
+      const { activatePlatformSubscriptionAction } = await import("@/lib/actions/payment");
+      const subRes = await activatePlatformSubscriptionAction(store.id, selectedPlan as any, {
+        subscriptionId: rzpSubId,
+        paymentId: rzpPaymentId,
+        signature: rzpSignature,
       });
-      if (subError) console.error("Subscription creation error:", subError);
+
+      if (!subRes.success) {
+        console.error("Subscription activation failed during store setup:", subRes.error);
+      }
+
+      // Clean up localStorage checkout credentials
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("symar_checkout_subscription_id");
+        localStorage.removeItem("symar_checkout_payment_id");
+        localStorage.removeItem("symar_checkout_signature");
+      }
 
       // Save active store ID immediately
       if (typeof window !== "undefined") {

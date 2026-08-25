@@ -32,14 +32,14 @@ import { Badge } from "@/components/ui/table";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
-// Craft Store Classic Template for Landing Showcase
+// Kraftaura Classic Template for Landing Showcase
 const craftStoreClassicTemplate = {
   id: "bloom",
-  name: "Craft Store Classic",
+  name: "Kraftaura Classic",
   tag: "Artisan, Homeware, Boutique & Modern Catalog",
   desc: "Clean, high-converting light aesthetic tailored for boutique storefronts, handcrafted artisan goods, and modern brands with instant WhatsApp buy.",
   desktopImg: "https://images.unsplash.com/photo-1612196808214-b8e1d6145a8c?w=1400",
-  mobileImg: "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=600",
+  mobileImg: "https://images.unsplash.com/photo-1594035910387-fea47794261f?w=600",
   accent: "from-amber-500/20 to-maroon-900/30",
 };
 
@@ -71,7 +71,7 @@ const featuresList = [
   },
   {
     title: "Storefront Design",
-    desc: "Craft Store Classic layout with complete typography, palette customizer, and instant responsive layouts.",
+    desc: "Kraftaura Classic layout with complete typography, palette customizer, and instant responsive layouts.",
     icon: Sparkles,
   },
   {
@@ -92,7 +92,7 @@ const pricingPlans = [
       "Basic Dashboard Overview",
       "Product Management (up to 10 products)",
       "Dedicated Storefront URL Link",
-      "Craftaura Classic template access",
+      "Kraftaura Classic template access",
       "Custom Logo Upload",
     ],
     cta: "Choose Starter",
@@ -106,7 +106,7 @@ const pricingPlans = [
     description: PLANS.pro.description,
     features: [
       "Everything in Starter Plan",
-      "Product Management (up to 12 products)",
+      "Product Management (up to 24 products)",
       "Store Analytics & Traffic Insights (Store Views)",
       "Curated Collections & Taxonomies",
       "Advanced Customization & Branding",
@@ -117,7 +117,7 @@ const pricingPlans = [
     popular: true,
   },
   {
-    name: "PRO / BUSINESS",
+    name: "PRO",
     price: `₹${PLANS.business.priceMonthly}`,
     period: "month",
     description: PLANS.business.description,
@@ -194,7 +194,7 @@ export function LandingPage() {
 
           {/* Subheadline */}
           <p className="text-base sm:text-lg text-zinc-400 max-w-2xl mx-auto font-body leading-relaxed">
-            Turn social followers into instant buyers. Launch a high-converting storefront with WhatsApp checkout, Craft Store Classic theme, and real-time store analytics in under 2 minutes.
+            Turn social followers into instant buyers. Launch a high-converting storefront with WhatsApp checkout, Kraftaura Classic theme, and real-time store analytics in under 2 minutes.
           </p>
         </div>
 
@@ -263,13 +263,13 @@ export function LandingPage() {
             <div className="relative aspect-[16/9] rounded-xl overflow-hidden group">
               <img
                 src={craftStoreClassicTemplate.desktopImg}
-                alt="Craft Store Classic Preview"
+                alt="Kraftaura Classic Preview"
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-[#080808] via-transparent to-black/30 flex items-end p-6 sm:p-10 text-left">
                 <div className="space-y-2">
                   <Badge variant="maroon" className="text-xs uppercase tracking-widest font-heading">
-                    Craft Store Classic
+                    Kraftaura Classic
                   </Badge>
                   <h3 className="text-xl sm:text-3xl font-bold font-heading text-white">
                     Artisan Living & Modern Essentials
@@ -285,7 +285,7 @@ export function LandingPage() {
             <div className="relative w-full h-[450px] sm:h-[550px] rounded-[24px] overflow-hidden bg-[#111111]">
               <img
                 src={craftStoreClassicTemplate.mobileImg}
-                alt="Craft Store Classic Mobile Preview"
+                alt="Kraftaura Classic Mobile Preview"
                 className="w-full h-full object-cover"
               />
               <div className="absolute bottom-4 left-0 w-full px-4">
@@ -307,10 +307,10 @@ export function LandingPage() {
             Signature Design System
           </Badge>
           <h2 className="text-3xl sm:text-4xl font-bold font-heading text-white tracking-tight">
-            Craft Store Classic
+            Kraftaura Classic
           </h2>
-          <p className="text-sm text-zinc-400 max-w-xl mx-auto">
-            Architect-crafted storefront theme tailored for boutique merchants, artisan makers, and modern lifestyle brands.
+          <p className="text-xs text-zinc-400 max-w-xl mx-auto font-body">
+            Tailored storefront design optimized for artisan makers, boutique designers, and modern brands.
           </p>
         </div>
 
@@ -347,7 +347,7 @@ export function LandingPage() {
                   {craftStoreClassicTemplate.tag}
                 </span>
                 <h3 className="text-2xl sm:text-3xl font-bold font-heading text-white">
-                  Craft Store Classic Template
+                  Kraftaura Classic Template
                 </h3>
                 <p className="text-xs sm:text-sm text-zinc-400 leading-relaxed mt-2 font-body">
                   {craftStoreClassicTemplate.desc}
@@ -357,19 +357,15 @@ export function LandingPage() {
               <div className="space-y-2 pt-2 border-t border-white/10">
                 <div className="flex items-center gap-2 text-xs text-zinc-300 font-body">
                   <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                  Instant Desktop & Mobile Responsiveness
+                  Fully responsive, mobile-first layouts
                 </div>
                 <div className="flex items-center gap-2 text-xs text-zinc-300 font-body">
                   <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                  Supports Full Font & Preset Color Customization
+                  Font & color customization presets
                 </div>
                 <div className="flex items-center gap-2 text-xs text-zinc-300 font-body">
                   <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                  Integrated Direct WhatsApp & Razorpay Buttons
-                </div>
-                <div className="flex items-center gap-2 text-xs text-zinc-300 font-body">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                  Fast Catalog Filtering & Search
+                  Instant checkout via WhatsApp
                 </div>
               </div>
 
@@ -602,7 +598,7 @@ export function LandingPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
           {[
             {
-              quote: "Craftaura transformed our luxury perfume business. Customers love the instant WhatsApp order link!",
+              quote: "Kraftaura transformed our luxury perfume business. Customers love the instant WhatsApp order link!",
               author: "Tariq Al-Mansoor",
               role: "Owner, Aroma Perfumes",
               img: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150",
@@ -646,9 +642,13 @@ export function LandingPage() {
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-maroon-800 to-maroon-950 border border-maroon-600/40 flex items-center justify-center text-white font-brand font-bold text-xs uppercase tracking-wider">
-              CA
+              KA
             </div>
-            <span className="font-brand font-bold text-white text-sm uppercase tracking-wider">Craftaura SaaS Platform</span>
+            <div className="text-sm tracking-wide flex items-baseline font-heading">
+              <span className="font-extrabold text-white">Kraft</span>
+              <span className="font-normal text-zinc-300">aura</span>
+              <span className="text-[10px] text-zinc-500 uppercase tracking-widest ml-1 font-mono">SaaS Platform</span>
+            </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-6">
@@ -659,7 +659,7 @@ export function LandingPage() {
           </div>
 
           <div>
-            &copy; {new Date().getFullYear()} Craftaura Platform. All rights reserved.
+            &copy; {new Date().getFullYear()} Kraftaura Platform. All rights reserved.
           </div>
         </div>
       </footer>

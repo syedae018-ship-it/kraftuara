@@ -70,6 +70,12 @@ export async function POST(request: NextRequest) {
       // Avoid race conditions: only update if period end is further out or status needs updating
       const isNewer = !sub.current_period_end || new Date(newPeriodEnd).getTime() > new Date(sub.current_period_end).getTime();
 
+      const trialStart = subEntity.created_at ? new Date(subEntity.created_at * 1000).toISOString() : new Date().toISOString();
+      const trialEnd = subEntity.start_at ? new Date(subEntity.start_at * 1000).toISOString() : new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString();
+      
+      const planConfig = PLANS[sub.plan as "starter" | "pro" | "business"];
+      const amount = planConfig?.priceMonthly || 0;
+
       if (isNewer || sub.status !== "active") {
         await (supabase as any)
           .from("subscriptions")
@@ -77,12 +83,16 @@ export async function POST(request: NextRequest) {
             status: "active",
             current_period_start: newPeriodStart,
             current_period_end: newPeriodEnd,
+            trial_start: trialStart,
+            trial_end: trialEnd,
+            next_billing_date: newPeriodEnd,
+            amount: amount,
+            currency: "INR",
           })
           .eq("razorpay_subscription_id", subEntity.id);
       }
 
       // Log payment record in payments table
-      const planConfig = PLANS[sub.plan as "starter" | "pro" | "business"];
       const paymentEntity = payload.payment?.entity;
 
       await (supabase as any)

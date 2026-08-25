@@ -18,8 +18,8 @@ const bodyFont = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Craftaura | Multi-Tenant Catalog SaaS Platform",
-  description: "Craftaura is the next-generation multi-tenant catalog store builder.",
+  title: "Kraftaura | Multi-Tenant Catalog SaaS Platform",
+  description: "Kraftaura is the next-generation multi-tenant catalog store builder.",
 };
 
 export default function RootLayout({

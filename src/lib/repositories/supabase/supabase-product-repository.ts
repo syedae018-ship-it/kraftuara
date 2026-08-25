@@ -63,7 +63,13 @@ export class SupabaseProductRepository implements IProductRepository {
       .eq("store_id", storeId);
     
     if ((count || 0) >= limit) {
-      throw new Error(`Product limit reached. The active plan (${config.name}) restricts you to a maximum of ${limit} products.`);
+      if (plan === "starter") {
+        throw new Error("Starter allows up to 10 products. Upgrade your plan to add more.");
+      } else if (plan === "pro") {
+        throw new Error("Growth allows up to 24 products. Upgrade to Pro to add more.");
+      } else {
+        throw new Error("Pro allows up to 100 products.");
+      }
     }
   }
 

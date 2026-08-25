@@ -1,6 +1,6 @@
 # Project Guard Architectural Blueprint & Source of Truth
 
-This document serves as the official source of truth and architectural guard rails for the **Symar Lite** multi-tenant digital catalog platform. 
+This document serves as the official source of truth and architectural guard rails for the **Kraftaura** multi-tenant digital catalog platform. 
 
 All future modifications, refactorings, or feature implementations **must** adhere strictly to the guidelines and configurations described herein.
 
