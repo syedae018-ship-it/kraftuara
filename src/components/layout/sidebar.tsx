@@ -14,6 +14,7 @@ import {
   Megaphone,
   Users,
   CreditCard,
+  Ticket,
   Settings,
   HelpCircle,
   ChevronDown,
@@ -61,6 +62,7 @@ const navigationSections: NavSection[] = [
     items: [
       { title: "Appearance", href: "/dashboard/appearance", icon: Palette, feature: "appearance" },
       { title: "Themes", href: "/dashboard/themes", icon: Palette, feature: "premium_themes", requiredPlan: "Pro" },
+      { title: "Coupons", href: "/dashboard/coupons", icon: Ticket, feature: "coupons" },
       { title: "Settings", href: "/dashboard/settings", icon: Settings, feature: "store_settings" },
       { title: "Billing & Plans", href: "/dashboard/billing", icon: CreditCard },
       { title: "Support", href: "/dashboard/support", icon: HelpCircle },
@@ -110,7 +112,7 @@ export function Sidebar({ collapsed = false, onToggleCollapse, onNavigate, class
                 <div className="flex items-center gap-1.5 mt-0.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                   <span className="text-[10px] text-zinc-400 font-body uppercase tracking-wider">
-                    {activeStore?.plan || "Starter Plan"}
+                    {activeStore?.plan === "startup" ? "Startup Pack" : activeStore?.plan === "growth" ? "Growth Pack" : activeStore?.plan === "pro" ? "Pro Plan" : (activeStore?.plan || "Startup Pack")}
                   </span>
                 </div>
               </div>
@@ -170,7 +172,7 @@ export function Sidebar({ collapsed = false, onToggleCollapse, onNavigate, class
         {navigationSections.map((section) => {
           const visibleItems = section.items.filter((item) => {
             if (!item.feature) return true;
-            return hasFeatureAccess(activeStore?.plan || "Starter Plan", item.feature);
+            return hasFeatureAccess(activeStore?.plan || "startup", item.feature);
           });
 
           if (visibleItems.length === 0) return null;

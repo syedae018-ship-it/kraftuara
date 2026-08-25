@@ -32,13 +32,13 @@ export class SupabaseProductRepository implements IProductRepository {
       .eq("store_id", storeId)
       .maybeSingle();
 
-    let plan: PlanTier = "starter";
+    let plan: PlanTier = "startup";
     let status = subRow?.status || "active";
     const expiresAt = subRow?.current_period_end;
 
     if (subRow) {
       const dbPlan = subRow.plan;
-      if (dbPlan === "pro" || dbPlan === "business" || dbPlan === "starter") {
+      if (dbPlan === "startup" || dbPlan === "growth" || dbPlan === "pro") {
         plan = dbPlan;
       }
       if (expiresAt) {
@@ -50,11 +50,11 @@ export class SupabaseProductRepository implements IProductRepository {
 
     // Downgrade resolved entitlement to starter if expired or cancelled
     if (status === "expired" || status === "cancelled") {
-      plan = "starter";
+      plan = "startup";
     }
 
     // Get limit based on PLANS gating
-    const config = PLANS[plan] || PLANS.starter;
+    const config = PLANS[plan] || PLANS.startup;
     const limit = config.productLimit;
 
     const { count } = await supabase
@@ -63,12 +63,12 @@ export class SupabaseProductRepository implements IProductRepository {
       .eq("store_id", storeId);
     
     if ((count || 0) >= limit) {
-      if (plan === "starter") {
-        throw new Error("Starter allows up to 10 products. Upgrade your plan to add more.");
-      } else if (plan === "pro") {
-        throw new Error("Growth allows up to 24 products. Upgrade to Pro to add more.");
+      if (plan === "startup") {
+        throw new Error("Your Startup Pack allows up to 12 products. Upgrade to Growth to add more.");
+      } else if (plan === "growth") {
+        throw new Error("Your Growth Pack allows up to 24 products. Upgrade to Pro to add more.");
       } else {
-        throw new Error("Pro allows up to 100 products.");
+        throw new Error("Your Pro Plan allows up to 100 products.");
       }
     }
   }

@@ -50,12 +50,12 @@ export class SupabaseAdminRepository implements IAdminRepository {
     const trialUsers = activeSubs.filter((s: any) => s.trial_end && new Date(s.trial_end) > now).length;
 
     // MRR: Sum of monthly subscription pricing for all active plans
-    const planPrices: Record<string, number> = { starter: 99, pro: 299, business: 499 };
+    const planPrices: Record<string, number> = { startup: 99, growth: 299, pro: 499 };
     const mrr = activeSubs.reduce((acc: number, s: any) => acc + (planPrices[s.plan] || 0), 0) || 0;
 
-    const planStarterCount = activeSubs.filter((s: any) => s.plan === "starter").length;
-    const planProCount = activeSubs.filter((s: any) => s.plan === "pro").length;
-    const planBusinessCount = activeSubs.filter((s: any) => s.plan === "business").length;
+    const planStarterCount = activeSubs.filter((s: any) => s.plan === "startup").length;
+    const planProCount = activeSubs.filter((s: any) => s.plan === "growth").length;
+    const planBusinessCount = activeSubs.filter((s: any) => s.plan === "pro").length;
 
     return {
       totalUsers: usersCount || 0,

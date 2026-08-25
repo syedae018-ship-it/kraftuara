@@ -26,8 +26,8 @@ export default function NewCategoryPage() {
       const created = await categoryRepository.create(activeStore.id, data);
       toast.success("Category Created!", `Added category "${created.name}"`);
       router.push("/dashboard/categories");
-    } catch (err) {
-      toast.error("Error", "Could not create category.");
+    } catch (err: any) {
+      toast.error("Error", err.message || "Could not create category.");
     } finally {
       setIsSubmitting(false);
     }

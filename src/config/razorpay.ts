@@ -2,12 +2,12 @@ import Razorpay from "razorpay";
 
 export const getOrCreateRazorpayPlan = async (
   razorpay: Razorpay,
-  planTier: "starter" | "pro" | "business"
+  planTier: "startup" | "growth" | "pro"
 ): Promise<string> => {
   const activeDetails = {
-    starter: { name: "Starter Plan", amount: 9900, period: "monthly" as const, interval: 1 },
-    pro: { name: "Growth Plan", amount: 29900, period: "monthly" as const, interval: 1 },
-    business: { name: "Pro Plan", amount: 49900, period: "monthly" as const, interval: 1 },
+    startup: { name: "Startup Pack", amount: 9900, period: "monthly" as const, interval: 1 },
+    growth: { name: "Growth Pack", amount: 29900, period: "monthly" as const, interval: 1 },
+    pro: { name: "Pro Plan", amount: 49900, period: "monthly" as const, interval: 1 },
   };
 
   const envKey = `RAZORPAY_PLAN_${planTier.toUpperCase()}`;

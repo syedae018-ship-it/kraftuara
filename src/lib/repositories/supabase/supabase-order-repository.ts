@@ -1,6 +1,7 @@
 import { Order, OrderItemInput, CustomerInput, IOrderRepository } from "../order-repository";
 import { createClient } from "@/lib/supabase/client";
 import { DEMO_STORE_PRODUCTS } from "@/lib/demo-data";
+import { supabaseCouponRepository } from "./supabase-coupon-repository";
 
 export class SupabaseOrderRepository implements IOrderRepository {
   private getSupabase() {
@@ -60,6 +61,19 @@ export class SupabaseOrderRepository implements IOrderRepository {
       const randomSuffix = Math.floor(Math.random() * 9000 + 1000);
       const orderNumber = `DEMO-${dateStr}-${randomSuffix}`;
 
+      let discountAmount = 0;
+      let appliedCouponCode = null;
+      if (customer.couponCode) {
+        const uppercaseCode = customer.couponCode.trim().toUpperCase();
+        if (uppercaseCode === "WELCOME10" || uppercaseCode === "LAUNCH2026") {
+          discountAmount = (calculatedTotal * 10) / 100;
+          appliedCouponCode = uppercaseCode;
+        } else {
+          throw new Error("Invalid coupon code.");
+        }
+      }
+      const finalAmount = calculatedTotal - discountAmount;
+
       return {
         id: `demo-order-${Date.now()}`,
         storeId,
@@ -67,7 +81,7 @@ export class SupabaseOrderRepository implements IOrderRepository {
         customerName: customer.name.trim(),
         customerPhone: customer.phone.trim(),
         shippingAddress: customer.shippingAddress.trim(),
-        totalAmount: calculatedTotal,
+        totalAmount: finalAmount,
         status: "pending",
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -155,6 +169,29 @@ export class SupabaseOrderRepository implements IOrderRepository {
     const randomSuffix = Math.floor(Math.random() * 9000 + 1000);
     const orderNumber = `SK-${dateStr}-${randomSuffix}`;
 
+    // Validate and apply coupon if provided
+    let discountAmount = 0;
+    let appliedCouponCode = null;
+    
+    if (customer.couponCode) {
+      const couponRes = await supabaseCouponRepository.validateCoupon(storeId, customer.couponCode, calculatedTotal, supabase);
+      if (couponRes.success && couponRes.discountAmount > 0) {
+        discountAmount = couponRes.discountAmount;
+        appliedCouponCode = customer.couponCode.trim().toUpperCase();
+        
+        // Increment usage count atomically
+        if (couponRes.coupon?.id) {
+          await (supabase.from("coupons") as any)
+            .update({ usage_count: (couponRes.coupon.usageCount || 0) + 1 })
+            .eq("id", couponRes.coupon.id);
+        }
+      } else if (!couponRes.success) {
+        throw new Error(couponRes.error || "Invalid coupon code.");
+      }
+    }
+
+    const finalAmount = calculatedTotal - discountAmount;
+
     // 6. Insert order record
     const { data: orderRow, error: orderError } = await (supabase.from("orders") as any)
       .insert({
@@ -163,7 +200,9 @@ export class SupabaseOrderRepository implements IOrderRepository {
         customer_name: customer.name.trim(),
         customer_phone: customer.phone.trim(),
         shipping_address: customer.shippingAddress.trim(),
-        total_amount: calculatedTotal,
+        total_amount: finalAmount,
+        coupon_code: appliedCouponCode,
+        discount_amount: discountAmount,
         status: "pending",
       })
       .select()

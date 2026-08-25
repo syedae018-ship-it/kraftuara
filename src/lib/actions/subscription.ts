@@ -9,8 +9,8 @@ import { isAdminUser } from "@/lib/services/admin-roles";
 export interface StoreSubscription {
   id?: string;
   storeId: string;
-  plan: "free" | "starter" | "pro" | "business";
-  selectedPlan?: "free" | "starter" | "pro" | "business";
+  plan: "startup" | "growth" | "pro";
+  selectedPlan?: "startup" | "growth" | "pro";
   status: "active" | "expired" | "cancelled" | "pending" | "payment_pending";
   expiresAt: string | null;
   startsAt: string | null;
@@ -19,7 +19,7 @@ export interface StoreSubscription {
 
 /**
  * Server action to get store-scoped subscription details.
- * Downgrades entitlement resolution to 'free' tier if a paid subscription expires.
+ * Downgrades entitlement resolution to 'startup' tier if a paid subscription expires.
  */
 export async function getStoreSubscriptionAction(storeId: string) {
   try {
@@ -45,23 +45,45 @@ export async function getStoreSubscriptionAction(storeId: string) {
 
     if (error) throw new Error(error.message);
 
-    // If no subscription record exists, create default Free plan subscription
+    // If no subscription record exists, create default Startup Pack subscription with 3-day trial
     if (!subRow) {
+      const nowStr = new Date().toISOString();
+      const trialEndStr = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString();
+      
       const { data: newSub, error: insertError } = await (supabase.from("subscriptions") as any)
         .insert({
           store_id: storeId,
-          plan: "free",
+          user_id: user.id,
+          plan: "startup",
           status: "active",
+          current_period_start: nowStr,
+          current_period_end: trialEndStr,
+          trial_start: nowStr,
+          trial_end: trialEndStr,
+          next_billing_date: trialEndStr,
+          amount: 99,
+          currency: "INR",
         })
         .select()
         .single();
 
       if (insertError) throw new Error("Failed to initialize default subscription.");
       subRow = newSub;
+    } else if (subRow && (subRow.plan === "free" || !["startup", "growth", "pro"].includes(subRow.plan))) {
+      await (supabase.from("subscriptions") as any)
+        .update({
+          plan: "startup",
+          amount: 99,
+          currency: "INR",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("store_id", storeId);
+      subRow.plan = "startup";
+      subRow.amount = 99;
     }
 
     const activeSub = subRow!;
-    let plan = activeSub.plan as "free" | "starter" | "pro" | "business";
+    let plan = activeSub.plan as "startup" | "growth" | "pro";
     let status = activeSub.status as "active" | "expired" | "cancelled" | "pending";
     const expiresAt = activeSub.current_period_end;
     const startsAt = activeSub.current_period_start;
@@ -84,7 +106,7 @@ export async function getStoreSubscriptionAction(storeId: string) {
       }
     }
 
-    // If status is expired, cancelled (and expired), or pending/unpaid, cancel paid entitlements and downgrade runtime resolved plan to free
+    // If status is expired, cancelled (and expired), or pending/unpaid, cancel paid entitlements and downgrade runtime resolved plan to startup
     let resolvedPlan = plan;
     const isExpired = daysRemaining !== null ? daysRemaining <= 0 : true;
     if (
@@ -93,7 +115,7 @@ export async function getStoreSubscriptionAction(storeId: string) {
       status === "pending" ||
       (status as string) === "payment_pending"
     ) {
-      resolvedPlan = "free";
+      resolvedPlan = "startup";
     }
 
     return {
@@ -119,7 +141,7 @@ export async function getStoreSubscriptionAction(storeId: string) {
  */
 export async function updateStoreSubscriptionAction(
   storeId: string,
-  plan: "free" | "starter" | "pro" | "business",
+  plan: "startup" | "growth" | "pro",
   status: "active" | "expired" | "cancelled" | "pending",
   expiryDays?: number
 ) {

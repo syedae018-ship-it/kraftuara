@@ -30,7 +30,7 @@ const getRazorpayInstance = () => {
  */
 export async function createStoreSubscriptionAction(
   storeId: string | null | undefined,
-  planName: "starter" | "pro" | "business"
+  planName: "startup" | "growth" | "pro"
 ): Promise<ActionResponse<{ subscriptionId: string; keyId: string; isSimulated: boolean }>> {
   try {
     const supabase = await createServerSupabaseClient();
@@ -67,7 +67,7 @@ export async function createStoreSubscriptionAction(
       
       // If store ID exists, upsert pending subscription record
       if (storeId) {
-        await (supabase.from("subscriptions") as any).upsert({
+        const { error: upsertError } = await (supabase.from("subscriptions") as any).upsert({
           store_id: storeId,
           user_id: user.id,
           plan: planName,
@@ -77,10 +77,14 @@ export async function createStoreSubscriptionAction(
           current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
           trial_start: new Date().toISOString(),
           trial_end: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
-          next_billing_date: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
+          next_billing_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
           amount: planConfig.priceMonthly,
           currency: "INR",
-        });
+        }, { onConflict: "store_id" });
+
+        if (upsertError) {
+          throw new Error("Failed to register pending subscription: " + upsertError.message);
+        }
       }
 
       return successResponse({
@@ -101,11 +105,15 @@ export async function createStoreSubscriptionAction(
       quantity: 1,
       customer_notify: 1,
       start_at: trialEndTimestamp, // billing begins after trial
+      notes: {
+        storeId: storeId || "",
+        planName: planName,
+      }
     });
 
     // If store ID exists, save pending subscription details in the DB
     if (storeId) {
-      await (supabase.from("subscriptions") as any).upsert({
+      const { error: upsertError } = await (supabase.from("subscriptions") as any).upsert({
         store_id: storeId,
         user_id: user.id,
         plan: planName,
@@ -115,7 +123,11 @@ export async function createStoreSubscriptionAction(
         trial_end: new Date(trialEndTimestamp * 1000).toISOString(),
         amount: planConfig.priceMonthly,
         currency: "INR",
-      });
+      }, { onConflict: "store_id" });
+
+      if (upsertError) {
+        throw new Error("Failed to register pending subscription: " + upsertError.message);
+      }
     }
 
     return successResponse({
@@ -136,6 +148,7 @@ export async function verifySubscriptionPaymentAction(payload: {
   paymentId: string;
   subscriptionId: string;
   signature: string;
+  planId?: "startup" | "growth" | "pro";
 }): Promise<ActionResponse<{ success: boolean }>> {
   try {
     const supabase = await createServerSupabaseClient();
@@ -158,21 +171,30 @@ export async function verifySubscriptionPaymentAction(payload: {
       }
     }
 
+    // Resolve target plan tier
+    let targetPlan: "startup" | "growth" | "pro" = payload.planId || "startup";
+
+    if (payload.storeId) {
+      const { data: currentSub } = await (supabase.from("subscriptions") as any)
+        .select("plan")
+        .eq("store_id", payload.storeId)
+        .maybeSingle();
+
+      if (!payload.planId && currentSub?.plan && currentSub.plan !== "free") {
+        targetPlan = currentSub.plan as any;
+      }
+    }
+
+    const planConfig = PLANS[targetPlan] || PLANS.startup;
+
     const razorpay = getRazorpayInstance();
     const isSimulated = !razorpay || payload.subscriptionId.startsWith("sub_mock_");
 
     if (isSimulated) {
       if (payload.storeId) {
-        const { data: currentSub } = await (supabase.from("subscriptions") as any)
-          .select("plan")
-          .eq("store_id", payload.storeId)
-          .maybeSingle();
-
-        const planName = currentSub?.plan || "starter";
-        const planConfig = PLANS[planName as "starter" | "pro" | "business"];
-
         // Update subscription status to active with trial and amount details
-        await (supabase.from("subscriptions") as any).update({
+        const { error: updateError } = await (supabase.from("subscriptions") as any).update({
+          plan: targetPlan,
           status: "active",
           user_id: user.id,
           razorpay_signature: payload.signature || "mock_signature",
@@ -181,18 +203,22 @@ export async function verifySubscriptionPaymentAction(payload: {
           trial_start: new Date().toISOString(),
           trial_end: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
           next_billing_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-          amount: planConfig?.priceMonthly || 0,
+          amount: planConfig.priceMonthly,
           currency: "INR",
           updated_at: new Date().toISOString(),
         }).eq("store_id", payload.storeId);
 
+        if (updateError) {
+          throw new Error("Failed to update subscription: " + updateError.message);
+        }
+
         // Log payment record
         await (supabase.from("payments") as any).insert({
           store_id: payload.storeId,
-          plan: planName,
+          plan: targetPlan,
           razorpay_payment_id: payload.paymentId || `pay_mock_${Date.now()}`,
           razorpay_subscription_id: payload.subscriptionId,
-          amount: planConfig?.priceMonthly || 0,
+          amount: planConfig.priceMonthly,
           currency: "INR",
           status: "successful",
         });
@@ -215,38 +241,48 @@ export async function verifySubscriptionPaymentAction(payload: {
 
     if (payload.storeId) {
       // Fetch live period timestamps from Razorpay
-      const subDetails = await razorpay.subscriptions.fetch(payload.subscriptionId);
-      
-      const { data: currentSub } = await (supabase.from("subscriptions") as any)
-        .select("plan")
-        .eq("store_id", payload.storeId)
-        .maybeSingle();
+      let currentStartFromRzp = new Date().toISOString();
+      let currentEndFromRzp = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
 
-      const planName = currentSub?.plan || "starter";
-      const planConfig = PLANS[planName as "starter" | "pro" | "business"];
+      try {
+        const subDetails = await razorpay.subscriptions.fetch(payload.subscriptionId);
+        if (subDetails.current_start) {
+          currentStartFromRzp = new Date(subDetails.current_start * 1000).toISOString();
+        }
+        if (subDetails.current_end) {
+          currentEndFromRzp = new Date(subDetails.current_end * 1000).toISOString();
+        }
+      } catch (rzpErr) {
+        console.error("Failed to query live Razorpay subscription timings:", rzpErr);
+      }
 
-      // Update DB Subscriptions
-      await (supabase.from("subscriptions") as any).update({
+      // Update DB Subscriptions with targetPlan
+      const { error: updateError } = await (supabase.from("subscriptions") as any).update({
+        plan: targetPlan,
         status: "active",
         user_id: user.id,
         razorpay_signature: payload.signature,
-        current_period_start: new Date(subDetails.current_start * 1000).toISOString(),
-        current_period_end: new Date(subDetails.current_end * 1000).toISOString(),
+        current_period_start: currentStartFromRzp,
+        current_period_end: currentEndFromRzp,
         trial_start: new Date().toISOString(),
         trial_end: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
-        next_billing_date: new Date(subDetails.current_end * 1000).toISOString(),
-        amount: planConfig?.priceMonthly || 0,
+        next_billing_date: currentEndFromRzp,
+        amount: planConfig.priceMonthly,
         currency: "INR",
         updated_at: new Date().toISOString(),
       }).eq("store_id", payload.storeId);
 
+      if (updateError) {
+        throw new Error("Failed to update subscription in database: " + updateError.message);
+      }
+
       // Insert successful payment record
       await (supabase.from("payments") as any).insert({
         store_id: payload.storeId,
-        plan: planName,
+        plan: targetPlan,
         razorpay_payment_id: payload.paymentId,
         razorpay_subscription_id: payload.subscriptionId,
-        amount: planConfig?.priceMonthly || 0,
+        amount: planConfig.priceMonthly,
         currency: "INR",
         status: "successful",
       });
@@ -266,7 +302,7 @@ export async function verifySubscriptionPaymentAction(payload: {
  */
 export async function activatePlatformSubscriptionAction(
   storeId: string,
-  planName: "starter" | "pro" | "business",
+  planName: "startup" | "growth" | "pro",
   paymentDetails?: {
     subscriptionId?: string | null;
     paymentId?: string | null;
@@ -309,7 +345,7 @@ export async function activatePlatformSubscriptionAction(
 
     if (isSimulated) {
       // Mock/Simulated subscription activation
-      await (supabase.from("subscriptions") as any).upsert({
+      const { error: upsertError } = await (supabase.from("subscriptions") as any).upsert({
         store_id: storeId,
         user_id: store.user_id,
         plan: planName,
@@ -324,7 +360,11 @@ export async function activatePlatformSubscriptionAction(
         amount: planConfig.priceMonthly,
         currency: "INR",
         updated_at: new Date().toISOString(),
-      });
+      }, { onConflict: "store_id" });
+
+      if (upsertError) {
+        throw new Error("Failed to activate mock subscription: " + upsertError.message);
+      }
 
       // Insert mock successful payment record
       await (supabase as any).from("payments").insert({
@@ -368,7 +408,7 @@ export async function activatePlatformSubscriptionAction(
         amount: planConfig.priceMonthly,
         currency: "INR",
         updated_at: new Date().toISOString(),
-      });
+      }, { onConflict: "store_id" });
       return errorResponse("Payment verification failed. Security signature is invalid.");
     }
 
@@ -394,7 +434,7 @@ export async function activatePlatformSubscriptionAction(
     }
 
     // Create/update active subscription in database
-    await (supabase.from("subscriptions") as any).upsert({
+    const { error: upsertError } = await (supabase.from("subscriptions") as any).upsert({
       store_id: storeId,
       user_id: store.user_id,
       plan: planName,
@@ -410,7 +450,11 @@ export async function activatePlatformSubscriptionAction(
       amount: planConfig.priceMonthly,
       currency: "INR",
       updated_at: new Date().toISOString(),
-    });
+    }, { onConflict: "store_id" });
+
+    if (upsertError) {
+      throw new Error("Failed to activate subscription: " + upsertError.message);
+    }
 
     // Insert successful payment record
     await (supabase as any).from("payments").insert({

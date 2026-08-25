@@ -257,11 +257,11 @@ export async function createCompleteStoreAction(
     });
 
     // Create subscription record
-    const subscriptionPlan = payload.planName || "free";
+    const subscriptionPlan = payload.planName || "startup";
     const subscriptionStatus = payload.paymentStatus || "active";
 
     // Verify Razorpay signature if plan is paid and status is active
-    if (subscriptionStatus === "active" && subscriptionPlan !== "free") {
+    if (subscriptionStatus === "active") {
       const keySecret = process.env.RAZORPAY_KEY_SECRET || "";
       if (keySecret && payload.razorpaySignature && payload.razorpayPaymentId && payload.razorpaySubscriptionId) {
         const expected = crypto
@@ -303,8 +303,8 @@ export async function createCompleteStoreAction(
     });
 
     // Create successful payment log record if paid
-    if (subscriptionStatus === "active" && subscriptionPlan !== "free") {
-      const planConfig = PLANS[subscriptionPlan as "starter" | "pro" | "business"];
+    if (subscriptionStatus === "active") {
+      const planConfig = PLANS[subscriptionPlan as "startup" | "growth" | "pro"];
       await (supabase.from("payments") as any).insert({
         store_id: store.id,
         plan: subscriptionPlan,
@@ -322,7 +322,7 @@ export async function createCompleteStoreAction(
       id: store.id,
       name: store.name,
       slug: store.slug,
-      plan: (subscriptionStatus === "active" ? subscriptionPlan : "free") as any,
+      plan: (subscriptionStatus === "active" ? subscriptionPlan : "startup") as any,
       isPublished: true,
       currency: "INR",
       createdAt: store.created_at,
@@ -362,7 +362,7 @@ export async function getUserStoresAction(): Promise<ActionResponse<TenantStore[
       slug: s.slug,
       logoUrl: s.logo_url || undefined,
       bannerUrl: s.banner_url || undefined,
-      plan: (s.subscriptions?.[0]?.plan) || "free",
+      plan: (s.subscriptions?.[0]?.plan) || "startup",
       isPublished: s.is_published,
       currency: s.currency,
       createdAt: s.created_at,

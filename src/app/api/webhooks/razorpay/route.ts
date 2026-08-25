@@ -53,34 +53,60 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Subscription payload missing." }, { status: 400 });
       }
 
-      // Find local subscription row linked to this Razorpay ID
-      const { data: sub, error: fetchError } = await (supabase as any)
+      const notes = subEntity.notes || {};
+      const storeIdFromNotes = notes.storeId || notes.store_id;
+      const planFromNotes = notes.planName || notes.plan_name;
+
+      let sub = null;
+      let fetchError = null;
+
+      // 1. Try to find local subscription row by Razorpay subscription ID
+      const { data: subByRzp, error: fetchErr } = await (supabase as any)
         .from("subscriptions")
         .select("store_id, plan, current_period_end, status")
         .eq("razorpay_subscription_id", subEntity.id)
         .maybeSingle();
 
+      if (fetchErr) {
+        fetchError = fetchErr;
+      }
+
+      if (subByRzp) {
+        sub = subByRzp;
+      } else if (storeIdFromNotes) {
+        // 2. Fallback to notes storeId
+        const { data: subByStore } = await (supabase as any)
+          .from("subscriptions")
+          .select("store_id, plan, current_period_end, status")
+          .eq("store_id", storeIdFromNotes)
+          .maybeSingle();
+        sub = subByStore;
+      }
+
       if (fetchError || !sub) {
         return NextResponse.json({ error: "Matching subscription record not found." }, { status: 404 });
       }
 
+      const targetPlan = planFromNotes || sub.plan || "startup";
+      const planConfig = PLANS[targetPlan as "startup" | "growth" | "pro"] || PLANS.startup;
+      const amount = planConfig.priceMonthly;
+
       const newPeriodEnd = new Date(subEntity.current_end * 1000).toISOString();
       const newPeriodStart = new Date(subEntity.current_start * 1000).toISOString();
 
-      // Avoid race conditions: only update if period end is further out or status needs updating
+      // Avoid race conditions: only update if period end is further out, status needs updating, or plan needs updating
       const isNewer = !sub.current_period_end || new Date(newPeriodEnd).getTime() > new Date(sub.current_period_end).getTime();
 
       const trialStart = subEntity.created_at ? new Date(subEntity.created_at * 1000).toISOString() : new Date().toISOString();
       const trialEnd = subEntity.start_at ? new Date(subEntity.start_at * 1000).toISOString() : new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString();
-      
-      const planConfig = PLANS[sub.plan as "starter" | "pro" | "business"];
-      const amount = planConfig?.priceMonthly || 0;
 
-      if (isNewer || sub.status !== "active") {
+      if (isNewer || sub.status !== "active" || sub.plan !== targetPlan) {
         await (supabase as any)
           .from("subscriptions")
           .update({
+            plan: targetPlan,
             status: "active",
+            razorpay_subscription_id: subEntity.id,
             current_period_start: newPeriodStart,
             current_period_end: newPeriodEnd,
             trial_start: trialStart,
@@ -88,8 +114,9 @@ export async function POST(request: NextRequest) {
             next_billing_date: newPeriodEnd,
             amount: amount,
             currency: "INR",
+            updated_at: new Date().toISOString(),
           })
-          .eq("razorpay_subscription_id", subEntity.id);
+          .eq("store_id", sub.store_id);
       }
 
       // Log payment record in payments table
@@ -99,10 +126,10 @@ export async function POST(request: NextRequest) {
         .from("payments")
         .insert({
           store_id: sub.store_id,
-          plan: sub.plan,
+          plan: targetPlan,
           razorpay_payment_id: paymentEntity?.id || `webhk_${eventId}`,
           razorpay_subscription_id: subEntity.id,
-          amount: planConfig?.priceMonthly || 0,
+          amount: amount,
           currency: "INR",
           status: "successful",
         });

@@ -164,7 +164,7 @@ export default function DashboardOverview() {
         description={`Welcome back, ${user?.name || "Merchant"}. Here is your live catalog metrics summary.`}
         badge={
           <Badge variant="maroon" className="gap-1 font-mono text-[11px] uppercase tracking-wider">
-            <Sparkles className="w-3 h-3 text-maroon-300" /> {user.plan || "Starter Plan"}
+            <Sparkles className="w-3 h-3 text-maroon-300" /> {user?.plan === "startup" ? "Startup Pack" : user?.plan === "growth" ? "Growth Pack" : user?.plan === "pro" ? "Pro Plan" : (user?.plan || "Startup Pack")}
           </Badge>
         }
         action={
@@ -272,7 +272,7 @@ export default function DashboardOverview() {
             isLoading={showSkeletons}
           />
           <PlanGate
-            requiredPlan="Pro Plan"
+            requiredPlan="growth"
             featureName="Store Views Analytics"
             description="Upgrade to the Growth Plan (₹299/mo) to track storefront visits and unique visitors."
           >
@@ -295,9 +295,9 @@ export default function DashboardOverview() {
             isLoading={showSkeletons}
           />
           <PlanGate
-            requiredPlan="Business Plan"
+            requiredPlan="pro"
             featureName="Direct Razorpay Revenue Analytics"
-            description="Upgrade to the Business Plan (₹499/mo) to process direct payments and track revenue metrics."
+            description="Upgrade to the Pro Plan (₹499/mo) to process direct payments and track revenue metrics."
           >
             <StatCard
               title="Gross Revenue"
@@ -445,9 +445,9 @@ export default function DashboardOverview() {
 
         {/* 3. Analytics Chart Gated by Plan */}
         <PlanGate
-          requiredPlan="Pro Plan"
+          requiredPlan="growth"
           featureName="Store Traffic Analytics"
-          description="Upgrade to Professional (₹299/mo) or Business (₹499/mo) to unlock live visitor charts, conversion tracking, and traffic sources."
+          description="Upgrade to Growth (₹299/mo) or Pro (₹499/mo) to unlock live visitor charts, conversion tracking, and traffic sources."
         >
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2">

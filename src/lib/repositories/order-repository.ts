@@ -11,6 +11,7 @@ export interface CustomerInput {
   name: string;
   phone: string;
   shippingAddress: string;
+  couponCode?: string;
 }
 
 export interface Order {

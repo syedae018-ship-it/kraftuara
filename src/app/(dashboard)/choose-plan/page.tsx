@@ -6,10 +6,7 @@ import {
   Sparkles,
   Zap,
   ShieldCheck,
-  CreditCard,
   ArrowRight,
-  X,
-  Check,
   CheckCircle2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -20,7 +17,7 @@ import { cn } from "@/lib/utils";
 import { PLANS, PlanTier } from "@/lib/feature-gating";
 
 interface DisplayPlan {
-  id: "starter" | "pro" | "business";
+  id: "startup" | "growth" | "pro";
   name: string;
   planName: string;
   price: string;
@@ -33,7 +30,7 @@ interface DisplayPlan {
 }
 
 const planFeaturesDisplay = {
-  starter: [
+  startup: [
     "WhatsApp Catalog Order Buttons",
     "Basic Dashboard Overview",
     "Product Management (up to 10 products)",
@@ -41,16 +38,16 @@ const planFeaturesDisplay = {
     "Kraftaura Classic template access",
     "Custom Logo Upload",
   ],
-  pro: [
-    "Everything in Starter Plan",
+  growth: [
+    "Everything in Startup Pack",
     "Product Management (up to 24 products)",
     "Store Analytics & Traffic Insights (Store Views)",
     "Curated Collections & Taxonomies",
     "Advanced Customization & Branding",
     "Creative discounts & promo codes",
   ],
-  business: [
-    "Everything in Growth Plan",
+  pro: [
+    "Everything in Growth Pack",
     "Product Management (up to 100 products)",
     "Direct Razorpay Payment Gateway & Checkout",
     "Order Management & Customer Invoicing",
@@ -80,57 +77,49 @@ export default function ChoosePlanPage() {
 
   const { selectPlan, user } = useAuth();
   const [selectedPlan, setSelectedPlan] = useState<DisplayPlan | null>(null);
-  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<"upi" | "card" | "netbanking">("upi");
   const [processingPayment, setProcessingPayment] = useState(false);
 
   // Map PLANS configurations dynamically to match UI items
   const displayPlans: DisplayPlan[] = [
     {
-      id: "starter",
-      name: PLANS.starter.name,
-      planName: "Starter",
-      price: `₹${PLANS.starter.priceMonthly}`,
-      amount: PLANS.starter.priceMonthly,
-      description: PLANS.starter.description,
-      features: planFeaturesDisplay.starter,
+      id: "startup",
+      name: PLANS.startup.name,
+      planName: "startup",
+      price: `₹${PLANS.startup.priceMonthly}`,
+      amount: PLANS.startup.priceMonthly,
+      description: PLANS.startup.description,
+      features: planFeaturesDisplay.startup,
+    },
+    {
+      id: "growth",
+      name: PLANS.growth.name,
+      planName: "growth",
+      price: `₹${PLANS.growth.priceMonthly}`,
+      amount: PLANS.growth.priceMonthly,
+      description: PLANS.growth.description,
+      badge: "MOST POPULAR",
+      popular: true,
+      features: planFeaturesDisplay.growth,
     },
     {
       id: "pro",
       name: PLANS.pro.name,
-      planName: "pro", // internally maps to database tier name 'pro' (which is Growth)
+      planName: "pro",
       price: `₹${PLANS.pro.priceMonthly}`,
       amount: PLANS.pro.priceMonthly,
       description: PLANS.pro.description,
-      badge: "MOST POPULAR",
-      popular: true,
-      features: planFeaturesDisplay.pro,
-    },
-    {
-      id: "business",
-      name: PLANS.business.name,
-      planName: "business", // internally maps to database tier name 'business' (which is Pro/Business)
-      price: `₹${PLANS.business.priceMonthly}`,
-      amount: PLANS.business.priceMonthly,
-      description: PLANS.business.description,
       badge: "FULL E-COMMERCE",
-      setupFee: "₹999 setup fee (one-time charge)",
-      features: planFeaturesDisplay.business,
+      features: planFeaturesDisplay.pro,
     },
   ];
 
-  const handleChoosePlan = (plan: DisplayPlan) => {
+  const handleChoosePlan = async (plan: DisplayPlan) => {
     setSelectedPlan(plan);
-    setPaymentModalOpen(true);
-  };
-
-  const handleRealRazorpayPayment = async () => {
-    if (!selectedPlan) return;
     setProcessingPayment(true);
 
     try {
       const { createStoreSubscriptionAction } = await import("@/lib/actions/payment");
-      const res = await createStoreSubscriptionAction(null, selectedPlan.id);
+      const res = await createStoreSubscriptionAction(null, plan.planName as any);
 
       if (!res.success) {
         toast.error("Checkout Error", res.error || "Failed to initialize subscription checkout.");
@@ -142,10 +131,27 @@ export default function ChoosePlanPage() {
 
       if (isSimulated) {
         toast.warning(
-          "Test Mode: Simulating Success",
-          "Razorpay credentials are placeholders. Transitioning to simulated sandbox checkout."
+          "Test Mode Sandbox Simulation",
+          "Sandbox environment fallback activated."
         );
-        handleSimulatePayment(true);
+        // Automatically simulate success in local development environment
+        setTimeout(() => {
+          const mockSubId = `sub_mock_${Date.now()}`;
+          const mockPayId = `pay_mock_${Date.now()}`;
+          const mockSig = `sig_mock_${Date.now()}`;
+          
+          selectPlan(plan.planName, "active");
+          localStorage.setItem("symar_checkout_subscription_id", mockSubId);
+          localStorage.setItem("symar_checkout_payment_id", mockPayId);
+          localStorage.setItem("symar_checkout_signature", mockSig);
+
+          toast.success(
+            `${plan.name} Activated!`,
+            `Payment verified. Continuing to template selection...`
+          );
+          router.push("/choose-template");
+          setProcessingPayment(false);
+        }, 1000);
         return;
       }
 
@@ -153,7 +159,7 @@ export default function ChoosePlanPage() {
         key: keyId,
         subscription_id: subscriptionId,
         name: "Kraftaura Catalog Platform",
-        description: `${selectedPlan.name} Subscription`,
+        description: `${plan.name} Subscription`,
         image: "https://api.dicebear.com/7.x/initials/svg?seed=Kraftaura",
         handler: async function (response: any) {
           setProcessingPayment(true);
@@ -162,24 +168,27 @@ export default function ChoosePlanPage() {
             paymentId: response.razorpay_payment_id,
             subscriptionId: response.razorpay_subscription_id,
             signature: response.razorpay_signature,
+            planId: plan.planName as any,
           });
 
           if (verRes.success) {
-            selectPlan(selectedPlan.planName, "active");
+            selectPlan(plan.planName, "active");
             localStorage.setItem("symar_checkout_subscription_id", response.razorpay_subscription_id);
             localStorage.setItem("symar_checkout_payment_id", response.razorpay_payment_id);
             localStorage.setItem("symar_checkout_signature", response.razorpay_signature);
 
-            toast.success("Payment Successful", "Subscription verified. Opening template selection...");
+            toast.success(
+              `${plan.name} Activated!`,
+              `Payment verified. Continuing to template selection...`
+            );
             router.push("/choose-template");
           } else {
-            toast.error("Signature Validation Failed", verRes.error || "Crypto verification mismatch.");
+            toast.error("Signature Verification Failed", verRes.error || "Crypto verification mismatch.");
           }
           setProcessingPayment(false);
         },
         prefill: {
           email: user?.email || "",
-          name: user?.name || "",
         },
         theme: {
           color: "#800020",
@@ -188,7 +197,7 @@ export default function ChoosePlanPage() {
 
       const rzp = new (window as any).Razorpay(options);
       rzp.on("payment.failed", function (resp: any) {
-        toast.error("Payment Failed", resp.error?.description || "Checkout transaction was not completed.");
+        toast.error("Payment Failed", resp.error?.description || "Payment cancelled or rejected.");
         setProcessingPayment(false);
       });
       rzp.open();
@@ -196,39 +205,6 @@ export default function ChoosePlanPage() {
       toast.error("Checkout Launch Error", err.message || "Failed to load checkout.");
       setProcessingPayment(false);
     }
-  };
-
-  const handleSimulatePayment = (success: boolean) => {
-    if (!selectedPlan) return;
-
-    setProcessingPayment(true);
-    setTimeout(() => {
-      setProcessingPayment(false);
-      setPaymentModalOpen(false);
-
-      selectPlan(selectedPlan.planName, success ? "active" : "payment_pending");
-
-      if (success) {
-        const mockSubId = `sub_mock_${Date.now()}`;
-        const mockPayId = `pay_mock_${Date.now()}`;
-        const mockSig = `sig_mock_${Date.now()}`;
-        localStorage.setItem("symar_checkout_subscription_id", mockSubId);
-        localStorage.setItem("symar_checkout_payment_id", mockPayId);
-        localStorage.setItem("symar_checkout_signature", mockSig);
-
-        toast.success(
-          `${selectedPlan.name} Activated!`,
-          `Payment verified. Continuing to template selection...`
-        );
-      } else {
-        toast.warning(
-          `${selectedPlan.name} Selected (Unpaid)`,
-          "Subscription created with payment pending status. Active features remain on Free trial."
-        );
-      }
-
-      router.push("/choose-template");
-    }, 1000);
   };
 
   return (
@@ -334,116 +310,6 @@ export default function ChoosePlanPage() {
         </div>
       </div>
 
-      {/* Simulated Payment Modal */}
-      {paymentModalOpen && selectedPlan && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-[#111111] border border-white/10 rounded-3xl p-6 shadow-2xl space-y-6 text-left relative font-body">
-            <button
-              onClick={() => setPaymentModalOpen(false)}
-              className="absolute top-4 right-4 p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-white/5"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            {/* Header */}
-            <div className="space-y-1">
-              <span className="text-[9px] font-mono uppercase tracking-widest text-maroon-400 font-bold">
-                Payment Simulator
-              </span>
-              <h3 className="text-xl font-bold font-heading text-white">
-                Activate {selectedPlan.name}
-              </h3>
-              <p className="text-xs text-zinc-400">
-                Simulate instant subscription payment without live credit card charges.
-              </p>
-            </div>
-
-            {/* Summary */}
-            <div className="p-4 rounded-2xl bg-white/5 border border-white/5 space-y-2">
-              <div className="flex justify-between text-xs text-zinc-400">
-                <span>Selected Plan</span>
-                <span className="font-bold text-white">{selectedPlan.name}</span>
-              </div>
-              <div className="flex justify-between text-xs text-zinc-400">
-                <span>Billing Period</span>
-                <span className="font-mono text-zinc-300">Monthly</span>
-              </div>
-              <div className="flex justify-between text-sm font-bold font-heading text-white pt-2 border-t border-white/10">
-                <span>Total Amount Due</span>
-                <span className="font-mono text-amber-400">{selectedPlan.price}</span>
-              </div>
-            </div>
-
-            {/* Payment Method Selector */}
-            <div className="space-y-2">
-              <label className="text-xs font-mono font-bold uppercase tracking-wider text-zinc-400 block">
-                Select Simulated Payment Method
-              </label>
-              <div className="grid grid-cols-3 gap-2">
-                {[
-                  { id: "upi", label: "UPI / GPay" },
-                  { id: "card", label: "Debit/Credit" },
-                  { id: "netbanking", label: "NetBanking" },
-                ].map((m) => (
-                  <button
-                    key={m.id}
-                    onClick={() => setPaymentMethod(m.id as any)}
-                    className={cn(
-                      "p-2.5 rounded-xl text-xs font-semibold border text-center transition-all flex flex-col items-center gap-1",
-                      paymentMethod === m.id
-                        ? "bg-maroon-800/90 border-maroon-500 text-white font-bold"
-                        : "bg-white/5 border-white/10 text-zinc-400 hover:text-white"
-                    )}
-                  >
-                    <span>{m.label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Trigger Actions */}
-            <div className="flex flex-col gap-2 pt-2">
-              <Button
-                onClick={handleRealRazorpayPayment}
-                variant="primary"
-                isLoading={processingPayment}
-                className="w-full h-11 text-xs uppercase tracking-wider font-bold shadow-glow"
-                rightIcon={<CreditCard className="w-4 h-4" />}
-              >
-                Pay via Razorpay ({selectedPlan.price})
-              </Button>
-              
-              <div className="border-t border-white/5 my-1" />
-              <p className="text-[9px] text-zinc-500 font-mono text-center">DEVELOPER TESTING CONTROLS:</p>
-              
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  onClick={() => handleSimulatePayment(true)}
-                  variant="outline"
-                  isLoading={processingPayment}
-                  className="text-[10px] h-9 border-white/5 bg-white/5"
-                  rightIcon={<Check className="w-3.5 h-3.5" />}
-                >
-                  Simulate Success
-                </Button>
-                <Button
-                  onClick={() => handleSimulatePayment(false)}
-                  variant="outline"
-                  isLoading={processingPayment}
-                  className="text-[10px] h-9 border-white/5 bg-white/5"
-                  rightIcon={<ArrowRight className="w-3.5 h-3.5" />}
-                >
-                  Skip / Pending
-                </Button>
-              </div>
-            </div>
-
-            <p className="text-[9px] text-zinc-500 font-mono text-center leading-relaxed">
-              Architecture integrated securely with Razorpay signature verification layers.
-            </p>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

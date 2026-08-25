@@ -16,25 +16,25 @@ import { PLANS } from "@/lib/feature-gating";
 
 const PLANS_CATALOG = [
   {
-    id: "starter",
-    name: PLANS.starter.name + " Plan",
-    price: `₹${PLANS.starter.priceMonthly}/mo`,
-    desc: PLANS.starter.description + ` Up to ${PLANS.starter.productLimit} products.`,
-    limit: PLANS.starter.productLimit,
+    id: "startup",
+    name: PLANS.startup.name,
+    price: `₹${PLANS.startup.priceMonthly}/mo`,
+    desc: PLANS.startup.description + ` Up to ${PLANS.startup.productLimit} products.`,
+    limit: PLANS.startup.productLimit,
+  },
+  {
+    id: "growth",
+    name: PLANS.growth.name,
+    price: `₹${PLANS.growth.priceMonthly}/mo`,
+    desc: PLANS.growth.description + ` Up to ${PLANS.growth.productLimit} products.`,
+    limit: PLANS.growth.productLimit,
   },
   {
     id: "pro",
-    name: PLANS.pro.name + " Plan",
+    name: PLANS.pro.name,
     price: `₹${PLANS.pro.priceMonthly}/mo`,
     desc: PLANS.pro.description + ` Up to ${PLANS.pro.productLimit} products.`,
     limit: PLANS.pro.productLimit,
-  },
-  {
-    id: "business",
-    name: PLANS.business.name + " Plan",
-    price: `₹${PLANS.business.priceMonthly}/mo`,
-    desc: PLANS.business.description + ` Up to ${PLANS.business.productLimit} products.`,
-    limit: PLANS.business.productLimit,
   },
 ];
 
@@ -44,7 +44,7 @@ export default function MerchantBillingPage() {
   const [isLoading, setIsLoading] = useState(true);
   
   const [isAdmin, setIsAdmin] = useState(false);
-  const [adminPlan, setAdminPlan] = useState<"starter" | "pro" | "business">("starter");
+  const [adminPlan, setAdminPlan] = useState<"startup" | "growth" | "pro">("startup");
   const [adminExpiryDays, setAdminExpiryDays] = useState(30);
   const [isUpdatingAdmin, setIsUpdatingAdmin] = useState(false);
   const [payments, setPayments] = useState<any[]>([]);
@@ -107,13 +107,13 @@ export default function MerchantBillingPage() {
     }
   }, [activeStore, user]);
 
-  const handleRequestUpgrade = async (planName: string) => {
+  const handleRequestUpgrade = async (planId: "startup" | "growth" | "pro") => {
     if (!activeStore?.id) return;
-    setProcessingUpgrade(planName);
+    setProcessingUpgrade(planId);
 
     try {
       const { createStoreSubscriptionAction } = await import("@/lib/actions/payment");
-      const res = await createStoreSubscriptionAction(activeStore.id, planName.toLowerCase().replace(/[^a-z]/g, "") as any);
+      const res = await createStoreSubscriptionAction(activeStore.id, planId);
 
       if (!res.success) {
         toast.error("Upgrade Error", res.error || "Failed to create subscription order.");
@@ -125,8 +125,8 @@ export default function MerchantBillingPage() {
 
       if (isSimulated) {
         toast.warning(
-          "Test Mode: Simulating Upgrade",
-          "Razorpay credentials are placeholders. Transitioning to simulated sandbox checkout."
+          "Test Mode Sandbox Simulation",
+          "Sandbox environment fallback activated."
         );
         
         const { verifySubscriptionPaymentAction } = await import("@/lib/actions/payment");
@@ -135,10 +135,13 @@ export default function MerchantBillingPage() {
           paymentId: `pay_mock_${Date.now()}`,
           subscriptionId,
           signature: "mock_signature",
+          planId: planId,
         });
 
+        const targetPlanConfig = PLANS_CATALOG.find((p) => p.id === planId) || PLANS_CATALOG[0];
+
         if (verRes.success) {
-          toast.success("Upgrade Successful", `Store upgraded to ${planName}.`);
+          toast.success("Upgrade Successful", `Store upgraded to ${targetPlanConfig.name}.`);
           fetchSubscription();
           fetchPayments();
         } else {
@@ -148,24 +151,27 @@ export default function MerchantBillingPage() {
         return;
       }
 
+      const targetPlanConfig = PLANS_CATALOG.find((p) => p.id === planId) || PLANS_CATALOG[0];
+
       const options = {
         key: keyId,
         subscription_id: subscriptionId,
         name: "Kraftaura Platform Upgrade",
-        description: `Upgrade to ${planName}`,
+        description: `Upgrade to ${targetPlanConfig.name}`,
         image: "https://api.dicebear.com/7.x/initials/svg?seed=Kraftaura",
         handler: async function (response: any) {
-          setProcessingUpgrade(planName);
+          setProcessingUpgrade(planId);
           const { verifySubscriptionPaymentAction } = await import("@/lib/actions/payment");
           const verRes = await verifySubscriptionPaymentAction({
             storeId: activeStore.id,
             paymentId: response.razorpay_payment_id,
             subscriptionId: response.razorpay_subscription_id,
             signature: response.razorpay_signature,
+            planId: planId,
           });
 
           if (verRes.success) {
-            toast.success("Upgrade Successful", `Payment verified. Store upgraded to ${planName}!`);
+            toast.success("Upgrade Successful", `Payment verified. Store upgraded to ${targetPlanConfig.name}!`);
             fetchSubscription();
             fetchPayments();
           } else {
@@ -227,6 +233,7 @@ export default function MerchantBillingPage() {
     );
   }
 
+  const displayPlanName = PLANS_CATALOG.find((p) => p.id === subscription?.plan)?.name || subscription?.plan;
   const activePlanConfig = PLANS_CATALOG.find((p) => p.id === subscription?.plan) || PLANS_CATALOG[0];
 
   return (
@@ -250,7 +257,7 @@ export default function MerchantBillingPage() {
               </span>
               <div className="flex items-center gap-2">
                 <h3 className="text-lg font-bold text-white font-heading uppercase">
-                  {(subscription as any).selectedPlan || subscription.plan} Plan
+                  {displayPlanName}
                 </h3>
                 <Badge
                   className={cn(
@@ -274,7 +281,7 @@ export default function MerchantBillingPage() {
                         Renewal/Expiry Date: <span className="font-mono text-white">{new Date(subscription.expiresAt).toLocaleDateString()}</span>
                       </>
                     ) : (
-                      "No expiration date (Unlimited Free Tier)"
+                      "No billing period defined"
                     )}
                   </span>
                 </div>
@@ -313,9 +320,9 @@ export default function MerchantBillingPage() {
                   onChange={(e: any) => setAdminPlan(e.target.value as any)}
                   className="w-full h-9 bg-black border border-white/10 rounded-xl px-3 text-xs text-white"
                 >
-                  <option value="starter">Starter Plan</option>
-                  <option value="pro">Growth Plan</option>
-                  <option value="business">Pro Plan</option>
+                  <option value="startup">Startup Pack</option>
+                  <option value="growth">Growth Pack</option>
+                  <option value="pro">Pro Plan</option>
                 </select>
               </div>
 
@@ -349,41 +356,51 @@ export default function MerchantBillingPage() {
             Available Platform Plans
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {PLANS_CATALOG.map((p) => {
-              const isCurrent = subscription?.plan === p.id && subscription.status === "active";
-              return (
-                <Card
-                  key={p.id}
-                  className={`p-6 bg-[#111111] border-white/10 flex flex-col justify-between space-y-4 rounded-2xl ${
-                    isCurrent && "border-maroon-700/80 shadow-glow"
-                  }`}
-                >
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-start">
-                      <h4 className="text-sm font-bold font-heading text-white">{p.name}</h4>
-                      {isCurrent && <CheckCircle2 className="w-4 h-4 text-maroon-400 shrink-0" />}
+            {(() => {
+              const planWeights = { startup: 0, growth: 1, pro: 2 };
+              const currentWeight = subscription?.status === "active" ? (planWeights[subscription.plan as keyof typeof planWeights] ?? 0) : 0;
+              const visiblePlans = PLANS_CATALOG.filter(p => (planWeights[p.id as keyof typeof planWeights] ?? 0) >= currentWeight);
+              return visiblePlans.map((p) => {
+                const isCurrent = subscription?.plan === p.id && subscription.status === "active";
+                const buttonLabel = isCurrent 
+                  ? "Current Plan" 
+                  : p.id === "growth" 
+                    ? "Upgrade to Growth" 
+                    : "Upgrade to Pro";
+                return (
+                  <Card
+                    key={p.id}
+                    className={`p-6 bg-[#111111] border-white/10 flex flex-col justify-between space-y-4 rounded-2xl ${
+                      isCurrent && "border-maroon-700/80 shadow-glow"
+                    }`}
+                  >
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-start">
+                        <h4 className="text-sm font-bold font-heading text-white">{p.name}</h4>
+                        {isCurrent && <CheckCircle2 className="w-4 h-4 text-maroon-400 shrink-0" />}
+                      </div>
+                      <div className="text-lg font-bold font-mono text-white">{p.price}</div>
+                      <p className="text-xs text-zinc-400 font-body leading-relaxed">{p.desc}</p>
+                      <span className="text-[10px] font-mono text-zinc-500 block pt-1">
+                        Max Products limit: {p.limit}
+                      </span>
                     </div>
-                    <div className="text-lg font-bold font-mono text-white">{p.price}</div>
-                    <p className="text-xs text-zinc-400 font-body leading-relaxed">{p.desc}</p>
-                    <span className="text-[10px] font-mono text-zinc-500 block pt-1">
-                      Max Products limit: {p.limit}
-                    </span>
-                  </div>
 
-                  <div className="pt-4 border-t border-white/5">
-                    <Button
-                      onClick={() => handleRequestUpgrade(p.name)}
-                      variant={isCurrent ? "outline" : "primary"}
-                      disabled={isCurrent || processingUpgrade !== null}
-                      isLoading={processingUpgrade === p.name}
-                      className="w-full justify-center text-xs h-9 font-semibold"
-                    >
-                      {isCurrent ? "Current Active" : "Select Plan"}
-                    </Button>
-                  </div>
-                </Card>
-              );
-            })}
+                    <div className="pt-4 border-t border-white/5">
+                      <Button
+                        onClick={() => handleRequestUpgrade(p.id as any)}
+                        variant={isCurrent ? "outline" : "primary"}
+                        disabled={isCurrent || processingUpgrade !== null}
+                        isLoading={processingUpgrade === p.id}
+                        className="w-full justify-center text-xs h-9 font-semibold"
+                      >
+                        {buttonLabel}
+                      </Button>
+                    </div>
+                  </Card>
+                );
+              });
+            })()}
           </div>
         </div>
 

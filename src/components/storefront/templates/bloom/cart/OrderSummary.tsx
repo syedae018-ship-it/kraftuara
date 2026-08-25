@@ -6,12 +6,13 @@ import { Button } from "../ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Separator } from "../ui/separator";
 import { useCart } from "@/context/CartContext";
-import { Heart, MessageCircle, Shield, Truck, Loader2, AlertTriangle } from "lucide-react";
+import { Heart, MessageCircle, Shield, Truck, Loader2, AlertTriangle, Tag } from "lucide-react";
 import { StoreData } from "@/types/store";
 import { formatCurrency } from "@/lib/utils";
 import { createOrderAction } from "@/lib/actions/order";
 import { toast } from "@/hooks/use-toast";
 import { trackClientEvent } from "@/components/storefront/storefront-tracker";
+import { validateCouponAction } from "@/lib/actions/coupon";
 
 export default function OrderSummary({ store, onOrderPlaced }: { store: StoreData; onOrderPlaced?: (data: any) => void }) {
   const { cart, clearCart } = useCart();
@@ -25,19 +26,56 @@ export default function OrderSummary({ store, onOrderPlaced }: { store: StoreDat
   const [customerNotes, setCustomerNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Coupon states
+  const [couponCode, setCouponCode] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discountAmount: number } | null>(null);
+  const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
+
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
   // Free shipping threshold: ₹999
   const shippingThreshold = 999;
   const shippingCost = 99;
   const shipping = subtotal >= shippingThreshold ? 0 : shippingCost;
-  const total = subtotal + shipping;
+  
+  const discountAmount = appliedCoupon ? appliedCoupon.discountAmount : 0;
+  const total = Math.max(0, subtotal + shipping - discountAmount);
   const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   // Resolve merchant WhatsApp number from database (never from client, never hardcoded)
   const merchantWhatsApp = store.appearance?.branding?.whatsapp?.trim() || "";
   const merchantPhone = store.appearance?.branding?.phone?.trim() || "";
   const hasWhatsApp = !!merchantWhatsApp;
+
+  const handleApplyCoupon = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!couponCode.trim()) return;
+
+    setIsValidatingCoupon(true);
+    try {
+      const res = await validateCouponAction(store.id, couponCode, subtotal);
+      if (res.success && res.discountAmount > 0) {
+        setAppliedCoupon({
+          code: couponCode.trim().toUpperCase(),
+          discountAmount: res.discountAmount,
+        });
+        toast.success("Coupon Applied!", `Promo code "${couponCode.trim().toUpperCase()}" applied successfully.`);
+        setCouponCode("");
+      } else {
+        toast.error("Invalid Coupon", res.error || "This coupon code cannot be applied.");
+      }
+    } catch (err) {
+      toast.error("Error", "Failed to validate coupon.");
+    } finally {
+      setIsValidatingCoupon(false);
+    }
+  };
+
+  const handleRemoveCoupon = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setAppliedCoupon(null);
+    toast.info("Coupon Removed", "Discount has been removed.");
+  };
 
   const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -111,6 +149,7 @@ export default function OrderSummary({ store, onOrderPlaced }: { store: StoreDat
           name: customerName.trim(),
           phone: cleanPhone,
           shippingAddress: fullAddress,
+          couponCode: appliedCoupon?.code || undefined,
         },
         orderItems
       );
@@ -145,6 +184,7 @@ export default function OrderSummary({ store, onOrderPlaced }: { store: StoreDat
         `${cartItemsText}\n` +
         `━━━━━━━━━━━━━━\n` +
         `Subtotal: ${formatCurrency(subtotal)}\n` +
+        (discountAmount > 0 ? `Discount (${appliedCoupon?.code}): -${formatCurrency(discountAmount)}\n` : "") +
         `Shipping: ${shipping === 0 ? "Free" : formatCurrency(shipping)}\n` +
         `Total: ${formatCurrency(total)}\n\n` +
         `Customer Details:\n` +
@@ -167,6 +207,7 @@ export default function OrderSummary({ store, onOrderPlaced }: { store: StoreDat
       setState("");
       setPinCode("");
       setCustomerNotes("");
+      setAppliedCoupon(null);
 
       if (onOrderPlaced) {
         onOrderPlaced({
@@ -217,6 +258,15 @@ export default function OrderSummary({ store, onOrderPlaced }: { store: StoreDat
               <span className="font-medium font-mono">{formatCurrency(subtotal)}</span>
             </div>
 
+            {discountAmount > 0 && (
+              <div className="flex justify-between text-sm text-green-400">
+                <span className="flex items-center gap-1">
+                  <Tag className="w-3.5 h-3.5" /> Discount ({appliedCoupon?.code})
+                </span>
+                <span className="font-medium font-mono">-{formatCurrency(discountAmount)}</span>
+              </div>
+            )}
+
             <div className="flex justify-between text-sm">
               <span className="text-bloom-muted">Shipping</span>
               <span className="font-medium font-mono">
@@ -251,6 +301,46 @@ export default function OrderSummary({ store, onOrderPlaced }: { store: StoreDat
               </p>
             </div>
           )}
+
+          {/* Coupon Input Box */}
+          <div className="pt-2 border-t border-bloom-border/40">
+            {appliedCoupon ? (
+              <div className="flex items-center justify-between p-2.5 rounded-lg bg-green-950/20 border border-green-500/20 text-xs">
+                <div className="flex items-center gap-2 text-green-400 font-medium">
+                  <Tag className="w-3.5 h-3.5" />
+                  <span>Code <strong>{appliedCoupon.code}</strong> Applied</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleRemoveCoupon}
+                  className="text-[10px] text-zinc-500 hover:text-white underline font-mono"
+                >
+                  Remove
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                <label className="text-[10px] text-bloom-muted block font-heading">Promo / Discount Code</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="e.g. SAVE20"
+                    value={couponCode}
+                    onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                    className="flex-grow h-8 bg-bloom-background border border-bloom-border rounded-lg px-2 text-xs text-bloom-foreground outline-none focus:border-bloom-primary transition-all font-mono uppercase"
+                  />
+                  <Button
+                    type="button"
+                    onClick={handleApplyCoupon}
+                    disabled={isValidatingCoupon || !couponCode.trim()}
+                    className="h-8 px-3 text-xs bg-bloom-primary text-bloom-primary-foreground hover:bg-bloom-primary/95"
+                  >
+                    {isValidatingCoupon ? "..." : "Apply"}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
 
           <Separator className="bg-bloom-border" />
 

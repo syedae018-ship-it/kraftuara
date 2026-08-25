@@ -110,7 +110,7 @@ export function DummyAuthProvider({ children }: { children: React.ReactNode }) {
           name: u.user_metadata?.full_name || u.user_metadata?.name || u.email?.split("@")[0] || "User",
           email: u.email || "",
           avatar: u.user_metadata?.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(u.email || "")}`,
-          plan: "free",
+          plan: "startup",
           storeId: "",
           storeName: "",
           storeSlug: "",
@@ -131,17 +131,21 @@ export function DummyAuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         if (userStores && userStores.length > 0) {
-          const mappedStores: DummyStore[] = userStores.map((s: any) => ({
-            id: s.id,
-            name: s.name,
-            slug: s.slug,
-            plan: s.subscriptions?.[0]?.status === "active" ? (s.subscriptions?.[0]?.plan || "free") : "free",
-            category: s.category || "",
-            logoUrl: s.logo_url || "",
-            primaryColor: s.primary_color || "",
-            secondaryColor: s.secondary_color || "",
-            userId: s.user_id,
-          }));
+          const mappedStores: DummyStore[] = userStores.map((s: any) => {
+            const rawPlan = s.subscriptions?.[0]?.status === "active" ? (s.subscriptions?.[0]?.plan || "startup") : "startup";
+            const plan = ["startup", "growth", "pro"].includes(rawPlan) ? rawPlan : "startup";
+            return {
+              id: s.id,
+              name: s.name,
+              slug: s.slug,
+              plan,
+              category: s.category || "",
+              logoUrl: s.logo_url || "",
+              primaryColor: s.primary_color || "",
+              secondaryColor: s.secondary_color || "",
+              userId: s.user_id,
+            };
+          });
           setStores(mappedStores);
 
           const savedActiveStoreId = typeof window !== "undefined" ? localStorage.getItem("symar_active_store_id") : null;
@@ -547,7 +551,7 @@ export function DummyAuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       // 4. Secure Subscription Setup
-      const selectedPlan = (typeof window !== "undefined" && localStorage.getItem("symar_selected_plan")) || "starter";
+      const selectedPlan = (typeof window !== "undefined" && localStorage.getItem("symar_selected_plan")) || "startup";
       const rzpSubId = typeof window !== "undefined" ? localStorage.getItem("symar_checkout_subscription_id") : null;
       const rzpPaymentId = typeof window !== "undefined" ? localStorage.getItem("symar_checkout_payment_id") : null;
       const rzpSignature = typeof window !== "undefined" ? localStorage.getItem("symar_checkout_signature") : null;

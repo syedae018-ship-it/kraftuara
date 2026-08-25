@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 
-export type RequiredPlanLevel = "Pro Plan" | "Business Plan";
+export type RequiredPlanLevel = "startup" | "growth" | "pro";
 
 export interface PlanGateProps {
   requiredPlan: RequiredPlanLevel;
@@ -19,13 +19,15 @@ export interface PlanGateProps {
 }
 
 const planHierarchy: Record<string, number> = {
-  "Starter Plan": 1,
-  "Starter": 1,
-  "Pro Plan": 2,
-  "Professional": 2,
-  "Business Plan": 3,
-  "Business": 3,
-  "Enterprise Plan": 4,
+  "startup": 1,
+  "growth": 2,
+  "pro": 3,
+};
+
+const planDisplayNames: Record<RequiredPlanLevel, string> = {
+  startup: "Startup Pack",
+  growth: "Growth Pack",
+  pro: "Pro Plan",
 };
 
 export function PlanGate({
@@ -37,7 +39,7 @@ export function PlanGate({
 }: PlanGateProps) {
   const { user } = useAuth();
 
-  const userPlanLevel = planHierarchy[user?.plan || "Starter Plan"] || 1;
+  const userPlanLevel = planHierarchy[user?.plan || "startup"] || 1;
   const requiredPlanLevel = planHierarchy[requiredPlan] || 2;
 
   const isUnlocked = userPlanLevel >= requiredPlanLevel;
@@ -61,7 +63,7 @@ export function PlanGate({
 
         <div className="space-y-0.5 max-w-full px-2">
           <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-maroon-950/60 border border-maroon-700/50 text-maroon-300 text-[8px] font-mono font-bold uppercase tracking-wider">
-            <Sparkles className="w-2.5 h-2.5 text-maroon-400" /> {requiredPlan}
+            <Sparkles className="w-2.5 h-2.5 text-maroon-400" /> {planDisplayNames[requiredPlan]}
           </div>
 
           <h3 className="text-xs sm:text-sm font-bold font-heading text-white tracking-tight leading-tight">

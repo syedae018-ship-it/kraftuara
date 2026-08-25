@@ -116,7 +116,7 @@ export default function ProductListPage() {
     const target = products.find((p) => p.id === id);
     if (!target) return;
 
-    const planTier = (user?.plan || "starter") as PlanTier;
+    const planTier = (user?.plan || "startup") as PlanTier;
     const planConfig = PLANS[planTier];
     const limit = planConfig?.productLimit ?? 10;
     if (products.length >= limit) {
@@ -204,6 +204,10 @@ export default function ProductListPage() {
     }
   };
 
+  const planTier = (user?.plan || "startup") as PlanTier;
+  const planConfig = PLANS[planTier] || PLANS.startup;
+  const productLimit = planConfig.productLimit;
+
   return (
     <DashboardLayout breadcrumbs={[{ label: "Store Dashboard", href: "/dashboard" }, { label: "Products" }]}>
       {/* Page Title & Actions */}
@@ -212,7 +216,7 @@ export default function ProductListPage() {
         description="Manage your online store products, pricing, stock levels, and media."
         badge={
           <Badge variant="maroon" className="gap-1 font-mono text-[11px]">
-            <Package className="w-3 h-3 text-maroon-300" /> {products.length} Products
+            <Package className="w-3 h-3 text-maroon-300" /> {products.length} of {productLimit} products used
           </Badge>
         }
         action={
@@ -225,11 +229,19 @@ export default function ProductListPage() {
             >
               {isLoading ? "Show Data" : "Preview Skeletons"}
             </Button>
-            <Link href="/dashboard/products/new">
-              <Button variant="primary" size="sm" leftIcon={<Plus className="w-3.5 h-3.5" />}>
-                Add Product
-              </Button>
-            </Link>
+            {products.length >= productLimit ? (
+              <Link href="/dashboard/billing">
+                <Button variant="outline" size="sm" className="border-amber-500 text-amber-500 hover:bg-amber-950/20 text-xs" leftIcon={<Plus className="w-3.5 h-3.5" />}>
+                  Upgrade to Add More
+                </Button>
+              </Link>
+            ) : (
+              <Link href="/dashboard/products/new">
+                <Button variant="primary" size="sm" leftIcon={<Plus className="w-3.5 h-3.5" />}>
+                  Add Product
+                </Button>
+              </Link>
+            )}
           </div>
         }
       />

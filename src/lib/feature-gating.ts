@@ -2,7 +2,7 @@
  * Plan Tiers & Feature Gating Engine
  */
 
-export type PlanTier = "starter" | "pro" | "business";
+export type PlanTier = "startup" | "growth" | "pro";
 
 export type FeatureKey =
   | "dashboard"
@@ -30,13 +30,14 @@ export interface PlanConfig {
   description: string;
   allowedFeatures: FeatureKey[];
   productLimit: number;
+  categoryLimit: number;
   popular?: boolean;
 }
 
 export const PLANS: Record<PlanTier, PlanConfig> = {
-  starter: {
-    id: "starter",
-    name: "Starter",
+  startup: {
+    id: "startup",
+    name: "Startup Pack",
     priceMonthly: 99,
     description: "Perfect for new merchants & WhatsApp ordering stores.",
     allowedFeatures: [
@@ -47,11 +48,12 @@ export const PLANS: Record<PlanTier, PlanConfig> = {
       "appearance",
       "whatsapp_orders",
     ],
-    productLimit: 10,
+    productLimit: 12,
+    categoryLimit: 1,
   },
-  pro: {
-    id: "pro",
-    name: "Growth",
+  growth: {
+    id: "growth",
+    name: "Growth Pack",
     priceMonthly: 299,
     description: "Enhanced growth with Analytics, Collections & Premium Themes.",
     allowedFeatures: [
@@ -67,11 +69,12 @@ export const PLANS: Record<PlanTier, PlanConfig> = {
       "creative_discounts",
     ],
     productLimit: 24,
+    categoryLimit: 999999,
     popular: true,
   },
-  business: {
-    id: "business",
-    name: "Pro",
+  pro: {
+    id: "pro",
+    name: "Pro Plan",
     priceMonthly: 499,
     description: "Complete E-commerce platform with Custom Domain & Advanced Features.",
     allowedFeatures: [
@@ -94,6 +97,7 @@ export const PLANS: Record<PlanTier, PlanConfig> = {
       "custom_domain",
     ],
     productLimit: 100,
+    categoryLimit: 999999,
   },
 };
 
@@ -103,10 +107,10 @@ export const PLANS: Record<PlanTier, PlanConfig> = {
 export function hasFeatureAccess(planName: string, feature: FeatureKey): boolean {
   const normalized = planName.toLowerCase().replace(/[^a-z]/g, "");
   
-  let tier: PlanTier = "starter";
-  if (normalized.includes("business") || normalized.includes("enterprise") || (normalized.includes("pro") && !normalized.includes("growth"))) tier = "business";
-  else if (normalized.includes("growth")) tier = "pro";
-  else if (normalized.includes("starter") || normalized.includes("basic") || normalized.includes("free")) tier = "starter";
+  let tier: PlanTier = "startup";
+  if (normalized.includes("pro") && !normalized.includes("growth")) tier = "pro";
+  else if (normalized.includes("growth")) tier = "growth";
+  else if (normalized.includes("startup") || normalized.includes("starter") || normalized.includes("basic") || normalized.includes("free")) tier = "startup";
 
   const config = PLANS[tier];
   if (!config) return true;
@@ -118,7 +122,7 @@ export function hasFeatureAccess(planName: string, feature: FeatureKey): boolean
  * Returns required plan for a given feature key.
  */
 export function getRequiredPlanForFeature(feature: FeatureKey): PlanTier {
-  if (PLANS.starter.allowedFeatures.includes(feature)) return "starter";
-  if (PLANS.pro.allowedFeatures.includes(feature)) return "pro";
-  return "business";
+  if (PLANS.startup.allowedFeatures.includes(feature)) return "startup";
+  if (PLANS.growth.allowedFeatures.includes(feature)) return "growth";
+  return "pro";
 }

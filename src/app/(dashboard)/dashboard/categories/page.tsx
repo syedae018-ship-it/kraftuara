@@ -18,9 +18,10 @@ import { Plus, Folder, Search, List, LayoutGrid, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/auth-context";
+import { PLANS, PlanTier } from "@/lib/feature-gating";
 
 export default function CategoryListPage() {
-  const { activeStore } = useAuth();
+  const { activeStore, user } = useAuth();
   const [categories, setCategories] = useState<Category[]>([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -114,6 +115,11 @@ export default function CategoryListPage() {
     await categoryRepository.reorder(updated.map((c) => c.id));
   };
 
+  const planTier = (user?.plan || "startup") as PlanTier;
+  const planConfig = PLANS[planTier] || PLANS.startup;
+  const categoryLimit = planConfig.categoryLimit;
+  const limitDisplay = categoryLimit > 1000 ? "unlimited" : categoryLimit.toString();
+
   return (
     <DashboardLayout breadcrumbs={[{ label: "Store Dashboard", href: "/dashboard" }, { label: "Categories" }]}>
       <SectionTitle
@@ -121,15 +127,25 @@ export default function CategoryListPage() {
         description="Organize your store products into structured taxonomy categories."
         badge={
           <Badge variant="maroon" className="gap-1 font-mono text-[11px]">
-            <Folder className="w-3 h-3 text-maroon-300" /> {categories.length} Categories
+            <Folder className="w-3 h-3 text-maroon-300" /> {categories.length} of {limitDisplay} categories used
           </Badge>
         }
         action={
-          <Link href="/dashboard/categories/new">
-            <Button variant="primary" size="sm" leftIcon={<Plus className="w-3.5 h-3.5" />}>
-              Add Category
-            </Button>
-          </Link>
+          <div className="flex items-center gap-2">
+            {categories.length >= categoryLimit ? (
+              <Link href="/dashboard/billing">
+                <Button variant="outline" size="sm" className="border-amber-500 text-amber-500 hover:bg-amber-950/20 text-xs" leftIcon={<Plus className="w-3.5 h-3.5" />}>
+                  Upgrade to Add More
+                </Button>
+              </Link>
+            ) : (
+              <Link href="/dashboard/categories/new">
+                <Button variant="primary" size="sm" leftIcon={<Plus className="w-3.5 h-3.5" />}>
+                  Add Category
+                </Button>
+              </Link>
+            )}
+          </div>
         }
       />
 

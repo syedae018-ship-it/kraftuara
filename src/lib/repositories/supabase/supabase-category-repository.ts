@@ -1,6 +1,7 @@
 import { Category, CreateCategoryInput } from "@/types/category";
 import { createClient } from "@/lib/supabase/client";
 import { ICategoryRepository } from "../category-repository";
+import { PLANS } from "@/lib/feature-gating";
 
 export class SupabaseCategoryRepository implements ICategoryRepository {
   private getSupabase() {
@@ -20,6 +21,50 @@ export class SupabaseCategoryRepository implements ICategoryRepository {
       .maybeSingle();
       
     if (!storeRow) throw new Error("Access Denied: You do not own this store.");
+  }
+
+  private async checkPlanLimit(storeId: string, client?: any) {
+    const supabase = client || this.getSupabase();
+    
+    // Fetch subscription details
+    const { data: subRow } = await (supabase.from("subscriptions") as any)
+      .select("plan, status, current_period_end")
+      .eq("store_id", storeId)
+      .maybeSingle();
+
+    let plan: "startup" | "growth" | "pro" = "startup";
+    let status = subRow?.status || "active";
+    const expiresAt = subRow?.current_period_end;
+
+    if (subRow) {
+      const dbPlan = subRow.plan;
+      if (dbPlan === "startup" || dbPlan === "growth" || dbPlan === "pro") {
+        plan = dbPlan;
+      }
+      if (expiresAt) {
+        if (new Date(expiresAt) < new Date()) {
+          status = "expired";
+        }
+      }
+    }
+
+    // Downgrade resolved entitlement if expired or cancelled
+    if (status === "expired" || status === "cancelled") {
+      plan = "startup";
+    }
+
+    // Get limit based on PLANS gating
+    const config = PLANS[plan] || PLANS.startup;
+    const limit = config.categoryLimit;
+
+    const { count } = await supabase
+      .from("categories")
+      .select("id", { count: "exact", head: true })
+      .eq("store_id", storeId);
+    
+    if ((count || 0) >= limit) {
+      throw new Error(`Category limit reached. Startup Pack allows ${limit} category. Upgrade your plan to create more categories.`);
+    }
   }
 
   async getAll(storeId: string, client?: any): Promise<Category[]> {
@@ -99,6 +144,7 @@ export class SupabaseCategoryRepository implements ICategoryRepository {
   async create(storeId: string, input: CreateCategoryInput, client?: any): Promise<Category> {
     const supabase = client || this.getSupabase();
     await this.checkStoreOwner(storeId, supabase);
+    await this.checkPlanLimit(storeId, supabase);
     let baseSlug = (input.slug || input.name)
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")

@@ -78,7 +78,7 @@ export default function NewProductPage() {
     try {
       // Server-side backed validation query
       const { products: pList } = await productRepository.getAll(activeStore.id);
-      const planTier = (user?.plan || "starter") as PlanTier;
+      const planTier = (user?.plan || "startup") as PlanTier;
       const planConfig = PLANS[planTier];
       const limit = planConfig?.productLimit ?? 10;
 
@@ -106,8 +106,8 @@ export default function NewProductPage() {
 
       toast.success("Product Saved!", `"${productData.name}" has been added to your store catalog.`);
       router.push("/dashboard/products");
-    } catch (err) {
-      toast.error("Error", "Failed to add product to catalog.");
+    } catch (err: any) {
+      toast.error("Error", err.message || "Failed to add product to catalog.");
     } finally {
       setIsSubmitting(false);
     }
