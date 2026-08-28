@@ -130,9 +130,9 @@ export function CreateUserModal({ isOpen, onClose, onUserCreated }: CreateUserMo
               onChange={(e) => setPlan(e.target.value)}
               className="w-full h-10 bg-[#111111] border border-white/10 rounded-xl px-3 text-xs text-white outline-none"
             >
-              <option value="Starter Tier">Starter Tier ($29/mo)</option>
-              <option value="Pro Plan">Pro Luxury Tier ($79/mo)</option>
-              <option value="Enterprise">Enterprise Suite ($249/mo)</option>
+              <option value="startup">Startup Pack (₹99/mo)</option>
+              <option value="growth">Growth Pack (₹299/mo)</option>
+              <option value="pro">Pro Plan (₹499/mo)</option>
             </select>
           </div>
 

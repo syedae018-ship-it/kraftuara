@@ -41,7 +41,7 @@ export function SEOCard({
   }, [productName, slug, onSlugChange]);
 
   const displayTitle = seoTitle || (productName ? `${productName} | Aroma Perfumes` : "Product Title | Catalog Store");
-  const displayDesc = seoDescription || "Discover our premium handcrafted product. Free shipping on orders over $100.";
+  const displayDesc = seoDescription || "Discover our premium handcrafted product. Free shipping on orders over ₹999.";
   const displayUrl = `https://aroma-perfumes.catalog.io/products/${slug || "product-slug"}`;
 
   return (

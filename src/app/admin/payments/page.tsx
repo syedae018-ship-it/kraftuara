@@ -6,7 +6,7 @@ import { SectionTitle } from "@/components/dashboard/section-title";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell, Badge } from "@/components/ui/table";
 import { AdminPayment } from "@/types/admin";
 import { adminRepository } from "@/lib/repositories/admin-repository";
-import { CreditCard, DollarSign } from "lucide-react";
+import { CreditCard } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 
 export default function AdminPaymentsPage() {

@@ -13,7 +13,7 @@ export function AnnouncementBar() {
       <div className="flex-1 flex items-center justify-center gap-2">
         <Sparkles className="w-3.5 h-3.5 text-maroon-300 shrink-0" />
         <span>
-          Free worldwide express shipping on orders over <strong className="font-mono text-white">$100</strong> • 100% Authentic Agarwood & Attars
+          Free worldwide express shipping on orders over <strong className="font-mono text-white">₹999</strong> • 100% Authentic Agarwood & Attars
         </span>
       </div>
       <button

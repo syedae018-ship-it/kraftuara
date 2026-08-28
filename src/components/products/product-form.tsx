@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { CategoryDropdown } from "./category-dropdown";
 import { ImageUploader } from "./image-uploader";
 import { SEOCard } from "./seo-card";
-import { Tag, Sparkles, DollarSign, Package, Layers, Info } from "lucide-react";
+import { Tag, Sparkles, Package, Layers, Info } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
@@ -216,30 +216,30 @@ export function ProductForm({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input
-            label="Retail Price ($)"
+            label="Retail Price (₹)"
             type="number"
             step="0.01"
-            placeholder="140.00"
+            placeholder="999"
             value={price}
             onChange={(e) => {
               setPrice(e.target.value);
               notifyChange({ price: parseFloat(e.target.value) || 0 });
             }}
-            leftIcon={<DollarSign className="w-4 h-4 text-zinc-500" />}
+            leftIcon={<span className="text-sm font-bold text-zinc-400 font-mono">₹</span>}
             required
           />
 
           <Input
-            label="Original / Compare Price ($)"
+            label="Original / Compare Price (₹)"
             type="number"
             step="0.01"
-            placeholder="165.00"
+            placeholder="1499"
             value={compareAtPrice}
             onChange={(e) => {
               setCompareAtPrice(e.target.value);
               notifyChange({ compareAtPrice: e.target.value ? parseFloat(e.target.value) : undefined });
             }}
-            leftIcon={<DollarSign className="w-4 h-4 text-zinc-500" />}
+            leftIcon={<span className="text-sm font-bold text-zinc-400 font-mono">₹</span>}
             helperText="Display crossed-out original price."
           />
 

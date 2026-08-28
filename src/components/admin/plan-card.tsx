@@ -111,7 +111,7 @@ export function PlanCard({ plans, onCreatePlan }: PlanCardProps) {
         <form onSubmit={handleCreate} className="space-y-4 font-body">
           <Input label="Plan Name" placeholder="e.g. Agency Unlimited" value={name} onChange={(e) => setName(e.target.value)} required />
           <div className="grid grid-cols-2 gap-3">
-            <Input label="Monthly Price ($)" type="number" value={price} onChange={(e) => setPrice(e.target.value)} required />
+            <Input label="Monthly Price (₹)" type="number" value={price} onChange={(e) => setPrice(e.target.value)} required />
             <Input label="Max Products Limit" type="number" value={productsLimit} onChange={(e) => setProductsLimit(e.target.value)} required />
           </div>
           <div className="pt-2 flex justify-end gap-2">

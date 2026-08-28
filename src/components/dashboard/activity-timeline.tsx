@@ -18,7 +18,7 @@ const defaultActivities: ActivityItem[] = [
   {
     id: "act-1",
     title: "New Catalog Order Received",
-    description: "Customer placed an order for Velvet Oud Perfume ($140.00)",
+    description: "Customer placed an order for Velvet Oud Perfume (₹999.00)",
     timestamp: new Date(Date.now() - 1000 * 60 * 12).toISOString(),
     type: "order",
   },

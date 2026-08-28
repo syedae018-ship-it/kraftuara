@@ -2,7 +2,7 @@
 
 import React from "react";
 import { StatCard } from "@/components/dashboard/stat-card";
-import { Users, Store, Package, Sparkles, DollarSign, Activity } from "lucide-react";
+import { Users, Store, Package, Sparkles, Activity } from "lucide-react";
 import { PlatformStats } from "@/types/admin";
 import { formatCurrency } from "@/lib/utils";
 
@@ -29,7 +29,7 @@ export function AdminStatCard({ stats }: { stats: PlatformStats }) {
         value={formatCurrency(stats.mrr)}
         delta={{ value: "+18.4% MRR", isPositive: true }}
         subtitle="Monthly recurring revenue"
-        icon={<DollarSign className="w-4 h-4 text-emerald-400" />}
+        icon={<span className="text-xs font-bold font-mono text-emerald-400">₹</span>}
       />
       <StatCard
         title="Platform Health"

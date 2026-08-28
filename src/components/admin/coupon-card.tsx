@@ -84,7 +84,7 @@ export function CouponCard({ coupons, onCreateCoupon }: CouponCardProps) {
                 className="w-full h-10 bg-[#111111] border border-white/10 rounded-xl px-3 text-xs text-white outline-none"
               >
                 <option value="percentage">Percentage (%)</option>
-                <option value="flat">Flat Dollar ($)</option>
+                <option value="flat">Flat Amount (₹)</option>
               </select>
             </div>
             <Input label="Discount Value" type="number" value={value} onChange={(e) => setValue(e.target.value)} required />

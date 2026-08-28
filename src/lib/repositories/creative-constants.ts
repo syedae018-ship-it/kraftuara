@@ -5,7 +5,7 @@ export const initialServices: CreativeService[] = [
     id: "serv-01",
     title: "Premium Logo Design",
     description: "Get a professional, custom logo design for your brand. Includes source files and 3 revisions.",
-    startingPrice: 15000, // $150
+    startingPrice: 15000, // ₹15,000
     category: "Graphic Design",
     deliveryTime: "5 days",
     iconName: "PenTool",

@@ -2,7 +2,7 @@
 
 import React from "react";
 import { Card } from "@/components/ui/card";
-import { TrendingUp, Users, Store, DollarSign } from "lucide-react";
+import { TrendingUp, Users, Store } from "lucide-react";
 
 export function AnalyticsChart() {
   return (
@@ -11,7 +11,7 @@ export function AnalyticsChart() {
       <Card className="p-6 space-y-4 bg-[#151515] border-white/10">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <DollarSign className="w-4 h-4 text-emerald-400" />
+            <span className="text-sm font-bold font-mono text-emerald-400">₹</span>
             <h4 className="text-sm font-bold font-heading text-white">Platform MRR & Revenue Growth</h4>
           </div>
           <span className="text-xs font-mono text-emerald-400 font-bold">+24.5%</span>

@@ -18,7 +18,7 @@ const initialNotifications: NotificationItem[] = [
   {
     id: "n1",
     title: "New Catalog Order",
-    message: "Order #1092 placed for Aroma Royal Oud ($210.00)",
+    message: "Order #1092 placed for Aroma Royal Oud (₹1,499.00)",
     time: "5m ago",
     read: false,
     type: "order",

@@ -30,7 +30,6 @@ import {
   Package,
   Users,
   Sparkles,
-  DollarSign,
   Plus,
   Grid,
   Palette,
@@ -309,7 +308,7 @@ export default function DashboardOverview() {
               value={`₹${analytics.revenue.toFixed(2)}`}
               delta={analytics.revenue > 0 ? { value: "Razorpay sales", isPositive: true } : undefined}
               subtitle="Completed direct transactions"
-              icon={<DollarSign className="w-4 h-4" />}
+              icon={<span className="text-xs font-bold font-mono">₹</span>}
               isLoading={showSkeletons}
             />
           </PlanGate>

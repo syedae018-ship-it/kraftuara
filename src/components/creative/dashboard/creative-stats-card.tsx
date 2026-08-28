@@ -2,7 +2,7 @@
 
 import React from "react";
 import { StatCard } from "@/components/dashboard/stat-card";
-import { ShoppingBag, Clock, Sparkles, CheckCircle2, DollarSign, TrendingUp } from "lucide-react";
+import { ShoppingBag, Clock, Sparkles, CheckCircle2, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function CreativeStatsCard({ className }: { className?: string }) {
@@ -32,10 +32,10 @@ export function CreativeStatsCard({ className }: { className?: string }) {
       />
       <StatCard
         title="Creative Volume"
-        value="$1,840.00"
+        value="₹14,999"
         delta={{ value: "+15.2% growth", isPositive: true }}
         subtitle="Gross order value"
-        icon={<DollarSign className="w-4 h-4" />}
+        icon={<span className="text-xs font-bold text-zinc-400 font-mono">₹</span>}
       />
     </div>
   );
