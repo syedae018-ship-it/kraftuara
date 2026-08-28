@@ -14,5 +14,6 @@ export type StoreData = {
   shipping?: {
     freeShippingEnabled: boolean;
     freeShippingThreshold: number;
+    shippingFee?: number;
   };
 };

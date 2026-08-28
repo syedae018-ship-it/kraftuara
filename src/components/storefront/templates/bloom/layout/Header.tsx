@@ -45,10 +45,14 @@ export default function Header({ store, isSubdomain = false }: { store: StoreDat
   const homeLink = basePath || "/";
   const contactLink = `${basePath}/contact`;
   const cartLink = `${basePath}/cart`;
+  const trackLink = `${basePath}/track`;
 
   const isActivePath = (path: string) => pathname === path || (path === "/" && pathname === basePath);
 
-  const navItems = [{ href: contactLink, label: "Contact" }];
+  const navItems = [
+    { href: trackLink, label: "Track Order" },
+    { href: contactLink, label: "Contact" },
+  ];
 
   return (
     <header

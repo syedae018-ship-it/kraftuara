@@ -29,6 +29,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/auth-context";
 import { orderRepository } from "@/lib/repositories/order-repository";
 import { getOrderDetailsAction, updateOrderStatusAction } from "@/lib/actions/order";
+import { PlanGate } from "@/components/dashboard/plan-gate";
 
 export default function MerchantOrdersPage() {
   const { activeStore } = useAuth();
@@ -173,13 +174,18 @@ export default function MerchantOrdersPage() {
 
   return (
     <DashboardLayout breadcrumbs={[{ label: "Overview", href: "/dashboard" }, { label: "Orders" }]}>
-      <div className="space-y-6 relative min-h-[calc(100vh-120px)]">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold font-heading text-white">Orders Console</h1>
-            <p className="text-xs text-zinc-400 font-body">Manage and fulfill storefront checkout transactions.</p>
+      <PlanGate
+        requiredPlan="pro"
+        featureName="Order Management & Status Controls"
+        description="Upgrade to the Pro Plan (₹499/mo) to unlock complete order tracking, fulfillment lifecycle controls, and customer order management."
+      >
+        <div className="space-y-6 relative min-h-[calc(100vh-120px)]">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <h1 className="text-xl sm:text-2xl font-bold font-heading text-white">Orders Console</h1>
+              <p className="text-xs text-zinc-400 font-body">Manage and fulfill storefront checkout transactions.</p>
+            </div>
           </div>
-        </div>
 
         {/* Statistics Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -511,7 +517,8 @@ export default function MerchantOrdersPage() {
             </div>
           </div>
         )}
-      </div>
+        </div>
+      </PlanGate>
     </DashboardLayout>
   );
 }

@@ -14,9 +14,10 @@ import { Badge } from "@/components/ui/table";
 import { Collection } from "@/types/collection";
 import { collectionRepository } from "@/lib/repositories/collection-repository";
 import { Plus, Sparkles, Search, List, LayoutGrid } from "lucide-react";
-import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/auth-context";
+import { PlanGate } from "@/components/dashboard/plan-gate";
+import { toast } from "@/hooks/use-toast";
 
 export default function CollectionListPage() {
   const { activeStore } = useAuth();
@@ -103,24 +104,29 @@ export default function CollectionListPage() {
 
   return (
     <DashboardLayout breadcrumbs={[{ label: "Store Dashboard", href: "/dashboard" }, { label: "Collections" }]}>
-      <SectionTitle
-        title="Featured Collections"
-        description="Curate seasonal themes, promotional bundles, and special product groups."
-        badge={
-          <Badge variant="maroon" className="gap-1 font-mono text-[11px]">
-            <Sparkles className="w-3 h-3 text-maroon-300" /> {collections.length} Collections
-          </Badge>
-        }
-        action={
-          <Link href="/dashboard/collections/new">
-            <Button variant="primary" size="sm" leftIcon={<Plus className="w-3.5 h-3.5" />}>
-              Create Collection
-            </Button>
-          </Link>
-        }
-      />
+      <PlanGate
+        requiredPlan="pro"
+        featureName="Product Collections"
+        description="Upgrade to the Pro Plan (₹499/mo) to curate targeted collections, seasonal bundles, and special product groups."
+      >
+        <SectionTitle
+          title="Featured Collections"
+          description="Curate seasonal themes, promotional bundles, and special product groups."
+          badge={
+            <Badge variant="maroon" className="gap-1 font-mono text-[11px]">
+              <Sparkles className="w-3 h-3 text-maroon-300" /> {collections.length} Collections
+            </Badge>
+          }
+          action={
+            <Link href="/dashboard/collections/new">
+              <Button variant="primary" size="sm" leftIcon={<Plus className="w-3.5 h-3.5" />}>
+                Create Collection
+              </Button>
+            </Link>
+          }
+        />
 
-      <div className="space-y-6 pb-20">
+        <div className="space-y-6 pb-20">
         {/* Toolbar */}
         <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 p-4 bg-[#151515] border border-white/10 rounded-2xl shadow-card">
           <div className="flex-1 min-w-[240px]">
@@ -209,7 +215,8 @@ export default function CollectionListPage() {
             ))}
           </div>
         )}
-      </div>
+        </div>
+      </PlanGate>
     </DashboardLayout>
   );
 }

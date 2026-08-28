@@ -60,15 +60,24 @@ export default function BloomCartPage({ store, isSubdomain = false }: { store: S
               </div>
             </div>
 
-            <a
-              href={placedOrder.whatsappUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-full h-11 bg-bloom-primary text-bloom-primary-foreground hover:bg-bloom-primary/90 flex items-center justify-center gap-2 text-sm font-semibold rounded-lg transition-colors shadow-md"
-            >
-              <MessageCircle className="h-4 w-4" />
-              Send on WhatsApp
-            </a>
+            <div className="flex flex-col gap-2.5 w-full">
+              <a
+                href={placedOrder.whatsappUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full h-11 bg-bloom-primary text-bloom-primary-foreground hover:bg-bloom-primary/90 flex items-center justify-center gap-2 text-sm font-semibold rounded-xl transition-colors shadow-md"
+              >
+                <MessageCircle className="h-4 w-4" />
+                Send on WhatsApp
+              </a>
+
+              <Link
+                href={`${basePath}/track?orderId=${placedOrder.orderNumber}`}
+                className="w-full h-10 bg-bloom-secondary border border-bloom-border text-bloom-foreground hover:bg-bloom-secondary/80 flex items-center justify-center gap-2 text-xs font-semibold rounded-xl transition-colors"
+              >
+                Track Order #{placedOrder.orderNumber}
+              </Link>
+            </div>
 
             <div className="text-center mt-6">
               <Link href={basePath || "/"} className="text-xs text-bloom-muted hover:underline">

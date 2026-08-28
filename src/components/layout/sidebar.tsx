@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -155,14 +156,14 @@ export function Sidebar({ collapsed = false, onToggleCollapse, onNavigate, class
                 </button>
               ))}
               <div className="border-t border-white/10 pt-1 mt-1">
-                <a
+                <Link
                   href="/create-store"
                   onClick={() => onNavigate?.()}
                   className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs text-maroon-400 hover:bg-maroon-950/40 transition-colors font-medium font-body min-h-[36px]"
                 >
                   <PlusCircle className="w-3.5 h-3.5" />
                   Create New Store
-                </a>
+                </Link>
               </div>
             </motion.div>
           )}
@@ -191,7 +192,7 @@ export function Sidebar({ collapsed = false, onToggleCollapse, onNavigate, class
                 const Icon = item.icon;
 
                 return (
-                  <a
+                  <Link
                     key={item.href}
                     href={item.href}
                     onClick={() => onNavigate?.()}
@@ -222,7 +223,7 @@ export function Sidebar({ collapsed = false, onToggleCollapse, onNavigate, class
                         {item.badge}
                       </span>
                     )}
-                  </a>
+                  </Link>
                 );
               })}
             </div>

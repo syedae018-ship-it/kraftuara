@@ -44,6 +44,7 @@ export class SupabaseStorefrontRepository implements IStorefrontRepository {
     const resolvedShipping = {
       freeShippingEnabled: rawShipping?.freeShippingEnabled !== undefined ? Boolean(rawShipping.freeShippingEnabled) : true,
       freeShippingThreshold: typeof rawShipping?.freeShippingThreshold === "number" ? rawShipping.freeShippingThreshold : 0,
+      shippingFee: typeof rawShipping?.shippingFee === "number" ? rawShipping.shippingFee : 50,
     };
 
     if (metadata.published_snapshot) {

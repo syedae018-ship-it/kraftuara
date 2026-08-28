@@ -38,7 +38,9 @@ export default function OrderSummary({ store, onOrderPlaced }: { store: StoreDat
   const freeShippingThreshold = typeof store.shipping?.freeShippingThreshold === "number"
     ? store.shipping.freeShippingThreshold
     : 0;
-  const baseShippingCost = 99; // Standard flat delivery fee when under threshold
+  const baseShippingCost = typeof store.shipping?.shippingFee === "number"
+    ? store.shipping.shippingFee
+    : 50; // Dynamic flat delivery fee configured by store owner
 
   // When free shipping is enabled and order meets/exceeds threshold (e.g. >= 0 for 0 threshold), shipping is free
   const qualifiesForFreeShipping = isFreeShippingEnabled && subtotal >= freeShippingThreshold;

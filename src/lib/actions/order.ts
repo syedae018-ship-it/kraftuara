@@ -97,23 +97,167 @@ export async function getOrderDetailsAction(orderId: string) {
 export async function updateOrderStatusAction(orderId: string, status: string) {
   try {
     const supabase = await createServerInstance();
-    await verifyOrderStoreOwner(supabase, orderId);
-    
-    let dbStatus = status;
-    if (status === "processing") {
-      dbStatus = "confirmed";
-    } else if (status === "completed") {
-      dbStatus = "delivered";
+    const { storeId } = await verifyOrderStoreOwner(supabase, orderId);
+
+    // Verify Pro plan entitlement
+    const { data: subRow } = await (supabase.from("subscriptions") as any)
+      .select("plan, status, current_period_end")
+      .eq("store_id", storeId)
+      .maybeSingle();
+
+    const { normalizePlanTier, hasFeatureAccess } = await import("@/lib/feature-gating");
+    let plan = "startup";
+    let subStatus = subRow?.status || "active";
+    if (subRow) {
+      plan = normalizePlanTier(subRow.plan);
+      if (subRow.current_period_end && new Date(subRow.current_period_end).getTime() < Date.now()) {
+        subStatus = "expired";
+      }
+    }
+    if (subStatus === "expired" || subStatus === "cancelled" || subStatus === "pending") {
+      plan = "startup";
+    }
+
+    if (!hasFeatureAccess(plan, "order_management") && !hasFeatureAccess(plan, "orders")) {
+      return { success: false, error: "Order lifecycle and status management is exclusive to the Pro Plan." };
+    }
+
+    const validStatuses = ["pending", "confirmed", "processing", "shipped", "delivered", "cancelled"];
+    const normalizedStatus = status.toLowerCase().trim();
+    if (!validStatuses.includes(normalizedStatus)) {
+      return { success: false, error: "Invalid order status specified." };
     }
 
     const { error } = await (supabase.from("orders") as any)
-      .update({ status: dbStatus })
+      .update({ status: normalizedStatus, updated_at: new Date().toISOString() })
       .eq("id", orderId);
       
     if (error) throw error;
     
     return { success: true };
   } catch (err: any) {
-    return { success: false, error: err.message || "Failed to update status" };
+    return { success: false, error: err.message || "We couldn't update this order. Please try again." };
+  }
+}
+
+/**
+ * Public secure order tracking action for storefront customers (Pro stores only)
+ */
+export async function trackOrderAction(storeSlug: string, orderNumber: string) {
+  try {
+    if (!storeSlug?.trim() || !orderNumber?.trim()) {
+      return { success: false, error: "Please enter a valid Order ID." };
+    }
+
+    let supabase: any;
+    try {
+      const { createAdminClient } = await import("@/lib/supabase/admin");
+      supabase = createAdminClient();
+    } catch {
+      supabase = await createServerInstance();
+    }
+
+    // 1. Resolve store
+    const isDemo = ["demo", "demo-craft-classic", "craft-classic", "aroma-perfumes"].includes(storeSlug.toLowerCase());
+    
+    const { data: storeRow, error: storeErr } = await supabase
+      .from("stores")
+      .select("id, name, slug")
+      .eq("slug", storeSlug.trim().toLowerCase())
+      .maybeSingle();
+
+    if ((storeErr || !storeRow) && !isDemo) {
+      return { success: false, error: "Store not found." };
+    }
+
+    const storeId = storeRow?.id || "demo-craft-classic-id";
+
+    // 2. Check store Pro entitlement
+    if (!isDemo) {
+      const { data: subRow } = await (supabase.from("subscriptions") as any)
+        .select("plan, status, current_period_end")
+        .eq("store_id", storeId)
+        .maybeSingle();
+
+      const { normalizePlanTier, hasFeatureAccess } = await import("@/lib/feature-gating");
+      let plan = "startup";
+      let subStatus = subRow?.status || "active";
+      if (subRow) {
+        plan = normalizePlanTier(subRow.plan);
+        if (subRow.current_period_end && new Date(subRow.current_period_end).getTime() < Date.now()) {
+          subStatus = "expired";
+        }
+      }
+      if (subStatus === "expired" || subStatus === "cancelled") {
+        plan = "startup";
+      }
+
+      if (!hasFeatureAccess(plan, "customer_order_tracking") && !hasFeatureAccess(plan, "orders")) {
+        return {
+          success: false,
+          error: "Order tracking is an exclusive Pro Plan feature. The merchant has not enabled live tracking.",
+        };
+      }
+    }
+
+    // 3. Query order by storeId and orderNumber
+    const normalizedOrderNum = orderNumber.trim().toUpperCase();
+
+    // Handle demo store order tracking
+    if (isDemo && normalizedOrderNum.startsWith("KRA-")) {
+      return {
+        success: true,
+        order: {
+          orderNumber: normalizedOrderNum,
+          status: "processing",
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          customerNameMasked: "P*** S***",
+          totalAmount: 1499,
+          itemCount: 1,
+          items: [{ productName: "Demo Artisan Craft", quantity: 1, price: 1499 }],
+        },
+      };
+    }
+
+    const { data: orderRow, error: orderErr } = await (supabase.from("orders") as any)
+      .select("id, order_number, customer_name, total_amount, status, created_at, updated_at, order_items(*)")
+      .eq("store_id", storeId)
+      .eq("order_number", normalizedOrderNum)
+      .maybeSingle();
+
+    if (orderErr || !orderRow) {
+      return { success: false, error: "We couldn't find an order with that ID." };
+    }
+
+    // Mask customer name safely for PII protection (e.g. "Riya Sharma" -> "R*** S***")
+    const rawName = orderRow.customer_name || "Customer";
+    const nameParts = rawName.trim().split(/\s+/);
+    const maskedParts = nameParts.map((part: string) =>
+      part.length > 1 ? `${part[0]}***` : part
+    );
+    const customerNameMasked = maskedParts.join(" ");
+
+    return {
+      success: true,
+      order: {
+        orderNumber: orderRow.order_number,
+        status: orderRow.status || "pending",
+        createdAt: orderRow.created_at,
+        updatedAt: orderRow.updated_at,
+        customerNameMasked,
+        totalAmount: Number(orderRow.total_amount),
+        itemCount: orderRow.order_items?.length || 0,
+        items: orderRow.order_items
+          ? orderRow.order_items.map((itm: any) => ({
+              productName: itm.product_name,
+              quantity: itm.quantity,
+              price: Number(itm.price),
+            }))
+          : [],
+      },
+    };
+  } catch (err: any) {
+    return { success: false, error: "Unable to retrieve tracking information at this time." };
   }
 }

@@ -12,17 +12,20 @@ export type FeatureKey =
   | "store_settings"
   | "appearance"
   | "whatsapp_orders"
+  | "shipping"
   | "analytics"
   | "store_views_analytics"
   | "store_traffic_analytics"
   | "traffic_insights"
-  | "collections"
-  | "premium_themes"
   | "creative_discounts"
   | "coupons"
+  | "collections"
   | "orders"
+  | "order_management"
+  | "customer_order_tracking"
+  | "premium_themes"
+  | "advanced_themes"
   | "payments"
-  | "shipping"
   | "revenue_dashboard"
   | "inventory"
   | "custom_domain";
@@ -54,6 +57,7 @@ export const PLANS: Record<PlanTier, PlanConfig> = {
       "store_settings",
       "appearance",
       "whatsapp_orders",
+      "shipping",
     ],
     productLimit: 12,
     categoryLimit: 1,
@@ -63,7 +67,7 @@ export const PLANS: Record<PlanTier, PlanConfig> = {
     id: "growth",
     name: "Growth Pack",
     priceMonthly: 299,
-    description: "Enhanced growth with Analytics, Collections, Coupons & Unlimited Categories.",
+    description: "Enhanced growth with Analytics, Coupons & Unlimited Categories.",
     allowedFeatures: [
       // Inherits all Startup features
       "dashboard",
@@ -72,13 +76,12 @@ export const PLANS: Record<PlanTier, PlanConfig> = {
       "store_settings",
       "appearance",
       "whatsapp_orders",
+      "shipping",
       // Growth-specific features
       "analytics",
       "store_views_analytics",
       "store_traffic_analytics",
       "traffic_insights",
-      "collections",
-      "premium_themes",
       "creative_discounts",
       "coupons",
     ],
@@ -91,7 +94,7 @@ export const PLANS: Record<PlanTier, PlanConfig> = {
     id: "pro",
     name: "Pro Plan",
     priceMonthly: 499,
-    description: "Complete E-commerce platform with Custom Domain & Advanced Features.",
+    description: "Complete E-commerce platform with Order Management, Tracking, Collections & Advanced Themes.",
     allowedFeatures: [
       // Inherits all Startup & Growth features
       "dashboard",
@@ -100,18 +103,21 @@ export const PLANS: Record<PlanTier, PlanConfig> = {
       "store_settings",
       "appearance",
       "whatsapp_orders",
+      "shipping",
       "analytics",
       "store_views_analytics",
       "store_traffic_analytics",
       "traffic_insights",
-      "collections",
-      "premium_themes",
       "creative_discounts",
       "coupons",
       // Pro-specific capabilities
+      "collections",
       "orders",
+      "order_management",
+      "customer_order_tracking",
+      "premium_themes",
+      "advanced_themes",
       "payments",
-      "shipping",
       "revenue_dashboard",
       "inventory",
       "custom_domain",

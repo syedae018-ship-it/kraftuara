@@ -459,11 +459,11 @@ export async function publishStoreChangesAction(storeId: string): Promise<Action
 }
 
 /**
- * Fetch free shipping settings for a store
+ * Fetch shipping settings for a store
  */
 export async function getStoreShippingSettingsAction(
   storeId: string
-): Promise<ActionResponse<{ freeShippingEnabled: boolean; freeShippingThreshold: number }>> {
+): Promise<ActionResponse<{ freeShippingEnabled: boolean; freeShippingThreshold: number; shippingFee: number }>> {
   try {
     const supabase = await createServerSupabaseClient();
     
@@ -495,6 +495,7 @@ export async function getStoreShippingSettingsAction(
     const shipping = {
       freeShippingEnabled: rawShipping?.freeShippingEnabled !== undefined ? Boolean(rawShipping.freeShippingEnabled) : true,
       freeShippingThreshold: typeof rawShipping?.freeShippingThreshold === "number" ? rawShipping.freeShippingThreshold : 0,
+      shippingFee: typeof rawShipping?.shippingFee === "number" ? rawShipping.shippingFee : 50,
     };
 
     return successResponse(shipping);
@@ -504,12 +505,13 @@ export async function getStoreShippingSettingsAction(
 }
 
 /**
- * Update free shipping settings for a store
+ * Update shipping settings for a store
  */
 export async function updateStoreShippingSettingsAction(
   storeId: string,
   freeShippingEnabled: boolean,
-  freeShippingThreshold: number
+  freeShippingThreshold: number,
+  shippingFee: number = 50
 ): Promise<ActionResponse<void>> {
   try {
     const supabase = await createServerSupabaseClient();
@@ -541,9 +543,14 @@ export async function updateStoreShippingSettingsAction(
       ? Math.max(0, freeShippingThreshold)
       : 0;
 
+    const parsedShippingFee = typeof shippingFee === "number" && !isNaN(shippingFee)
+      ? Math.max(0, shippingFee)
+      : 50;
+
     const shippingConfig = {
       freeShippingEnabled: Boolean(freeShippingEnabled),
       freeShippingThreshold: parsedThreshold,
+      shippingFee: parsedShippingFee,
     };
 
     const existingMetadata = settingsRow?.metadata || {};

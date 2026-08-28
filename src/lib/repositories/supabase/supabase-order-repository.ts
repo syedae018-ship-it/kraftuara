@@ -57,9 +57,8 @@ export class SupabaseOrderRepository implements IOrderRepository {
         });
       }
 
-      const dateStr = new Date().toISOString().split("T")[0].replace(/-/g, "");
-      const randomSuffix = Math.floor(Math.random() * 9000 + 1000);
-      const orderNumber = `DEMO-${dateStr}-${randomSuffix}`;
+      const randomHex = Math.random().toString(36).substring(2, 9).toUpperCase();
+      const orderNumber = `KRA-${randomHex}`;
 
       let discountAmount = 0;
       let appliedCouponCode = null;
@@ -164,10 +163,9 @@ export class SupabaseOrderRepository implements IOrderRepository {
       });
     }
 
-    // 5. Generate unique order reference number
-    const dateStr = new Date().toISOString().split("T")[0].replace(/-/g, "");
-    const randomSuffix = Math.floor(Math.random() * 9000 + 1000);
-    const orderNumber = `SK-${dateStr}-${randomSuffix}`;
+    // 5. Generate unique Kraftaura Order ID (e.g. KRA-8F42X91)
+    const randomHex = Math.random().toString(36).substring(2, 9).toUpperCase();
+    const orderNumber = `KRA-${randomHex}`;
 
     // Validate and apply coupon if provided
     let discountAmount = 0;

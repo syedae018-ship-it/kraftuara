@@ -40,6 +40,7 @@ export default function MerchantSettingsPage() {
   // Shipping Configuration State
   const [freeShippingEnabled, setFreeShippingEnabled] = useState(true);
   const [freeShippingThreshold, setFreeShippingThreshold] = useState<number | string>(0);
+  const [shippingFee, setShippingFee] = useState<number | string>(50);
   const [isSavingShipping, setIsSavingShipping] = useState(false);
 
   const [isLoadingSettings, setIsLoadingSettings] = useState(true);
@@ -71,6 +72,11 @@ export default function MerchantSettingsPage() {
               typeof shipRes.data.freeShippingThreshold === "number"
                 ? shipRes.data.freeShippingThreshold
                 : 0
+            );
+            setShippingFee(
+              typeof shipRes.data.shippingFee === "number"
+                ? shipRes.data.shippingFee
+                : 50
             );
           }
         } catch (err) {
@@ -216,15 +222,20 @@ export default function MerchantSettingsPage() {
       const thresholdNum = freeShippingThreshold === "" ? 0 : Number(freeShippingThreshold);
       const safeThreshold = isNaN(thresholdNum) || thresholdNum < 0 ? 0 : thresholdNum;
 
+      const feeNum = shippingFee === "" ? 50 : Number(shippingFee);
+      const safeFee = isNaN(feeNum) || feeNum < 0 ? 50 : feeNum;
+
       const { updateStoreShippingSettingsAction } = await import("@/lib/actions/store");
       const res = await updateStoreShippingSettingsAction(
         activeStore.id,
         freeShippingEnabled,
-        safeThreshold
+        safeThreshold,
+        safeFee
       );
       if (res.success) {
         setFreeShippingThreshold(safeThreshold);
-        toast.success("Shipping Settings Saved", "Free shipping threshold updated successfully.");
+        setShippingFee(safeFee);
+        toast.success("Shipping Settings Saved", "Shipping rates and free shipping threshold updated successfully.");
       } else {
         toast.error("Save Failed", res.error || "Could not save shipping configuration.");
       }
@@ -439,32 +450,59 @@ export default function MerchantSettingsPage() {
               </label>
             </div>
 
-            {freeShippingEnabled && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="text-xs font-semibold text-zinc-300 font-heading block mb-1.5">
-                  Free Shipping Minimum Threshold Amount (₹) *
+                  Standard Delivery Fee (₹) *
                 </label>
                 <Input
                   type="number"
                   min={0}
-                  placeholder="e.g. 0"
-                  value={freeShippingThreshold}
+                  placeholder="e.g. 50"
+                  value={shippingFee}
                   onChange={(e) => {
                     const val = e.target.value;
                     if (val === "") {
-                      setFreeShippingThreshold("");
+                      setShippingFee("");
                     } else {
                       const parsed = Number(val);
-                      setFreeShippingThreshold(isNaN(parsed) || parsed < 0 ? 0 : parsed);
+                      setShippingFee(isNaN(parsed) || parsed < 0 ? 0 : parsed);
                     }
                   }}
                   leftIcon={<span className="text-zinc-500 font-bold text-xs select-none">₹</span>}
                 />
                 <p className="text-[11px] text-zinc-500 font-body mt-1">
-                  Orders equal to or above this amount qualify for Free Shipping. Enter 0 for free shipping on all orders.
+                  Charged to customers when order subtotal is below the free shipping threshold.
                 </p>
               </div>
-            )}
+
+              {freeShippingEnabled && (
+                <div>
+                  <label className="text-xs font-semibold text-zinc-300 font-heading block mb-1.5">
+                    Free Shipping Threshold (₹) *
+                  </label>
+                  <Input
+                    type="number"
+                    min={0}
+                    placeholder="e.g. 0"
+                    value={freeShippingThreshold}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === "") {
+                        setFreeShippingThreshold("");
+                      } else {
+                        const parsed = Number(val);
+                        setFreeShippingThreshold(isNaN(parsed) || parsed < 0 ? 0 : parsed);
+                      }
+                    }}
+                    leftIcon={<span className="text-zinc-500 font-bold text-xs select-none">₹</span>}
+                  />
+                  <p className="text-[11px] text-zinc-500 font-body mt-1">
+                    Orders equal to or above this qualify for free shipping. Enter 0 for free shipping on all orders.
+                  </p>
+                </div>
+              )}
+            </div>
 
             <div className="pt-4 border-t border-white/10">
               <Button
