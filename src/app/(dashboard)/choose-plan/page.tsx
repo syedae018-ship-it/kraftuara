@@ -284,9 +284,11 @@ export default function ChoosePlanPage() {
                     ))}
                   </ul>
 
-                  <div className="text-[9px] text-zinc-400 font-body text-center bg-white/5 p-2 rounded-xl border border-white/5 mt-2">
-                    🎁 Includes a 3-Day Free Trial (requires automatic recurring authorization)
-                  </div>
+                  {plan.id !== "startup" && (
+                    <div className="text-[9px] text-zinc-400 font-body text-center bg-white/5 p-2 rounded-xl border border-white/5 mt-2">
+                      🎁 Includes a 3-Day Free Trial (requires automatic recurring authorization)
+                    </div>
+                  )}
                 </div>
 
                 <Button

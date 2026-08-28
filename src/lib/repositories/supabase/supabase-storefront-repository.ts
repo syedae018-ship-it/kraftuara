@@ -82,18 +82,7 @@ export class SupabaseStorefrontRepository implements IStorefrontRepository {
     // Resolve the store's active plan for feature rendering on the storefront
     const plan = await this.resolveStorePlan(s.id, supabase);
 
-    if (metadata.published_snapshot) {
-      const snapshot = metadata.published_snapshot;
-      return {
-        ...snapshot,
-        id: s.id,
-        name: s.name,
-        slug: s.slug,
-        plan,
-        shipping: resolvedShipping,
-      };
-    }
-
+    // Always load fresh appearance, categories, collections, and products for live store accuracy
     const appearance = await supabaseAppearanceRepository.getSettings(s.id, supabase);
     const categories = await supabaseCategoryRepository.getAll(s.id, supabase);
     const collections = await supabaseCollectionRepository.getAll(s.id, supabase);

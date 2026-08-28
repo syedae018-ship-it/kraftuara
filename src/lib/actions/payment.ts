@@ -62,8 +62,29 @@ export async function createStoreSubscriptionAction(
     const razorpay = getRazorpayInstance();
     const isSimulated = !razorpay;
 
+    // Trial Eligibility: Startup plan NEVER has a trial. Growth and Pro have 3-day trial only if not already consumed.
+    const isStartup = planName === "startup";
+    let isTrialEligible = !isStartup;
+
+    if (isTrialEligible) {
+      const { data: pastSubs } = await (supabase.from("subscriptions") as any)
+        .select("id, trial_end, status")
+        .eq("user_id", user.id)
+        .limit(5);
+
+      if (pastSubs && pastSubs.length > 0) {
+        const alreadyHadTrial = pastSubs.some((s: any) => s.trial_end || s.status === "active" || s.status === "expired");
+        if (alreadyHadTrial) {
+          isTrialEligible = false;
+        }
+      }
+    }
+
     if (isSimulated) {
       const mockSubId = `sub_mock_${Date.now()}`;
+      const now = new Date();
+      const trialStart = isTrialEligible ? now.toISOString() : null;
+      const trialEnd = isTrialEligible ? new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000).toISOString() : null;
       
       // If store ID exists, upsert pending subscription record
       if (storeId) {
@@ -73,11 +94,11 @@ export async function createStoreSubscriptionAction(
           plan: planName,
           status: "payment_pending",
           razorpay_subscription_id: mockSubId,
-          current_period_start: new Date().toISOString(),
-          current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-          trial_start: new Date().toISOString(),
-          trial_end: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
-          next_billing_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+          current_period_start: now.toISOString(),
+          current_period_end: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+          trial_start: trialStart,
+          trial_end: trialEnd,
+          next_billing_date: isTrialEligible ? trialEnd : new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString(),
           amount: planConfig.priceMonthly,
           currency: "INR",
         }, { onConflict: "store_id" });
@@ -94,34 +115,40 @@ export async function createStoreSubscriptionAction(
       });
     }
 
-    // Real Razorpay Subscription API call with a 3-day trial period
-    // Billing starts after 3 days. Epoch timestamp (seconds)
-    const trialEndTimestamp = Math.floor(Date.now() / 1000) + 3 * 24 * 60 * 60;
+    // Real Razorpay Subscription API call
+    // Only attach trial start_at for Growth & Pro if eligible
     const planId = await getOrCreateRazorpayPlan(razorpay, planName);
-    
-    const subscription = await razorpay.subscriptions.create({
+    const subscriptionPayload: any = {
       plan_id: planId,
       total_count: 12,
       quantity: 1,
       customer_notify: 1,
-      start_at: trialEndTimestamp, // billing begins after trial
       notes: {
         storeId: storeId || "",
         planName: planName,
         userId: user.id,
       }
-    });
+    };
+
+    let trialEndTimestamp: number | null = null;
+    if (isTrialEligible) {
+      trialEndTimestamp = Math.floor(Date.now() / 1000) + 3 * 24 * 60 * 60;
+      subscriptionPayload.start_at = trialEndTimestamp; // billing begins after 3-day trial
+    }
+    
+    const subscription = await razorpay.subscriptions.create(subscriptionPayload);
 
     // If store ID exists, save pending subscription details in the DB
     if (storeId) {
+      const now = new Date();
       const { error: upsertError } = await (supabase.from("subscriptions") as any).upsert({
         store_id: storeId,
         user_id: user.id,
         plan: planName,
         status: "payment_pending",
         razorpay_subscription_id: subscription.id,
-        trial_start: new Date().toISOString(),
-        trial_end: new Date(trialEndTimestamp * 1000).toISOString(),
+        trial_start: isTrialEligible ? now.toISOString() : null,
+        trial_end: trialEndTimestamp ? new Date(trialEndTimestamp * 1000).toISOString() : null,
         amount: planConfig.priceMonthly,
         currency: "INR",
       }, { onConflict: "store_id" });
@@ -334,14 +361,15 @@ export async function activatePlatformSubscriptionAction(
       return errorResponse("Associated store catalog not found.");
     }
 
-    // Default Trial Period (3 Days)
+    // Startup Plan NEVER has a trial. Growth and Pro have 3-day trial.
+    const isStartup = planName === "startup";
     const now = new Date();
-    const trialStart = now.toISOString();
-    const trialEnd = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000).toISOString();
+    const trialStart = isStartup ? null : now.toISOString();
+    const trialEnd = isStartup ? null : new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000).toISOString();
     
-    let currentStart = trialStart;
-    let currentEnd = trialEnd;
-    let nextBillingDate = trialEnd;
+    let currentStart = now.toISOString();
+    let currentEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    let nextBillingDate = isStartup ? currentEnd : trialEnd!;
 
     const subscriptionId = paymentDetails?.subscriptionId;
     const paymentId = paymentDetails?.paymentId;

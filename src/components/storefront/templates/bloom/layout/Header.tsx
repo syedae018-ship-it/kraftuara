@@ -58,17 +58,15 @@ export default function Header({ store, isSubdomain = false }: { store: StoreDat
 
   return (
     <header
-      className={`sticky top-0 z-50 transition-all duration-300 ${
-        isScrolled
-          ? "bg-white/95 backdrop-blur-xl border-b border-bloom-border shadow-lg"
-          : "bg-white/80 backdrop-blur-md border-b border-bloom-border shadow-sm"
+      className={`sticky top-0 z-50 transition-all duration-300 bg-[var(--bloom-background)]/90 backdrop-blur-xl border-b border-[var(--bloom-border)] ${
+        isScrolled ? "shadow-md" : "shadow-sm"
       }`}
     >
       <div className="container mx-auto px-4 sm:px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-8 lg:space-x-12">
             <Link
-              className="text-2xl tracking-tight text-bloom-foreground hover:text-bloom-muted transition-colors font-bold font-heading flex items-center gap-2"
+              className="text-xl sm:text-2xl tracking-tight text-bloom-foreground hover:opacity-80 transition-opacity font-bold font-heading flex items-center gap-2"
               href={homeLink}
               aria-label={`${store.name} Home`}
             >
@@ -81,8 +79,8 @@ export default function Header({ store, isSubdomain = false }: { store: StoreDat
                 />
               ) : (
                 <div
-                  className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-xs"
-                  style={{ backgroundColor: store.appearance.colors.primary || "#F97316" }}
+                  className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-xs shrink-0"
+                  style={{ backgroundColor: "var(--bloom-primary)" }}
                 >
                   {store.name.charAt(0)}
                 </div>

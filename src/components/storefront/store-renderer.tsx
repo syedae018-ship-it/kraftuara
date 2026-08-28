@@ -19,33 +19,7 @@ export interface StoreRendererProps {
   isSubdomain?: boolean;
 }
 
-export function StoreRenderer({ store: initialStore, initialCategory, initialCollection, isSubdomain = false }: StoreRendererProps) {
-  const [store, setStore] = useState<StoreData>(initialStore);
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const savedDetails = localStorage.getItem(`symar_store_details_${initialStore.slug}`);
-      const savedProducts = localStorage.getItem(`symar_products_${initialStore.slug}`);
-      if (savedDetails || savedProducts) {
-        try {
-          const parsedDetails = savedDetails ? JSON.parse(savedDetails) : {};
-          const parsedProducts = savedProducts ? JSON.parse(savedProducts) : initialStore.products;
-          setStore({
-            id: parsedDetails.id || initialStore.id,
-            name: parsedDetails.name || initialStore.name,
-            slug: initialStore.slug,
-            appearance: parsedDetails.appearance || initialStore.appearance,
-            categories: parsedDetails.categories || initialStore.categories,
-            collections: parsedDetails.collections || initialStore.collections,
-            products: parsedProducts,
-          });
-        } catch (e) {
-          console.error("Error rehydrating client store:", e);
-        }
-      }
-    }
-  }, [initialStore]);
-
+export function StoreRenderer({ store, initialCategory, initialCollection, isSubdomain = false }: StoreRendererProps) {
   const { appearance } = store;
   const sectionsList = (appearance?.homepageSections && Array.isArray(appearance.homepageSections))
     ? appearance.homepageSections
