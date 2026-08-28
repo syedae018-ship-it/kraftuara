@@ -67,7 +67,7 @@ export const PLANS: Record<PlanTier, PlanConfig> = {
     id: "growth",
     name: "Growth Pack",
     priceMonthly: 299,
-    description: "Enhanced growth with Analytics, Coupons & Unlimited Categories.",
+    description: "Enhanced growth with Analytics, Coupons, Orders & Unlimited Categories.",
     allowedFeatures: [
       // Inherits all Startup features
       "dashboard",
@@ -84,6 +84,9 @@ export const PLANS: Record<PlanTier, PlanConfig> = {
       "traffic_insights",
       "creative_discounts",
       "coupons",
+      "orders",
+      "order_management",
+      "customer_order_tracking",
     ],
     productLimit: 24,
     categoryLimit: UNLIMITED_CATEGORY_LIMIT,

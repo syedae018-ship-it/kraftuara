@@ -6,14 +6,16 @@ import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { SectionTitle } from "@/components/dashboard/section-title";
 import { CollectionForm } from "@/components/collections/collection-form";
 import { CreateCollectionInput } from "@/types/collection";
-import { collectionRepository } from "@/lib/repositories/collection-repository";
 import { Badge } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Plus, ArrowLeft } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-
 import { useAuth } from "@/context/auth-context";
 import { PlanGate } from "@/components/dashboard/plan-gate";
+// Use the server action — NOT the client-side repository.
+// The client repo uses the anon Supabase client which fails the RLS policy on the collections table.
+// The server action uses createServerSupabaseClient() which carries the authenticated session.
+import { createCollectionAction } from "@/lib/actions/collection";
 
 export default function NewCollectionPage() {
   const router = useRouter();
@@ -24,9 +26,13 @@ export default function NewCollectionPage() {
     if (!activeStore?.id) return;
     setIsSubmitting(true);
     try {
-      const created = await collectionRepository.create(activeStore.id, data);
-      toast.success("Collection Created!", `Added collection "${created.name}"`);
-      router.push("/dashboard/collections");
+      const result = await createCollectionAction(activeStore.id, data);
+      if (result.success && result.data) {
+        toast.success("Collection Created!", `Added collection "${result.data.name}"`);
+        router.push("/dashboard/collections");
+      } else {
+        toast.error("Error", result.error || "Could not create collection.");
+      }
     } catch (err) {
       toast.error("Error", "Could not create collection.");
     } finally {

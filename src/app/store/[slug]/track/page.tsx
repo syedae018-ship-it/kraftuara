@@ -41,6 +41,10 @@ export default async function TrackOrderRoute({
   const store = await storefrontRepository.getStoreBySlug(slug, supabase);
   if (!store) return notFound();
 
+  // Order tracking is only available for Growth and Pro stores
+  const storePlan = store.plan || "startup";
+  if (storePlan === "startup") return notFound();
+
   return (
     <BloomTrackOrderPage
       store={store}

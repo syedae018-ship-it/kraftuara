@@ -414,6 +414,7 @@ export async function publishStoreChangesAction(storeId: string): Promise<Action
     const shipping = {
       freeShippingEnabled: rawShipping?.freeShippingEnabled !== undefined ? Boolean(rawShipping.freeShippingEnabled) : true,
       freeShippingThreshold: typeof rawShipping?.freeShippingThreshold === "number" ? rawShipping.freeShippingThreshold : 0,
+      shippingFee: typeof rawShipping?.shippingFee === "number" ? rawShipping.shippingFee : 50,
     };
 
     const updatedMetadata = {

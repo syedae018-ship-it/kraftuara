@@ -7,6 +7,7 @@ export type StoreData = {
   id: string;
   name: string;
   slug: string;
+  plan?: string; // Resolved from active subscription — "startup" | "growth" | "pro"
   appearance: AppearanceSettings;
   categories: Category[];
   collections: Collection[];

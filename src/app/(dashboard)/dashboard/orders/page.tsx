@@ -175,9 +175,9 @@ export default function MerchantOrdersPage() {
   return (
     <DashboardLayout breadcrumbs={[{ label: "Overview", href: "/dashboard" }, { label: "Orders" }]}>
       <PlanGate
-        requiredPlan="pro"
+        requiredPlan="growth"
         featureName="Order Management & Status Controls"
-        description="Upgrade to the Pro Plan (₹499/mo) to unlock complete order tracking, fulfillment lifecycle controls, and customer order management."
+        description="Upgrade to the Growth Pack (₹299/mo) or Pro Plan (₹499/mo) to unlock your Order Console, fulfillment lifecycle controls, and customer order management."
       >
         <div className="space-y-6 relative min-h-[calc(100vh-120px)]">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">

@@ -49,8 +49,10 @@ export default function Header({ store, isSubdomain = false }: { store: StoreDat
 
   const isActivePath = (path: string) => pathname === path || (path === "/" && pathname === basePath);
 
+  const canTrackOrders = store.plan === "growth" || store.plan === "pro";
+
   const navItems = [
-    { href: trackLink, label: "Track Order" },
+    ...(canTrackOrders ? [{ href: trackLink, label: "Track Order" }] : []),
     { href: contactLink, label: "Contact" },
   ];
 

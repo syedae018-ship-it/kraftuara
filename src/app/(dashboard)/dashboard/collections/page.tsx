@@ -13,6 +13,8 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/table";
 import { Collection } from "@/types/collection";
 import { collectionRepository } from "@/lib/repositories/collection-repository";
+// Server actions are used for all mutations (create/update/delete) to bypass anon-client RLS failures.
+import { deleteCollectionAction, updateCollectionAction } from "@/lib/actions/collection";
 import { Plus, Sparkles, Search, List, LayoutGrid } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/auth-context";
@@ -66,24 +68,39 @@ export default function CollectionListPage() {
   };
 
   const handleTogglePublish = async (id: string) => {
+    if (!activeStore?.id) return;
     const target = collections.find((c) => c.id === id);
     if (!target) return;
 
     const nextStatus = target.status === "published" ? "draft" : "published";
-    await collectionRepository.update(id, { status: nextStatus });
-    toast.info("Status Updated", `Changed status to ${nextStatus}.`);
+    const result = await updateCollectionAction(activeStore.id, id, { status: nextStatus });
+    if (result.success) {
+      toast.info("Status Updated", `Changed status to ${nextStatus}.`);
+    } else {
+      toast.error("Error", result.error || "Failed to update collection status.");
+    }
     fetchCollections();
   };
 
   const handleArchive = async (id: string) => {
-    await collectionRepository.update(id, { status: "archived" });
-    toast.info("Collection Archived", "Moved collection status to Archived.");
+    if (!activeStore?.id) return;
+    const result = await updateCollectionAction(activeStore.id, id, { status: "archived" });
+    if (result.success) {
+      toast.info("Collection Archived", "Moved collection status to Archived.");
+    } else {
+      toast.error("Error", result.error || "Failed to archive collection.");
+    }
     fetchCollections();
   };
 
   const handleDelete = async (id: string) => {
-    await collectionRepository.delete(id);
-    toast.success("Collection Deleted", "Removed collection from catalog.");
+    if (!activeStore?.id) return;
+    const result = await deleteCollectionAction(activeStore.id, id);
+    if (result.success) {
+      toast.success("Collection Deleted", "Removed collection from catalog.");
+    } else {
+      toast.error("Error", result.error || "Failed to delete collection.");
+    }
     fetchCollections();
   };
 

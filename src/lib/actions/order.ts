@@ -99,13 +99,13 @@ export async function updateOrderStatusAction(orderId: string, status: string) {
     const supabase = await createServerInstance();
     const { storeId } = await verifyOrderStoreOwner(supabase, orderId);
 
-    // Verify Pro plan entitlement
+    // Verify Growth or Pro plan entitlement
     const { data: subRow } = await (supabase.from("subscriptions") as any)
       .select("plan, status, current_period_end")
       .eq("store_id", storeId)
       .maybeSingle();
 
-    const { normalizePlanTier, hasFeatureAccess } = await import("@/lib/feature-gating");
+    const { normalizePlanTier, isPlanAtLeast } = await import("@/lib/feature-gating");
     let plan = "startup";
     let subStatus = subRow?.status || "active";
     if (subRow) {
@@ -118,8 +118,8 @@ export async function updateOrderStatusAction(orderId: string, status: string) {
       plan = "startup";
     }
 
-    if (!hasFeatureAccess(plan, "order_management") && !hasFeatureAccess(plan, "orders")) {
-      return { success: false, error: "Order lifecycle and status management is exclusive to the Pro Plan." };
+    if (!isPlanAtLeast(plan, "growth")) {
+      return { success: false, error: "Order status management requires the Growth Pack (₹299/mo) or Pro Plan (₹499/mo)." };
     }
 
     const validStatuses = ["pending", "confirmed", "processing", "shipped", "delivered", "cancelled"];
@@ -172,14 +172,14 @@ export async function trackOrderAction(storeSlug: string, orderNumber: string) {
 
     const storeId = storeRow?.id || "demo-craft-classic-id";
 
-    // 2. Check store Pro entitlement
+    // 2. Check store Growth or Pro entitlement for order tracking
     if (!isDemo) {
       const { data: subRow } = await (supabase.from("subscriptions") as any)
         .select("plan, status, current_period_end")
         .eq("store_id", storeId)
         .maybeSingle();
 
-      const { normalizePlanTier, hasFeatureAccess } = await import("@/lib/feature-gating");
+      const { normalizePlanTier, isPlanAtLeast } = await import("@/lib/feature-gating");
       let plan = "startup";
       let subStatus = subRow?.status || "active";
       if (subRow) {
@@ -192,10 +192,10 @@ export async function trackOrderAction(storeSlug: string, orderNumber: string) {
         plan = "startup";
       }
 
-      if (!hasFeatureAccess(plan, "customer_order_tracking") && !hasFeatureAccess(plan, "orders")) {
+      if (!isPlanAtLeast(plan, "growth")) {
         return {
           success: false,
-          error: "Order tracking is an exclusive Pro Plan feature. The merchant has not enabled live tracking.",
+          error: "Order tracking is available on the Growth Pack (₹299/mo) or Pro Plan (₹499/mo). This store has not enabled live tracking.",
         };
       }
     }

@@ -7,15 +7,19 @@ import { SectionTitle } from "@/components/dashboard/section-title";
 import { CollectionForm } from "@/components/collections/collection-form";
 import { Collection, CreateCollectionInput } from "@/types/collection";
 import { collectionRepository } from "@/lib/repositories/collection-repository";
+// Use server actions for all mutations — client repo uses anon client which fails RLS.
+import { updateCollectionAction, deleteCollectionAction } from "@/lib/actions/collection";
 import { Badge } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Edit2, ArrowLeft, Trash2, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { PlanGate } from "@/components/dashboard/plan-gate";
+import { useAuth } from "@/context/auth-context";
 
 export default function EditCollectionPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
+  const { activeStore } = useAuth();
 
   const [collection, setCollection] = useState<Collection | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -24,6 +28,7 @@ export default function EditCollectionPage({ params }: { params: Promise<{ id: s
   useEffect(() => {
     async function loadData() {
       setIsLoading(true);
+      // Read is fine with client repo (public read or RLS-allowed)
       const data = await collectionRepository.getById(id);
       if (!data) {
         toast.error("Not Found", "Collection could not be found.");
@@ -37,11 +42,16 @@ export default function EditCollectionPage({ params }: { params: Promise<{ id: s
   }, [id, router]);
 
   const handleSubmit = async (data: CreateCollectionInput) => {
+    if (!activeStore?.id) return;
     setIsSubmitting(true);
     try {
-      await collectionRepository.update(id, data);
-      toast.success("Collection Updated!", `Saved changes for "${data.name}"`);
-      router.push("/dashboard/collections");
+      const result = await updateCollectionAction(activeStore.id, id, data);
+      if (result.success) {
+        toast.success("Collection Updated!", `Saved changes for "${data.name}"`);
+        router.push("/dashboard/collections");
+      } else {
+        toast.error("Error", result.error || "Could not update collection.");
+      }
     } catch (err) {
       toast.error("Error", "Could not update collection.");
     } finally {
@@ -50,10 +60,15 @@ export default function EditCollectionPage({ params }: { params: Promise<{ id: s
   };
 
   const handleDeleteCollection = async () => {
+    if (!activeStore?.id) return;
     try {
-      await collectionRepository.delete(id);
-      toast.success("Collection Deleted", "Collection removed successfully.");
-      router.push("/dashboard/collections");
+      const result = await deleteCollectionAction(activeStore.id, id);
+      if (result.success) {
+        toast.success("Collection Deleted", "Collection removed successfully.");
+        router.push("/dashboard/collections");
+      } else {
+        toast.error("Error", result.error || "Could not delete collection.");
+      }
     } catch (err) {
       toast.error("Error", "Could not delete collection.");
     }
