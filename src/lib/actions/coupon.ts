@@ -71,8 +71,17 @@ export async function deleteCouponAction(id: string) {
 
 export async function validateCouponAction(storeId: string, code: string, subtotal: number) {
   try {
-    // Validation is a public action! No store owner check required!
-    const result = await couponRepository.validateCoupon(storeId, code, subtotal);
+    let supabase: any;
+    try {
+      const { createAdminClient } = await import("@/lib/supabase/admin");
+      supabase = createAdminClient();
+    } catch (e) {
+      const { createServerInstance } = await import("@/lib/supabase/server");
+      supabase = await createServerInstance();
+    }
+
+    // Validation is a public storefront action
+    const result = await couponRepository.validateCoupon(storeId, code, subtotal, supabase);
     return result;
   } catch (err: any) {
     return { success: false, discountAmount: 0, error: err.message || "Failed to validate coupon" };
