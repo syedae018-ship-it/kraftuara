@@ -68,7 +68,7 @@ export default function NewCollectionPage() {
         />
 
         <div className="max-w-3xl pb-20">
-          <CollectionForm onSubmit={handleSubmit} isSubmitting={isSubmitting} />
+          <CollectionForm storeId={activeStore?.id} onSubmit={handleSubmit} isSubmitting={isSubmitting} />
         </div>
       </PlanGate>
     </DashboardLayout>

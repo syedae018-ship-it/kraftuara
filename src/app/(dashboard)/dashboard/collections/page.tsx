@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/table";
 import { Collection } from "@/types/collection";
 import { collectionRepository } from "@/lib/repositories/collection-repository";
 // Server actions are used for all mutations (create/update/delete) to bypass anon-client RLS failures.
-import { deleteCollectionAction, updateCollectionAction } from "@/lib/actions/collection";
+import { deleteCollectionAction, updateCollectionAction, duplicateCollectionAction } from "@/lib/actions/collection";
 import { Plus, Sparkles, Search, List, LayoutGrid } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/auth-context";
@@ -60,10 +60,12 @@ export default function CollectionListPage() {
   // Actions
   const handleDuplicate = async (id: string) => {
     if (!activeStore?.id) return;
-    const duplicated = await collectionRepository.duplicate(activeStore.id, id);
-    if (duplicated) {
-      toast.success("Collection Duplicated", `Created copy "${duplicated.name}"`);
+    const result = await duplicateCollectionAction(activeStore.id, id);
+    if (result.success && result.data) {
+      toast.success("Collection Duplicated", `Created copy "${result.data.name}"`);
       fetchCollections();
+    } else {
+      toast.error("Error", result.error || "Failed to duplicate collection.");
     }
   };
 

@@ -122,7 +122,7 @@ export default function EditCollectionPage({ params }: { params: Promise<{ id: s
         />
 
         <div className="max-w-3xl pb-20">
-          <CollectionForm initialValues={collection} onSubmit={handleSubmit} isSubmitting={isSubmitting} />
+          <CollectionForm storeId={activeStore?.id} initialValues={collection} onSubmit={handleSubmit} isSubmitting={isSubmitting} />
         </div>
       </PlanGate>
     </DashboardLayout>

@@ -16,12 +16,14 @@ export interface CollectionFormProps {
   initialValues?: Partial<Collection>;
   onSubmit: (data: CreateCollectionInput) => void;
   isSubmitting?: boolean;
+  storeId?: string;
 }
 
 export function CollectionForm({
   initialValues = {},
   onSubmit,
   isSubmitting = false,
+  storeId,
 }: CollectionFormProps) {
   const [name, setName] = useState(initialValues.name || "");
   const [slug, setSlug] = useState(initialValues.slug || "");
@@ -128,6 +130,7 @@ export function CollectionForm({
       {/* 2. Collection Product Picker */}
       <Card className="p-6 bg-[#151515] border-white/10">
         <ProductPicker
+          storeId={storeId}
           selectedProductIds={selectedProductIds}
           onChange={setSelectedProductIds}
         />
