@@ -45,23 +45,41 @@ export async function getStoreSubscriptionAction(storeId: string) {
 
     if (error) throw new Error(error.message);
 
-    // If no subscription record exists, create default Startup Pack subscription with 3-day trial
+    // If no subscription record exists, check if a payment was already made for this store before defaulting
     if (!subRow) {
       const nowStr = new Date().toISOString();
-      const trialEndStr = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString();
+      const trialEndStr = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
       
+      let recoveredPlan: "startup" | "growth" | "pro" = "startup";
+      let recoveredAmount = 99;
+
+      const { data: latestPayment } = await (supabase.from("payments") as any)
+        .select("plan, amount, razorpay_subscription_id, razorpay_payment_id")
+        .eq("store_id", storeId)
+        .eq("status", "successful")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (latestPayment?.plan && ["startup", "growth", "pro"].includes(latestPayment.plan)) {
+        recoveredPlan = latestPayment.plan as any;
+        recoveredAmount = latestPayment.amount || (recoveredPlan === "pro" ? 499 : recoveredPlan === "growth" ? 299 : 99);
+      }
+
       const { data: newSub, error: insertError } = await (supabase.from("subscriptions") as any)
         .insert({
           store_id: storeId,
           user_id: user.id,
-          plan: "startup",
+          plan: recoveredPlan,
           status: "active",
+          razorpay_subscription_id: latestPayment?.razorpay_subscription_id || null,
+          razorpay_payment_id: latestPayment?.razorpay_payment_id || null,
           current_period_start: nowStr,
           current_period_end: trialEndStr,
           trial_start: nowStr,
-          trial_end: trialEndStr,
+          trial_end: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
           next_billing_date: trialEndStr,
-          amount: 99,
+          amount: recoveredAmount,
           currency: "INR",
         })
         .select()
@@ -84,7 +102,7 @@ export async function getStoreSubscriptionAction(storeId: string) {
 
     const activeSub = subRow!;
     let plan = activeSub.plan as "startup" | "growth" | "pro";
-    let status = activeSub.status as "active" | "expired" | "cancelled" | "pending";
+    let status = (activeSub.status || "active") as "active" | "expired" | "cancelled" | "pending" | "payment_pending" | "authenticated" | "trialing";
     const expiresAt = activeSub.current_period_end;
     const startsAt = activeSub.current_period_start;
     
@@ -97,7 +115,7 @@ export async function getStoreSubscriptionAction(storeId: string) {
       const diffTime = expiryDate.getTime() - currentDate.getTime();
       daysRemaining = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
 
-      if (diffTime < 0 && status === "active") {
+      if (diffTime < 0 && (status === "active" || status === "authenticated" || status === "trialing")) {
         status = "expired";
         // Update DB status to expired
         await (supabase.from("subscriptions") as any)
@@ -106,14 +124,12 @@ export async function getStoreSubscriptionAction(storeId: string) {
       }
     }
 
-    // If status is expired, cancelled (and expired), or pending/unpaid, cancel paid entitlements and downgrade runtime resolved plan to startup
+    // If status is expired, cancelled (and expired), downgrade runtime resolved plan to startup
     let resolvedPlan = plan;
     const isExpired = daysRemaining !== null ? daysRemaining <= 0 : true;
     if (
       status === "expired" ||
-      (status === "cancelled" && isExpired) ||
-      status === "pending" ||
-      (status as string) === "payment_pending"
+      (status === "cancelled" && isExpired)
     ) {
       resolvedPlan = "startup";
     }

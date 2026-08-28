@@ -172,13 +172,15 @@ export default function ChoosePlanPage() {
           });
 
           if (verRes.success) {
-            selectPlan(plan.planName, "active");
+            const activePlan = verRes.data?.verifiedPlan || plan.planName;
+            selectPlan(activePlan, "active");
+            localStorage.setItem("symar_selected_plan", activePlan);
             localStorage.setItem("symar_checkout_subscription_id", response.razorpay_subscription_id);
             localStorage.setItem("symar_checkout_payment_id", response.razorpay_payment_id);
             localStorage.setItem("symar_checkout_signature", response.razorpay_signature);
 
             toast.success(
-              `${plan.name} Activated!`,
+              `${PLANS[activePlan as PlanTier]?.name || plan.name} Activated!`,
               `Payment verified. Continuing to template selection...`
             );
             router.push("/choose-template");

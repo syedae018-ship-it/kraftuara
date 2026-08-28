@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { PLANS } from "@/lib/feature-gating";
+import { resolvePlanFromRazorpay } from "@/config/razorpay";
 
 // Force NextJS to treat this as dynamic route (without caching)
 export const dynamic = "force-dynamic";
@@ -55,7 +56,7 @@ export async function POST(request: NextRequest) {
 
       const notes = subEntity.notes || {};
       const storeIdFromNotes = notes.storeId || notes.store_id;
-      const planFromNotes = notes.planName || notes.plan_name;
+      const userIdFromNotes = notes.userId || notes.user_id;
 
       let sub = null;
       let fetchError = null;
@@ -81,14 +82,34 @@ export async function POST(request: NextRequest) {
           .eq("store_id", storeIdFromNotes)
           .maybeSingle();
         sub = subByStore;
+      } else if (userIdFromNotes) {
+        // 3. Fallback to user's latest store (handles onboarding race condition)
+        const { data: userStore } = await (supabase as any)
+          .from("stores")
+          .select("id")
+          .eq("user_id", userIdFromNotes)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (userStore) {
+          sub = {
+            store_id: userStore.id,
+            plan: null,
+            current_period_end: null,
+            status: "payment_pending",
+          };
+        }
       }
 
       if (fetchError || !sub) {
-        return NextResponse.json({ error: "Matching subscription record not found." }, { status: 404 });
+        // If store is still not created, log and return 200 so Razorpay does not endlessly retry
+        console.warn(`Webhook received for subscription ${subEntity.id}, but no linked store yet.`);
+        return NextResponse.json({ success: true, message: "Subscription acknowledged, waiting for store link." });
       }
 
-      const targetPlan = planFromNotes || sub.plan || "startup";
-      const planConfig = PLANS[targetPlan as "startup" | "growth" | "pro"] || PLANS.startup;
+      const targetPlan = resolvePlanFromRazorpay(subEntity, (sub.plan as any) || "startup");
+      const planConfig = PLANS[targetPlan] || PLANS.startup;
       const amount = planConfig.priceMonthly;
 
       const newPeriodEnd = new Date(subEntity.current_end * 1000).toISOString();

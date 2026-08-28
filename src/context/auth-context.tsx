@@ -133,27 +133,47 @@ export function DummyAuthProvider({ children }: { children: React.ReactNode }) {
 
         if (userStores && userStores.length > 0) {
           const { normalizePlanTier } = await import("@/lib/feature-gating");
-          const mappedStores: DummyStore[] = userStores.map((s: any) => {
-            const sub = Array.isArray(s.subscriptions) ? s.subscriptions[0] : s.subscriptions;
-            let plan = "startup";
-            if (sub && sub.status === "active") {
-              const isExpired = sub.current_period_end ? new Date(sub.current_period_end).getTime() < Date.now() : false;
-              if (!isExpired) {
-                plan = normalizePlanTier(sub.plan);
+          const mappedStores: DummyStore[] = await Promise.all(
+            userStores.map(async (s: any) => {
+              const sub = Array.isArray(s.subscriptions) ? s.subscriptions[0] : s.subscriptions;
+              let plan = "startup";
+              const validStatuses = ["active", "authenticated", "trialing"];
+              if (sub && validStatuses.includes(sub.status)) {
+                const isExpired = sub.current_period_end ? new Date(sub.current_period_end).getTime() < Date.now() : false;
+                if (!isExpired) {
+                  plan = normalizePlanTier(sub.plan);
+                }
+              } else if (!sub) {
+                // Fallback check: if subscriptions table relation is empty, check recent successful payments
+                try {
+                  const { data: latestPayment } = await (supabase.from("payments") as any)
+                    .select("plan")
+                    .eq("store_id", s.id)
+                    .eq("status", "successful")
+                    .order("created_at", { ascending: false })
+                    .limit(1)
+                    .maybeSingle();
+
+                  if (latestPayment?.plan) {
+                    plan = normalizePlanTier(latestPayment.plan);
+                  }
+                } catch {
+                  // Ignore fallback query error
+                }
               }
-            }
-            return {
-              id: s.id,
-              name: s.name,
-              slug: s.slug,
-              plan,
-              category: s.category || "",
-              logoUrl: s.logo_url || "",
-              primaryColor: s.primary_color || "",
-              secondaryColor: s.secondary_color || "",
-              userId: s.user_id,
-            };
-          });
+              return {
+                id: s.id,
+                name: s.name,
+                slug: s.slug,
+                plan,
+                category: s.category || "",
+                logoUrl: s.logo_url || "",
+                primaryColor: s.primary_color || "",
+                secondaryColor: s.secondary_color || "",
+                userId: s.user_id,
+              };
+            })
+          );
           setStores(mappedStores);
 
           const savedActiveStoreId = typeof window !== "undefined" ? localStorage.getItem("symar_active_store_id") : null;
@@ -591,11 +611,8 @@ export function DummyAuthProvider({ children }: { children: React.ReactNode }) {
         localStorage.removeItem("symar_checkout_subscription_id");
         localStorage.removeItem("symar_checkout_payment_id");
         localStorage.removeItem("symar_checkout_signature");
-      }
-
-      // Save active store ID immediately
-      if (typeof window !== "undefined") {
         localStorage.setItem("symar_active_store_id", store.id);
+        window.dispatchEvent(new CustomEvent("symar:subscription-updated"));
       }
 
       // Finish by refreshing session
