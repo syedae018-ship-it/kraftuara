@@ -37,25 +37,26 @@ export class SupabaseCategoryRepository implements ICategoryRepository {
     const expiresAt = subRow?.current_period_end;
 
     if (subRow) {
-      const dbPlan = subRow.plan;
-      if (dbPlan === "startup" || dbPlan === "growth" || dbPlan === "pro") {
-        plan = dbPlan;
-      }
+      const { normalizePlanTier } = await import("@/lib/feature-gating");
+      plan = normalizePlanTier(subRow.plan);
       if (expiresAt) {
-        if (new Date(expiresAt) < new Date()) {
+        if (new Date(expiresAt).getTime() < Date.now()) {
           status = "expired";
         }
       }
     }
 
     // Downgrade resolved entitlement if expired or cancelled
-    if (status === "expired" || status === "cancelled") {
+    if (status === "expired" || status === "cancelled" || status === "pending" || status === "payment_pending") {
       plan = "startup";
     }
 
-    // Get limit based on PLANS gating
-    const config = PLANS[plan] || PLANS.startup;
-    const limit = config.categoryLimit;
+    const { getCategoryLimit, isUnlimitedCategories } = await import("@/lib/feature-gating");
+    if (isUnlimitedCategories(plan)) {
+      return; // Unlimited categories allowed for Growth & Pro
+    }
+
+    const limit = getCategoryLimit(plan);
 
     const { count } = await supabase
       .from("categories")

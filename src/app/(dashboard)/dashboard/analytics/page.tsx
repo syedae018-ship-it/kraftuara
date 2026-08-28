@@ -8,6 +8,8 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell, Badge } 
 import { useAuth } from "@/context/auth-context";
 import { getStoreAnalyticsAction, AnalyticsSummary } from "@/lib/actions/analytics";
 import { AnalyticsCard, TrafficSourcesCard } from "@/components/dashboard/chart-card";
+import { PlanGate } from "@/components/dashboard/plan-gate";
+import { getPlanDisplayName, normalizePlanTier } from "@/lib/feature-gating";
 
 function getEmptySummary(timeRange: "7D" | "30D" | "90D" = "7D"): AnalyticsSummary {
   const days = timeRange === "7D" ? 7 : timeRange === "30D" ? 30 : 90;
@@ -38,10 +40,13 @@ function getEmptySummary(timeRange: "7D" | "30D" | "90D" = "7D"): AnalyticsSumma
 }
 
 export default function MerchantAnalyticsPage() {
-  const { activeStore } = useAuth();
+  const { activeStore, user } = useAuth();
   const [timeRange, setTimeRange] = useState<"7D" | "30D" | "90D">("7D");
   const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  const planTier = normalizePlanTier(activeStore?.plan || user?.plan);
+  const planDisplayName = getPlanDisplayName(planTier);
 
   useEffect(() => {
     async function loadAnalytics() {
@@ -76,17 +81,22 @@ export default function MerchantAnalyticsPage() {
 
   return (
     <DashboardLayout breadcrumbs={[{ label: "Overview", href: "/dashboard" }, { label: "Analytics" }]}>
-      <div className="space-y-6 text-left">
-        {/* Header Section */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold font-heading text-white">Analytics Overview</h1>
-            <p className="text-xs text-zinc-400 font-body">Track store traffic, conversion metrics, and audience clicks.</p>
+      <PlanGate
+        requiredPlan="growth"
+        featureName="Store Views & Traffic Analytics"
+        description="Upgrade to Growth Pack (₹299/mo) or Pro Plan (₹499/mo) to unlock visitor tracking, real-time store views, conversion metrics, and traffic sources."
+      >
+        <div className="space-y-6 text-left">
+          {/* Header Section */}
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <h1 className="text-xl sm:text-2xl font-bold font-heading text-white">Analytics Overview</h1>
+              <p className="text-xs text-zinc-400 font-body">Track store traffic, conversion metrics, and audience clicks.</p>
+            </div>
+            <Badge variant="maroon" className="font-semibold text-xs tracking-wider">
+              {planDisplayName}
+            </Badge>
           </div>
-          <Badge variant="maroon" className="font-semibold text-xs tracking-wider">
-            {activeStore.plan} Plan Enabled
-          </Badge>
-        </div>
 
         {/* 3 Metric Summary Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -207,6 +217,7 @@ export default function MerchantAnalyticsPage() {
           )}
         </Card>
       </div>
+      </PlanGate>
     </DashboardLayout>
   );
 }

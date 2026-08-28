@@ -1,7 +1,7 @@
 import { Product, ProductFilterState, ProductImage } from "@/types/product";
 import { createClient } from "@/lib/supabase/client";
 import { IProductRepository } from "../product-repository";
-import { PLANS, PlanTier } from "@/lib/feature-gating";
+import { PLANS, PlanTier, normalizePlanTier, getProductLimit } from "@/lib/feature-gating";
 
 export class SupabaseProductRepository implements IProductRepository {
   private getSupabase() {
@@ -37,25 +37,22 @@ export class SupabaseProductRepository implements IProductRepository {
     const expiresAt = subRow?.current_period_end;
 
     if (subRow) {
-      const dbPlan = subRow.plan;
-      if (dbPlan === "startup" || dbPlan === "growth" || dbPlan === "pro") {
-        plan = dbPlan;
-      }
+      const dbPlan = normalizePlanTier(subRow.plan);
+      plan = dbPlan;
       if (expiresAt) {
-        if (new Date(expiresAt) < new Date()) {
+        if (new Date(expiresAt).getTime() < Date.now()) {
           status = "expired";
         }
       }
     }
 
-    // Downgrade resolved entitlement to starter if expired or cancelled
-    if (status === "expired" || status === "cancelled") {
+    // Downgrade resolved entitlement to startup if expired or cancelled
+    if (status === "expired" || status === "cancelled" || status === "pending" || status === "payment_pending") {
       plan = "startup";
     }
 
     // Get limit based on PLANS gating
-    const config = PLANS[plan] || PLANS.startup;
-    const limit = config.productLimit;
+    const limit = getProductLimit(plan);
 
     const { count } = await supabase
       .from("products")
@@ -64,11 +61,11 @@ export class SupabaseProductRepository implements IProductRepository {
     
     if ((count || 0) >= limit) {
       if (plan === "startup") {
-        throw new Error("Your Startup Pack allows up to 12 products. Upgrade to Growth to add more.");
+        throw new Error("You've reached your 12-product limit. Upgrade your plan to add more products.");
       } else if (plan === "growth") {
-        throw new Error("Your Growth Pack allows up to 24 products. Upgrade to Pro to add more.");
+        throw new Error("You've reached your 24-product limit. Upgrade to Pro to add more products.");
       } else {
-        throw new Error("Your Pro Plan allows up to 100 products.");
+        throw new Error("You've reached your 100-product limit.");
       }
     }
   }
@@ -200,6 +197,11 @@ export class SupabaseProductRepository implements IProductRepository {
       throw new Error("Invalid product stock specified. Stock cannot be negative, infinite, or NaN.");
     }
 
+    // Sanitize categoryId to valid UUID or null
+    const validCategoryId = (input.categoryId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(input.categoryId))
+      ? input.categoryId
+      : null;
+
     // 2. Insert product row
     const { data: productRow, error: productError } = await supabase
       .from("products")
@@ -211,7 +213,7 @@ export class SupabaseProductRepository implements IProductRepository {
         price: Number(input.price) || 0,
         compare_at_price: input.compareAtPrice ? Number(input.compareAtPrice) : null,
         inventory_count: input.stock !== undefined ? Number(input.stock) : 0,
-        category_id: input.categoryId || null,
+        category_id: validCategoryId,
         description: input.longDescription || input.shortDescription || "",
         is_published: input.status === "published",
       } as any)
@@ -275,6 +277,14 @@ export class SupabaseProductRepository implements IProductRepository {
       }
     }
 
+    // Sanitize categoryId if provided
+    let updateCategoryId: string | null | undefined = undefined;
+    if (input.categoryId !== undefined) {
+      updateCategoryId = (input.categoryId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(input.categoryId))
+        ? input.categoryId
+        : null;
+    }
+
     // Update product fields
     const { error: updateError } = await (supabase.from("products") as any)
       .update({
@@ -283,7 +293,7 @@ export class SupabaseProductRepository implements IProductRepository {
         price: input.price !== undefined ? Number(input.price) : undefined,
         compare_at_price: input.compareAtPrice !== undefined ? (input.compareAtPrice ? Number(input.compareAtPrice) : null) : undefined,
         inventory_count: input.stock !== undefined ? Number(input.stock) : undefined,
-        category_id: input.categoryId || null,
+        category_id: updateCategoryId,
         description: input.longDescription !== undefined ? input.longDescription : (input.shortDescription !== undefined ? input.shortDescription : undefined),
         is_published: input.status !== undefined ? (input.status === "published") : undefined,
         updated_at: new Date().toISOString(),

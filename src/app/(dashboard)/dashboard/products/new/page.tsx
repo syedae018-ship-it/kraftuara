@@ -14,7 +14,7 @@ import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/auth-context";
 import { productRepository } from "@/lib/repositories/product-repository";
 import { categoryRepository } from "@/lib/repositories/category-repository";
-import { PLANS, PlanTier } from "@/lib/feature-gating";
+import { PLANS, PlanTier, getProductLimit, getPlanConfig, normalizePlanTier } from "@/lib/feature-gating";
 
 export default function NewProductPage() {
   const router = useRouter();
@@ -78,15 +78,27 @@ export default function NewProductPage() {
     try {
       // Server-side backed validation query
       const { products: pList } = await productRepository.getAll(activeStore.id);
-      const planTier = (user?.plan || "startup") as PlanTier;
-      const planConfig = PLANS[planTier];
-      const limit = planConfig?.productLimit ?? 10;
+      const planTier = normalizePlanTier(activeStore?.plan || user?.plan);
+      const planConfig = getPlanConfig(planTier);
+      const limit = getProductLimit(planTier);
 
       if (pList.length >= limit) {
-        toast.error(
-          "Upgrade Required",
-          `You have reached the product limit of your ${planConfig?.name || "Starter"} plan (${limit} products). Please upgrade your plan to add more products.`
-        );
+        if (planTier === "startup") {
+          toast.error(
+            "Product Limit Reached",
+            "You've reached your 12-product limit. Upgrade your plan to add more products."
+          );
+        } else if (planTier === "growth") {
+          toast.error(
+            "Product Limit Reached",
+            "You've reached your 24-product limit. Upgrade to Pro to add more products."
+          );
+        } else {
+          toast.error(
+            "Product Limit Reached",
+            "You've reached your 100-product limit."
+          );
+        }
         setIsSubmitting(false);
         return;
       }

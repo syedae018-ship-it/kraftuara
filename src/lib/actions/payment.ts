@@ -223,7 +223,13 @@ export async function verifySubscriptionPaymentAction(payload: {
           status: "successful",
         });
 
+        // Revalidate all dashboard pages
         revalidatePath("/dashboard");
+        revalidatePath("/dashboard/products");
+        revalidatePath("/dashboard/categories");
+        revalidatePath("/dashboard/analytics");
+        revalidatePath("/dashboard/coupons");
+        revalidatePath("/dashboard/billing");
       }
       return successResponse({ success: true }, "Subscription activated (Simulated).");
     }
@@ -287,7 +293,13 @@ export async function verifySubscriptionPaymentAction(payload: {
         status: "successful",
       });
 
+      // Revalidate all dashboard pages
       revalidatePath("/dashboard");
+      revalidatePath("/dashboard/products");
+      revalidatePath("/dashboard/categories");
+      revalidatePath("/dashboard/analytics");
+      revalidatePath("/dashboard/coupons");
+      revalidatePath("/dashboard/billing");
     }
 
     return successResponse({ success: true }, "Payment verified. Subscription active.");
@@ -377,7 +389,13 @@ export async function activatePlatformSubscriptionAction(
         status: "successful",
       });
 
+      // Revalidate all dashboard pages
       revalidatePath("/dashboard");
+      revalidatePath("/dashboard/products");
+      revalidatePath("/dashboard/categories");
+      revalidatePath("/dashboard/analytics");
+      revalidatePath("/dashboard/coupons");
+      revalidatePath("/dashboard/billing");
       return successResponse({ success: true }, "Subscription activated (Simulated).");
     }
 
@@ -467,7 +485,13 @@ export async function activatePlatformSubscriptionAction(
       status: "successful",
     });
 
+    // Revalidate all dashboard pages
     revalidatePath("/dashboard");
+    revalidatePath("/dashboard/products");
+    revalidatePath("/dashboard/categories");
+    revalidatePath("/dashboard/analytics");
+    revalidatePath("/dashboard/coupons");
+    revalidatePath("/dashboard/billing");
     return successResponse({ success: true }, "Subscription activated.");
   } catch (err: any) {
     console.error("Subscription activation error:", err);

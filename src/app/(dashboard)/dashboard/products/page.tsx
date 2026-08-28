@@ -18,7 +18,7 @@ import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/auth-context";
 import { productRepository } from "@/lib/repositories/product-repository";
 import { categoryRepository } from "@/lib/repositories/category-repository";
-import { PLANS, PlanTier } from "@/lib/feature-gating";
+import { PLANS, PlanTier, getProductLimit, getPlanConfig, normalizePlanTier } from "@/lib/feature-gating";
 
 export default function ProductListPage() {
   const { activeStore, user } = useAuth();
@@ -116,14 +116,26 @@ export default function ProductListPage() {
     const target = products.find((p) => p.id === id);
     if (!target) return;
 
-    const planTier = (user?.plan || "startup") as PlanTier;
-    const planConfig = PLANS[planTier];
-    const limit = planConfig?.productLimit ?? 10;
+    const planTier = normalizePlanTier(activeStore?.plan || user?.plan);
+    const planConfig = getPlanConfig(planTier);
+    const limit = getProductLimit(planTier);
     if (products.length >= limit) {
-      toast.error(
-        "Upgrade Required",
-        `You have reached the product limit of your ${planConfig?.name || "Starter"} plan (${limit} products). Please upgrade your plan to duplicate this product.`
-      );
+      if (planTier === "startup") {
+        toast.error(
+          "Limit Reached",
+          "You've reached your 12-product limit. Upgrade your plan to add more products."
+        );
+      } else if (planTier === "growth") {
+        toast.error(
+          "Limit Reached",
+          "You've reached your 24-product limit. Upgrade to Pro to add more products."
+        );
+      } else {
+        toast.error(
+          "Limit Reached",
+          "You've reached your 100-product limit."
+        );
+      }
       return;
     }
 
@@ -144,8 +156,8 @@ export default function ProductListPage() {
       });
       toast.success("Product Duplicated", `Created copy of "${target.name}"`);
       fetchProducts();
-    } catch (err) {
-      toast.error("Error", "Failed to duplicate product.");
+    } catch (err: any) {
+      toast.error("Error", err.message || "Failed to duplicate product.");
     }
   };
 
@@ -204,9 +216,8 @@ export default function ProductListPage() {
     }
   };
 
-  const planTier = (user?.plan || "startup") as PlanTier;
-  const planConfig = PLANS[planTier] || PLANS.startup;
-  const productLimit = planConfig.productLimit;
+  const planTier = normalizePlanTier(activeStore?.plan || user?.plan);
+  const productLimit = getProductLimit(planTier);
 
   return (
     <DashboardLayout breadcrumbs={[{ label: "Store Dashboard", href: "/dashboard" }, { label: "Products" }]}>

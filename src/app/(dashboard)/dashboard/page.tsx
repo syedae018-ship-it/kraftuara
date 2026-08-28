@@ -25,6 +25,7 @@ import { Product } from "@/types/product";
 import { createClient } from "@/lib/supabase/client";
 import { getStoreAnalyticsAction } from "@/lib/actions/analytics";
 import { publishStoreChangesAction } from "@/lib/actions/store";
+import { getPlanDisplayName, getProductLimit, normalizePlanTier } from "@/lib/feature-gating";
 import {
   Package,
   Users,
@@ -53,6 +54,10 @@ export default function DashboardOverview() {
   const [showSkeletons, setShowSkeletons] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [isPublishing, setIsPublishing] = useState(false);
+
+  const currentPlanTier = normalizePlanTier(activeStore?.plan || user?.plan);
+  const currentPlanDisplayName = getPlanDisplayName(currentPlanTier);
+  const currentProductLimit = getProductLimit(currentPlanTier);
 
   const handlePublishChanges = async () => {
     if (!activeStore?.id) return;
@@ -164,7 +169,7 @@ export default function DashboardOverview() {
         description={`Welcome back, ${user?.name || "Merchant"}. Here is your live catalog metrics summary.`}
         badge={
           <Badge variant="maroon" className="gap-1 font-mono text-[11px] uppercase tracking-wider">
-            <Sparkles className="w-3 h-3 text-maroon-300" /> {user?.plan === "startup" ? "Startup Pack" : user?.plan === "growth" ? "Growth Pack" : user?.plan === "pro" ? "Pro Plan" : (user?.plan || "Startup Pack")}
+            <Sparkles className="w-3 h-3 text-maroon-300" /> {currentPlanDisplayName}
           </Badge>
         }
         action={
@@ -248,14 +253,14 @@ export default function DashboardOverview() {
                 Visit Store
               </Button>
             </a>
-            <Link href="/choose-plan" className="w-full sm:w-auto">
+            <Link href="/dashboard/billing" className="w-full sm:w-auto">
               <Button
                 variant="primary"
                 size="sm"
                 leftIcon={<Zap className="w-3.5 h-3.5 text-amber-400" />}
                 className="text-xs font-bold shadow-glow h-9 justify-center w-full sm:w-auto"
               >
-                Change Plan
+                Manage Plan
               </Button>
             </Link>
           </div>
@@ -266,8 +271,8 @@ export default function DashboardOverview() {
           <StatCard
             title="Total Products"
             value={products.length.toString()}
-            delta={products.length > 0 ? { value: "Live items", isPositive: true } : undefined}
-            subtitle={`Across ${categoriesCount} catalog categories`}
+            delta={products.length > 0 ? { value: `${products.length}/${currentProductLimit} used`, isPositive: true } : undefined}
+            subtitle={`${products.length} of ${currentProductLimit} products used`}
             icon={<Package className="w-4 h-4" />}
             isLoading={showSkeletons}
           />

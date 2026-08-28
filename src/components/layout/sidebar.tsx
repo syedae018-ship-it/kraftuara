@@ -28,7 +28,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useAuth, DummyStore } from "@/context/auth-context";
 
-import { hasFeatureAccess, FeatureKey } from "@/lib/feature-gating";
+import { hasFeatureAccess, FeatureKey, getPlanDisplayName } from "@/lib/feature-gating";
 
 type NavItem = {
   title: string;
@@ -36,7 +36,7 @@ type NavItem = {
   icon: React.ComponentType<{ className?: string }>;
   feature?: FeatureKey;
   badge?: string | number;
-  requiredPlan?: "Pro" | "Business";
+  requiredPlan?: "Growth" | "Pro";
 };
 
 type NavSection = {
@@ -51,17 +51,17 @@ const navigationSections: NavSection[] = [
       { title: "Overview", href: "/dashboard", icon: LayoutDashboard, feature: "dashboard" },
       { title: "Products", href: "/dashboard/products", icon: Package, feature: "products" },
       { title: "Categories", href: "/dashboard/categories", icon: Grid, feature: "categories" },
-      { title: "Collections", href: "/dashboard/collections", icon: Grid, feature: "collections", requiredPlan: "Pro" },
+      { title: "Collections", href: "/dashboard/collections", icon: Grid, feature: "collections" },
       { title: "Creative Hub", href: "/dashboard/creative", icon: Sparkles, feature: "creative_discounts" },
-      { title: "Orders", href: "/dashboard/orders", icon: ShoppingBag, feature: "orders", requiredPlan: "Business" },
-      { title: "Analytics", href: "/dashboard/analytics", icon: BarChart3, feature: "analytics", requiredPlan: "Pro" },
+      { title: "Orders", href: "/dashboard/orders", icon: ShoppingBag, feature: "orders" },
+      { title: "Analytics", href: "/dashboard/analytics", icon: BarChart3, feature: "analytics" },
     ],
   },
   {
     title: "Customization & Growth",
     items: [
       { title: "Appearance", href: "/dashboard/appearance", icon: Palette, feature: "appearance" },
-      { title: "Themes", href: "/dashboard/themes", icon: Palette, feature: "premium_themes", requiredPlan: "Pro" },
+      { title: "Themes", href: "/dashboard/themes", icon: Palette, feature: "premium_themes" },
       { title: "Coupons", href: "/dashboard/coupons", icon: Ticket, feature: "coupons" },
       { title: "Settings", href: "/dashboard/settings", icon: Settings, feature: "store_settings" },
       { title: "Billing & Plans", href: "/dashboard/billing", icon: CreditCard },
@@ -82,6 +82,8 @@ export function Sidebar({ collapsed = false, onToggleCollapse, onNavigate, class
   const pathname = usePathname();
   const { user, activeStore, stores, switchStore, logout } = useAuth();
   const [tenantDropdownOpen, setTenantDropdownOpen] = useState(false);
+
+  const currentPlanDisplayName = getPlanDisplayName(activeStore?.plan || user?.plan);
 
   return (
     <aside
@@ -112,7 +114,7 @@ export function Sidebar({ collapsed = false, onToggleCollapse, onNavigate, class
                 <div className="flex items-center gap-1.5 mt-0.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                   <span className="text-[10px] text-zinc-400 font-body uppercase tracking-wider">
-                    {activeStore?.plan === "startup" ? "Startup Pack" : activeStore?.plan === "growth" ? "Growth Pack" : activeStore?.plan === "pro" ? "Pro Plan" : (activeStore?.plan || "Startup Pack")}
+                    {currentPlanDisplayName}
                   </span>
                 </div>
               </div>

@@ -18,7 +18,7 @@ import { Plus, Folder, Search, List, LayoutGrid, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/auth-context";
-import { PLANS, PlanTier } from "@/lib/feature-gating";
+import { PLANS, PlanTier, getCategoryLimit, isUnlimitedCategories, normalizePlanTier } from "@/lib/feature-gating";
 
 export default function CategoryListPage() {
   const { activeStore, user } = useAuth();
@@ -63,10 +63,24 @@ export default function CategoryListPage() {
   // Actions
   const handleDuplicate = async (id: string) => {
     if (!activeStore?.id) return;
-    const duplicated = await categoryRepository.duplicate(activeStore.id, id);
-    if (duplicated) {
-      toast.success("Category Duplicated", `Created copy "${duplicated.name}"`);
-      fetchCategories();
+    const planTier = normalizePlanTier(activeStore?.plan || user?.plan);
+    const categoryLimit = getCategoryLimit(planTier);
+    if (!isUnlimitedCategories(planTier) && categories.length >= categoryLimit) {
+      toast.error(
+        "Category Limit Reached",
+        "Startup Pack allows 1 category maximum. Upgrade to Growth or Pro for unlimited categories."
+      );
+      return;
+    }
+
+    try {
+      const duplicated = await categoryRepository.duplicate(activeStore.id, id);
+      if (duplicated) {
+        toast.success("Category Duplicated", `Created copy "${duplicated.name}"`);
+        fetchCategories();
+      }
+    } catch (err: any) {
+      toast.error("Error", err.message || "Failed to duplicate category.");
     }
   };
 
@@ -115,10 +129,10 @@ export default function CategoryListPage() {
     await categoryRepository.reorder(updated.map((c) => c.id));
   };
 
-  const planTier = (user?.plan || "startup") as PlanTier;
-  const planConfig = PLANS[planTier] || PLANS.startup;
-  const categoryLimit = planConfig.categoryLimit;
-  const limitDisplay = categoryLimit > 1000 ? "unlimited" : categoryLimit.toString();
+  const planTier = normalizePlanTier(activeStore?.plan || user?.plan);
+  const categoryLimit = getCategoryLimit(planTier);
+  const isUnlimited = isUnlimitedCategories(planTier);
+  const limitDisplay = isUnlimited ? "unlimited" : categoryLimit.toString();
 
   return (
     <DashboardLayout breadcrumbs={[{ label: "Store Dashboard", href: "/dashboard" }, { label: "Categories" }]}>
@@ -132,7 +146,7 @@ export default function CategoryListPage() {
         }
         action={
           <div className="flex items-center gap-2">
-            {categories.length >= categoryLimit ? (
+            {!isUnlimited && categories.length >= categoryLimit ? (
               <Link href="/dashboard/billing">
                 <Button variant="outline" size="sm" className="border-amber-500 text-amber-500 hover:bg-amber-950/20 text-xs" leftIcon={<Plus className="w-3.5 h-3.5" />}>
                   Upgrade to Add More

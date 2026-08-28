@@ -44,6 +44,7 @@ type AuthContextType = {
   activeStore: DummyStore;
   stores: DummyStore[];
   switchStore: (storeId: string) => void;
+  refreshSession: () => Promise<any>;
   signUp: (name: string, email: string, password: string, businessName: string) => Promise<{ user: any; hasSession: boolean }>;
   login: (email: string, password: string) => Promise<LoginResult>;
   createStore: (
@@ -118,7 +119,7 @@ export function DummyAuthProvider({ children }: { children: React.ReactNode }) {
 
         const { data: userStores, error } = await supabase
           .from("stores")
-          .select("*, subscriptions(plan, status)")
+          .select("*, subscriptions(*)")
           .eq("user_id", u.id);
 
         if (error) {
@@ -131,9 +132,16 @@ export function DummyAuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         if (userStores && userStores.length > 0) {
+          const { normalizePlanTier } = await import("@/lib/feature-gating");
           const mappedStores: DummyStore[] = userStores.map((s: any) => {
-            const rawPlan = s.subscriptions?.[0]?.status === "active" ? (s.subscriptions?.[0]?.plan || "startup") : "startup";
-            const plan = ["startup", "growth", "pro"].includes(rawPlan) ? rawPlan : "startup";
+            const sub = Array.isArray(s.subscriptions) ? s.subscriptions[0] : s.subscriptions;
+            let plan = "startup";
+            if (sub && sub.status === "active") {
+              const isExpired = sub.current_period_end ? new Date(sub.current_period_end).getTime() < Date.now() : false;
+              if (!isExpired) {
+                plan = normalizePlanTier(sub.plan);
+              }
+            }
             return {
               id: s.id,
               name: s.name,
@@ -211,6 +219,14 @@ export function DummyAuthProvider({ children }: { children: React.ReactNode }) {
 
     getSession();
 
+    const handleSubscriptionUpdated = () => {
+      getSession();
+    };
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("symar:subscription-updated", handleSubscriptionUpdated);
+    }
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === "SIGNED_IN" || event === "USER_UPDATED" || event === "TOKEN_REFRESHED") {
         getSession();
@@ -223,6 +239,9 @@ export function DummyAuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     return () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener("symar:subscription-updated", handleSubscriptionUpdated);
+      }
       subscription.unsubscribe();
     };
   }, [getSession, supabase]);
@@ -598,6 +617,7 @@ export function DummyAuthProvider({ children }: { children: React.ReactNode }) {
         activeStore,
         stores,
         switchStore,
+        refreshSession: getSession,
         signUp,
         login,
         createStore,

@@ -38,31 +38,31 @@ export function ImageUploader({ images, onChange, className }: ImageUploaderProp
       const checkImageLoad = (url: string): Promise<boolean> => {
         return new Promise((resolve) => {
           const img = new Image();
+          const timer = setTimeout(() => resolve(true), 3000); // Resilience fallback
           img.src = url;
-          img.onload = () => resolve(true);
-          img.onerror = () => resolve(false);
+          img.onload = () => {
+            clearTimeout(timer);
+            resolve(true);
+          };
+          img.onerror = () => {
+            clearTimeout(timer);
+            // If it's a valid http/https URL, still resolve true so custom CDNs work
+            if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("/")) {
+              resolve(true);
+            } else {
+              resolve(false);
+            }
+          };
         });
       };
 
       const isLoaded = await checkImageLoad(resolvedUrl);
 
       if (!isLoaded) {
-        if (trimmedInput.includes("drive.google.com")) {
-          toast.error(
-            "Private Google Drive Link",
-            "This Google Drive file is private or requires authorization. Please make the file publicly viewable ('Anyone with the link can view')."
-          );
-        } else if (trimmedInput.includes("instagram.com")) {
-          toast.error(
-            "Private or Invalid Instagram URL",
-            "This Instagram post is private, invalid, or requires authentication. Please use a public post link."
-          );
-        } else {
-          toast.error(
-            "Invalid Image URL",
-            "The URL could not be resolved or loaded as a public image. Please ensure the link is correct and publicly accessible."
-          );
-        }
+        toast.error(
+          "Invalid Image URL",
+          "The link could not be loaded as an image. Please ensure the link is a valid public image URL."
+        );
         return;
       }
 
@@ -75,7 +75,7 @@ export function ImageUploader({ images, onChange, className }: ImageUploaderProp
 
       onChange([...images, newImg]);
       setUrlInput("");
-      toast.success("Image Added", "Image URL added to gallery.");
+      toast.success("Image Added", "Image added to gallery.");
     } catch (err: any) {
       toast.error("Validation Error", err.message || "Failed to validate image URL.");
     } finally {

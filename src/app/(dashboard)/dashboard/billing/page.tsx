@@ -39,7 +39,7 @@ const PLANS_CATALOG = [
 ];
 
 export default function MerchantBillingPage() {
-  const { activeStore, user } = useAuth();
+  const { activeStore, user, refreshSession } = useAuth();
   const [subscription, setSubscription] = useState<StoreSubscription | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   
@@ -107,6 +107,15 @@ export default function MerchantBillingPage() {
     }
   }, [activeStore, user]);
 
+  const notifyStateChange = async () => {
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("symar:subscription-updated"));
+    }
+    if (refreshSession) {
+      await refreshSession();
+    }
+  };
+
   const handleRequestUpgrade = async (planId: "startup" | "growth" | "pro") => {
     if (!activeStore?.id) return;
     setProcessingUpgrade(planId);
@@ -142,8 +151,9 @@ export default function MerchantBillingPage() {
 
         if (verRes.success) {
           toast.success("Upgrade Successful", `Store upgraded to ${targetPlanConfig.name}.`);
-          fetchSubscription();
-          fetchPayments();
+          await fetchSubscription();
+          await fetchPayments();
+          await notifyStateChange();
         } else {
           toast.error("Verification Failed", verRes.error || "Mock verification mismatch.");
         }
@@ -172,8 +182,9 @@ export default function MerchantBillingPage() {
 
           if (verRes.success) {
             toast.success("Upgrade Successful", `Payment verified. Store upgraded to ${targetPlanConfig.name}!`);
-            fetchSubscription();
-            fetchPayments();
+            await fetchSubscription();
+            await fetchPayments();
+            await notifyStateChange();
           } else {
             toast.error("Signature Verification Failed", verRes.error || "Crypto mismatch.");
           }
@@ -212,7 +223,8 @@ export default function MerchantBillingPage() {
       );
       if (response.success) {
         toast.success("Success", `Override applied: store is now on ${adminPlan}.`);
-        fetchSubscription();
+        await fetchSubscription();
+        await notifyStateChange();
       } else {
         toast.error("Access Denied", response.error || "Super Admin override failed.");
       }

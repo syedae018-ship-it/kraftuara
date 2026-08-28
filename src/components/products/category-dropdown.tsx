@@ -9,6 +9,9 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
+import { categoryRepository } from "@/lib/repositories/category-repository";
+import { useAuth } from "@/context/auth-context";
+
 export interface CategoryDropdownProps {
   categories: CategoryOption[];
   selectedCategoryId: string;
@@ -26,30 +29,52 @@ export function CategoryDropdown({
   error,
   className,
 }: CategoryDropdownProps) {
+  const { activeStore } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [newCatName, setNewCatName] = useState("");
+  const [isCreating, setIsCreating] = useState(false);
 
   const selectedCategory = categories.find((c) => c.id === selectedCategoryId) || categories[0];
 
-  const handleCreateCategory = () => {
-    if (!newCatName.trim()) {
+  const handleCreateCategory = async () => {
+    const trimmed = newCatName.trim();
+    if (!trimmed) {
       toast.error("Name Required", "Please enter a category name.");
       return;
     }
 
-    const created: CategoryOption = {
-      id: `cat-${Date.now()}`,
-      name: newCatName.trim(),
-      slug: newCatName.toLowerCase().replace(/[^a-z0-9]/g, "-"),
-      itemCount: 0,
-    };
+    if (!activeStore?.id) {
+      toast.error("Error", "No active store found.");
+      return;
+    }
 
-    onAddCategory(created);
-    onSelectCategory(created);
-    setNewCatName("");
-    setModalOpen(false);
-    toast.success("Category Created", `Added category "${created.name}"`);
+    setIsCreating(true);
+    try {
+      const dbCat = await categoryRepository.create(activeStore.id, {
+        name: trimmed,
+        slug: trimmed.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+        status: "published",
+        displayOrder: 0,
+      });
+
+      const created: CategoryOption = {
+        id: dbCat.id,
+        name: dbCat.name,
+        slug: dbCat.slug,
+        itemCount: 0,
+      };
+
+      onAddCategory(created);
+      onSelectCategory(created);
+      setNewCatName("");
+      setModalOpen(false);
+      toast.success("Category Created", `Added category "${created.name}"`);
+    } catch (err: any) {
+      toast.error("Category Error", err.message || "Failed to create category. Please check your plan limits.");
+    } finally {
+      setIsCreating(false);
+    }
   };
 
   return (
@@ -117,10 +142,10 @@ export function CategoryDropdown({
         description="Add a new category to organize your catalog products."
         footer={
           <>
-            <Button variant="ghost" onClick={() => setModalOpen(false)}>
+            <Button variant="ghost" onClick={() => setModalOpen(false)} disabled={isCreating}>
               Cancel
             </Button>
-            <Button variant="primary" onClick={handleCreateCategory}>
+            <Button variant="primary" onClick={handleCreateCategory} isLoading={isCreating}>
               Create Category
             </Button>
           </>
