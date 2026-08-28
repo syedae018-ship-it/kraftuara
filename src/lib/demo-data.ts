@@ -270,4 +270,8 @@ export const DEMO_STORE_DATA: StoreData = {
   categories: DEMO_STORE_CATEGORIES,
   collections: [],
   products: DEMO_STORE_PRODUCTS,
+  shipping: {
+    freeShippingEnabled: true,
+    freeShippingThreshold: 0,
+  },
 };

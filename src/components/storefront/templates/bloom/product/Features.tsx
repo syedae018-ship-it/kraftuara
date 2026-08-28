@@ -9,9 +9,13 @@ export default function Features({
     freeShippingThreshold: number;
   };
 }) {
-  if (!shipping?.freeShippingEnabled) {
+  if (shipping?.freeShippingEnabled === false) {
     return null;
   }
+
+  const threshold = typeof shipping?.freeShippingThreshold === "number"
+    ? shipping.freeShippingThreshold
+    : 0;
 
   return (
     <div className="mb-12 p-5 rounded-2xl border border-bloom-border bg-bloom-secondary text-bloom-foreground flex items-center gap-4 max-w-md mx-auto sm:mx-0">
@@ -23,7 +27,9 @@ export default function Features({
           Free Shipping Eligible
         </h2>
         <p className="text-xs text-bloom-muted">
-          Free shipping on orders over {formatCurrency(shipping.freeShippingThreshold)}
+          {threshold === 0
+            ? "Free shipping on all orders"
+            : `Free shipping on orders over ${formatCurrency(threshold)}`}
         </p>
       </div>
     </div>

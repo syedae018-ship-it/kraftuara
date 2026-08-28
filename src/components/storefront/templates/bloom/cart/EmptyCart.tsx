@@ -31,7 +31,7 @@ export default function EmptyCart({ storeSlug, isSubdomain = false }: { storeSlu
           <div className="flex items-center justify-center gap-6 text-sm text-bloom-muted">
             <div className="flex items-center gap-2">
               <Truck className="h-4 w-4 text-bloom-primary" />
-              Free shipping over ₹499
+              Free delivery eligible
             </div>
             <div className="flex items-center gap-2">
               <Shield className="h-4 w-4 text-green-500" />

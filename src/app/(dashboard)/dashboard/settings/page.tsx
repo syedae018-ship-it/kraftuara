@@ -39,7 +39,7 @@ export default function MerchantSettingsPage() {
   
   // Shipping Configuration State
   const [freeShippingEnabled, setFreeShippingEnabled] = useState(true);
-  const [freeShippingThreshold, setFreeShippingThreshold] = useState(999);
+  const [freeShippingThreshold, setFreeShippingThreshold] = useState<number | string>(0);
   const [isSavingShipping, setIsSavingShipping] = useState(false);
 
   const [isLoadingSettings, setIsLoadingSettings] = useState(true);
@@ -66,8 +66,12 @@ export default function MerchantSettingsPage() {
           const { getStoreShippingSettingsAction } = await import("@/lib/actions/store");
           const shipRes = await getStoreShippingSettingsAction(activeStore.id);
           if (shipRes.success && shipRes.data) {
-            setFreeShippingEnabled(shipRes.data.freeShippingEnabled);
-            setFreeShippingThreshold(shipRes.data.freeShippingThreshold);
+            setFreeShippingEnabled(shipRes.data.freeShippingEnabled !== false);
+            setFreeShippingThreshold(
+              typeof shipRes.data.freeShippingThreshold === "number"
+                ? shipRes.data.freeShippingThreshold
+                : 0
+            );
           }
         } catch (err) {
           console.error("Failed to load store settings:", err);
@@ -209,13 +213,17 @@ export default function MerchantSettingsPage() {
     e.preventDefault();
     setIsSavingShipping(true);
     try {
+      const thresholdNum = freeShippingThreshold === "" ? 0 : Number(freeShippingThreshold);
+      const safeThreshold = isNaN(thresholdNum) || thresholdNum < 0 ? 0 : thresholdNum;
+
       const { updateStoreShippingSettingsAction } = await import("@/lib/actions/store");
       const res = await updateStoreShippingSettingsAction(
         activeStore.id,
         freeShippingEnabled,
-        Number(freeShippingThreshold) || 0
+        safeThreshold
       );
       if (res.success) {
+        setFreeShippingThreshold(safeThreshold);
         toast.success("Shipping Settings Saved", "Free shipping threshold updated successfully.");
       } else {
         toast.error("Save Failed", res.error || "Could not save shipping configuration.");
@@ -438,13 +446,22 @@ export default function MerchantSettingsPage() {
                 </label>
                 <Input
                   type="number"
-                  placeholder="e.g. 999"
+                  min={0}
+                  placeholder="e.g. 0"
                   value={freeShippingThreshold}
-                  onChange={(e) => setFreeShippingThreshold(Number(e.target.value) || 0)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === "") {
+                      setFreeShippingThreshold("");
+                    } else {
+                      const parsed = Number(val);
+                      setFreeShippingThreshold(isNaN(parsed) || parsed < 0 ? 0 : parsed);
+                    }
+                  }}
                   leftIcon={<span className="text-zinc-500 font-bold text-xs select-none">₹</span>}
                 />
                 <p className="text-[11px] text-zinc-500 font-body mt-1">
-                  Orders equal to or above this amount will display as eligible for Free Shipping on the storefront.
+                  Orders equal to or above this amount qualify for Free Shipping. Enter 0 for free shipping on all orders.
                 </p>
               </div>
             )}

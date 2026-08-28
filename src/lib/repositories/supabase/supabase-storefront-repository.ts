@@ -40,7 +40,11 @@ export class SupabaseStorefrontRepository implements IStorefrontRepository {
       .maybeSingle();
 
     const metadata = settingsRow?.metadata || {};
-    const shipping = metadata.shipping || { freeShippingEnabled: true, freeShippingThreshold: 999 };
+    const rawShipping = metadata.shipping;
+    const resolvedShipping = {
+      freeShippingEnabled: rawShipping?.freeShippingEnabled !== undefined ? Boolean(rawShipping.freeShippingEnabled) : true,
+      freeShippingThreshold: typeof rawShipping?.freeShippingThreshold === "number" ? rawShipping.freeShippingThreshold : 0,
+    };
 
     if (metadata.published_snapshot) {
       const snapshot = metadata.published_snapshot;
@@ -49,7 +53,7 @@ export class SupabaseStorefrontRepository implements IStorefrontRepository {
         id: s.id,
         name: s.name,
         slug: s.slug,
-        shipping: snapshot.shipping || shipping
+        shipping: resolvedShipping,
       };
     }
 
@@ -66,7 +70,7 @@ export class SupabaseStorefrontRepository implements IStorefrontRepository {
       categories,
       collections,
       products,
-      shipping,
+      shipping: resolvedShipping,
     };
   }
 

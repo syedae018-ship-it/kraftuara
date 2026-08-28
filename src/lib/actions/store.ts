@@ -410,10 +410,15 @@ export async function publishStoreChangesAction(storeId: string): Promise<Action
       .maybeSingle();
 
     const existingMetadata = (settingsRow as any)?.metadata || {};
-    const shipping = existingMetadata.shipping || { freeShippingEnabled: true, freeShippingThreshold: 999 };
+    const rawShipping = existingMetadata.shipping;
+    const shipping = {
+      freeShippingEnabled: rawShipping?.freeShippingEnabled !== undefined ? Boolean(rawShipping.freeShippingEnabled) : true,
+      freeShippingThreshold: typeof rawShipping?.freeShippingThreshold === "number" ? rawShipping.freeShippingThreshold : 0,
+    };
 
     const updatedMetadata = {
       ...existingMetadata,
+      shipping,
       published_snapshot: {
         id: storeId,
         name: (storeRow as any).name,
@@ -486,7 +491,11 @@ export async function getStoreShippingSettingsAction(
     }
 
     const metadata = settingsRow?.metadata || {};
-    const shipping = metadata.shipping || { freeShippingEnabled: true, freeShippingThreshold: 999 };
+    const rawShipping = metadata.shipping;
+    const shipping = {
+      freeShippingEnabled: rawShipping?.freeShippingEnabled !== undefined ? Boolean(rawShipping.freeShippingEnabled) : true,
+      freeShippingThreshold: typeof rawShipping?.freeShippingThreshold === "number" ? rawShipping.freeShippingThreshold : 0,
+    };
 
     return successResponse(shipping);
   } catch (err) {
@@ -510,7 +519,7 @@ export async function updateStoreShippingSettingsAction(
     if (!user) return errorResponse("Unauthorized");
 
     const { data: storeRow } = await supabase.from("stores")
-      .select("id")
+      .select("id, slug")
       .eq("id", storeId)
       .eq("user_id", user.id)
       .maybeSingle();
@@ -528,14 +537,27 @@ export async function updateStoreShippingSettingsAction(
       return errorResponse(error.message);
     }
 
-    const existingMetadata = settingsRow?.metadata || {};
-    const updatedMetadata = {
-      ...existingMetadata,
-      shipping: {
-        freeShippingEnabled,
-        freeShippingThreshold,
-      },
+    const parsedThreshold = typeof freeShippingThreshold === "number" && !isNaN(freeShippingThreshold)
+      ? Math.max(0, freeShippingThreshold)
+      : 0;
+
+    const shippingConfig = {
+      freeShippingEnabled: Boolean(freeShippingEnabled),
+      freeShippingThreshold: parsedThreshold,
     };
+
+    const existingMetadata = settingsRow?.metadata || {};
+    const updatedMetadata: any = {
+      ...existingMetadata,
+      shipping: shippingConfig,
+    };
+
+    if (updatedMetadata.published_snapshot) {
+      updatedMetadata.published_snapshot = {
+        ...updatedMetadata.published_snapshot,
+        shipping: shippingConfig,
+      };
+    }
 
     if (settingsRow) {
       const { error: updateErr } = await (supabase.from("store_settings") as any)
@@ -550,6 +572,13 @@ export async function updateStoreShippingSettingsAction(
         });
       if (insertErr) throw insertErr;
     }
+
+    const slug = (storeRow as any)?.slug;
+    if (slug) {
+      revalidatePath(`/store/${slug}`);
+      revalidatePath(`/store/${slug}/cart`);
+    }
+    revalidatePath("/dashboard/settings");
 
     return successResponse(undefined, "Shipping settings updated successfully.");
   } catch (err) {

@@ -33,10 +33,16 @@ export default function OrderSummary({ store, onOrderPlaced }: { store: StoreDat
 
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
-  // Free shipping threshold: ₹999
-  const shippingThreshold = 999;
-  const shippingCost = 99;
-  const shipping = subtotal >= shippingThreshold ? 0 : shippingCost;
+  // Authoritative store shipping configuration
+  const isFreeShippingEnabled = store.shipping?.freeShippingEnabled !== false;
+  const freeShippingThreshold = typeof store.shipping?.freeShippingThreshold === "number"
+    ? store.shipping.freeShippingThreshold
+    : 0;
+  const baseShippingCost = 99; // Standard flat delivery fee when under threshold
+
+  // When free shipping is enabled and order meets/exceeds threshold (e.g. >= 0 for 0 threshold), shipping is free
+  const qualifiesForFreeShipping = isFreeShippingEnabled && subtotal >= freeShippingThreshold;
+  const shipping = qualifiesForFreeShipping ? 0 : baseShippingCost;
   
   const discountAmount = appliedCoupon ? appliedCoupon.discountAmount : 0;
   const total = Math.max(0, subtotal + shipping - discountAmount);
@@ -288,18 +294,38 @@ export default function OrderSummary({ store, onOrderPlaced }: { store: StoreDat
             </div>
           </div>
 
-          {shipping > 0 && (
-            <div className="p-3 bg-bloom-accent/20 rounded-lg border border-bloom-primary/20">
-              <div className="flex items-center gap-2 mb-1">
-                <Truck className="h-4 w-4 text-bloom-primary shrink-0" />
-                <span className="text-xs font-semibold text-bloom-primary">
-                  Free shipping on orders over {formatCurrency(shippingThreshold)}
-                </span>
+          {isFreeShippingEnabled && (
+            freeShippingThreshold === 0 ? (
+              <div className="p-3 bg-green-950/20 rounded-lg border border-green-500/20">
+                <div className="flex items-center gap-2">
+                  <Truck className="h-4 w-4 text-green-400 shrink-0" />
+                  <span className="text-xs font-semibold text-green-400">
+                    Free shipping on all orders
+                  </span>
+                </div>
               </div>
-              <p className="text-[10px] text-bloom-muted">
-                Add {formatCurrency(shippingThreshold - subtotal)} more to qualify!
-              </p>
-            </div>
+            ) : !qualifiesForFreeShipping ? (
+              <div className="p-3 bg-bloom-accent/20 rounded-lg border border-bloom-primary/20">
+                <div className="flex items-center gap-2 mb-1">
+                  <Truck className="h-4 w-4 text-bloom-primary shrink-0" />
+                  <span className="text-xs font-semibold text-bloom-primary">
+                    Free shipping on orders over {formatCurrency(freeShippingThreshold)}
+                  </span>
+                </div>
+                <p className="text-[10px] text-bloom-muted">
+                  Add {formatCurrency(freeShippingThreshold - subtotal)} more to qualify!
+                </p>
+              </div>
+            ) : (
+              <div className="p-3 bg-green-950/20 rounded-lg border border-green-500/20">
+                <div className="flex items-center gap-2">
+                  <Truck className="h-4 w-4 text-green-400 shrink-0" />
+                  <span className="text-xs font-semibold text-green-400">
+                    Free shipping unlocked for this order!
+                  </span>
+                </div>
+              </div>
+            )
           )}
 
           {/* Coupon Input Box */}
