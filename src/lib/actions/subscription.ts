@@ -73,7 +73,6 @@ export async function getStoreSubscriptionAction(storeId: string) {
           plan: recoveredPlan,
           status: "active",
           razorpay_subscription_id: latestPayment?.razorpay_subscription_id || null,
-          razorpay_payment_id: latestPayment?.razorpay_payment_id || null,
           current_period_start: nowStr,
           current_period_end: trialEndStr,
           trial_start: nowStr,
@@ -87,6 +86,31 @@ export async function getStoreSubscriptionAction(storeId: string) {
 
       if (insertError) throw new Error("Failed to initialize default subscription.");
       subRow = newSub;
+    } else if (subRow && subRow.status === "payment_pending") {
+      // Check if there is a past successful payment for this store so a cancelled upgrade doesn't demote them
+      const { data: latestPayment } = await (supabase.from("payments") as any)
+        .select("plan, amount, razorpay_subscription_id, created_at")
+        .eq("store_id", storeId)
+        .eq("status", "successful")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (latestPayment?.plan && ["startup", "growth", "pro"].includes(latestPayment.plan)) {
+        const recoveredPlan = latestPayment.plan as any;
+        const recoveredAmount = latestPayment.amount || (recoveredPlan === "pro" ? 499 : recoveredPlan === "growth" ? 299 : 99);
+        await (supabase.from("subscriptions") as any)
+          .update({
+            plan: recoveredPlan,
+            status: "active",
+            amount: recoveredAmount,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("store_id", storeId);
+        subRow.plan = recoveredPlan;
+        subRow.status = "active";
+        subRow.amount = recoveredAmount;
+      }
     } else if (subRow && (subRow.plan === "free" || !["startup", "growth", "pro"].includes(subRow.plan))) {
       await (supabase.from("subscriptions") as any)
         .update({

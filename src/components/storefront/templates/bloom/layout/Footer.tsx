@@ -19,10 +19,13 @@ export default function Footer({ store, isSubdomain = false }: { store: StoreDat
   const homeLink = basePath || "/";
   const contactLink = `${basePath}/contact`;
   const cartLink = `${basePath}/cart`;
+  const canTrackOrders = store.plan === "growth" || store.plan === "pro";
+  const trackLink = `${basePath}/track`;
 
   const navLinks = [
     { href: homeLink, label: "Store Home" },
     { href: `${homeLink}#products`, label: "All Products" },
+    ...(canTrackOrders ? [{ href: trackLink, label: "Track Order" }] : []),
     { href: cartLink, label: "Shopping Cart" },
     { href: contactLink, label: "Contact Us" },
   ];

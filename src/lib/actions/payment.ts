@@ -82,32 +82,6 @@ export async function createStoreSubscriptionAction(
 
     if (isSimulated) {
       const mockSubId = `sub_mock_${Date.now()}`;
-      const now = new Date();
-      const trialStart = isTrialEligible ? now.toISOString() : null;
-      const trialEnd = isTrialEligible ? new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000).toISOString() : null;
-      
-      // If store ID exists, upsert pending subscription record
-      if (storeId) {
-        const { error: upsertError } = await (supabase.from("subscriptions") as any).upsert({
-          store_id: storeId,
-          user_id: user.id,
-          plan: planName,
-          status: "payment_pending",
-          razorpay_subscription_id: mockSubId,
-          current_period_start: now.toISOString(),
-          current_period_end: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-          trial_start: trialStart,
-          trial_end: trialEnd,
-          next_billing_date: isTrialEligible ? trialEnd : new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-          amount: planConfig.priceMonthly,
-          currency: "INR",
-        }, { onConflict: "store_id" });
-
-        if (upsertError) {
-          throw new Error("Failed to register pending subscription: " + upsertError.message);
-        }
-      }
-
       return successResponse({
         subscriptionId: mockSubId,
         keyId: "rzp_test_placeholder",
@@ -130,33 +104,12 @@ export async function createStoreSubscriptionAction(
       }
     };
 
-    let trialEndTimestamp: number | null = null;
     if (isTrialEligible) {
-      trialEndTimestamp = Math.floor(Date.now() / 1000) + 3 * 24 * 60 * 60;
+      const trialEndTimestamp = Math.floor(Date.now() / 1000) + 3 * 24 * 60 * 60;
       subscriptionPayload.start_at = trialEndTimestamp; // billing begins after 3-day trial
     }
     
     const subscription = await razorpay.subscriptions.create(subscriptionPayload);
-
-    // If store ID exists, save pending subscription details in the DB
-    if (storeId) {
-      const now = new Date();
-      const { error: upsertError } = await (supabase.from("subscriptions") as any).upsert({
-        store_id: storeId,
-        user_id: user.id,
-        plan: planName,
-        status: "payment_pending",
-        razorpay_subscription_id: subscription.id,
-        trial_start: isTrialEligible ? now.toISOString() : null,
-        trial_end: trialEndTimestamp ? new Date(trialEndTimestamp * 1000).toISOString() : null,
-        amount: planConfig.priceMonthly,
-        currency: "INR",
-      }, { onConflict: "store_id" });
-
-      if (upsertError) {
-        throw new Error("Failed to register pending subscription: " + upsertError.message);
-      }
-    }
 
     return successResponse({
       subscriptionId: subscription.id,
@@ -214,7 +167,6 @@ export async function verifySubscriptionPaymentAction(payload: {
           plan: targetPlan,
           status: "active",
           razorpay_subscription_id: payload.subscriptionId,
-          razorpay_payment_id: payload.paymentId || `pay_mock_${Date.now()}`,
           razorpay_signature: payload.signature || "mock_signature",
           current_period_start: new Date().toISOString(),
           current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
@@ -292,7 +244,6 @@ export async function verifySubscriptionPaymentAction(payload: {
         plan: targetPlan,
         status: "active",
         razorpay_subscription_id: payload.subscriptionId,
-        razorpay_payment_id: payload.paymentId,
         razorpay_signature: payload.signature,
         current_period_start: currentStartFromRzp,
         current_period_end: currentEndFromRzp,
@@ -387,7 +338,6 @@ export async function activatePlatformSubscriptionAction(
         plan: planName,
         status: "active",
         razorpay_subscription_id: subscriptionId || `sub_mock_${Date.now()}`,
-        razorpay_payment_id: paymentId || `pay_mock_${Date.now()}`,
         razorpay_signature: signature || "mock_signature",
         current_period_start: currentStart,
         current_period_end: currentEnd,
@@ -481,7 +431,6 @@ export async function activatePlatformSubscriptionAction(
       plan: authoritativePlan,
       status: "active",
       razorpay_subscription_id: subscriptionId,
-      razorpay_payment_id: paymentId || null,
       razorpay_signature: signature || null,
       current_period_start: currentStart,
       current_period_end: currentEnd,

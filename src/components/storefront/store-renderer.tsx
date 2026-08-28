@@ -62,7 +62,6 @@ export function StoreRenderer({ store, initialCategory, initialCollection, isSub
                 );
 
               case "featured_products":
-              case "footer":
                 return (
                   <ProductGrid
                     key={sec.id}

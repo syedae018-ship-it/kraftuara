@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
-import { Eye, MessageSquare, Sparkles, Package } from "lucide-react";
+import { Eye, MessageSquare, Sparkles, Package, ShoppingCart, Check } from "lucide-react";
 import { Product } from "@/types/product";
 import { StatusBadge } from "@/components/products/status-badge";
 import { WhatsAppButton } from "./whatsapp-button";
@@ -12,8 +12,9 @@ import { formatCurrency } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { getStoreBasePath } from "@/lib/urls";
-import { resolveImageUrl, FALLBACK_PRODUCT_IMAGE } from "@/lib/image-resolver";
+import { resolveImageUrl, resolveProductImageUrl, FALLBACK_PRODUCT_IMAGE } from "@/lib/image-resolver";
 import ProductImage from "./product-image";
+import { useCart } from "@/context/CartContext";
 
 export interface StoreProductCardProps {
   product: Product;
@@ -32,7 +33,9 @@ export function StoreProductCard({
   className,
   isSubdomain = false,
 }: StoreProductCardProps) {
-  const [copied, setCopied] = useState(false);
+  const [isAdding, setIsAdding] = useState(false);
+  const [justAdded, setJustAdded] = useState(false);
+  const { addToCart } = useCart();
   const pathname = usePathname();
   const isDemo = pathname?.startsWith("/demo");
   const demoTheme = pathname?.split("/")[2] || "luxury";
@@ -40,6 +43,29 @@ export function StoreProductCard({
   const productUrl = `${storePrefix}/product/${product.slug}`;
 
   const coverImage = product.images.find((img) => img.isCover) || product.images[0];
+  const resolvedImageUrl = resolveProductImageUrl(coverImage?.url || "");
+
+  const handleAddToCart = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    setIsAdding(true);
+    await new Promise((resolve) => setTimeout(resolve, 250));
+
+    addToCart({
+      id: product.id,
+      name: product.name,
+      price: product.price,
+      image: resolvedImageUrl,
+      quantity: 1,
+      sku: product.sku,
+    });
+
+    setIsAdding(false);
+    setJustAdded(true);
+    toast.success("Added to Cart", `${product.name} added to your cart.`);
+    setTimeout(() => setJustAdded(false), 2000);
+  };
 
   return (
     <motion.div
@@ -104,7 +130,7 @@ export function StoreProductCard({
           </p>
         </div>
 
-        {/* Card Footer: Price & WhatsApp Action */}
+        {/* Card Footer: Price & Cart Action */}
         <div className="pt-3 border-t border-white/5 space-y-2">
           <div className="flex items-baseline justify-between">
             <span className="text-base font-bold font-heading text-white">{formatCurrency(product.price)}</span>
@@ -115,26 +141,40 @@ export function StoreProductCard({
             )}
           </div>
 
-          {["aroma-perfumes", "tech-haven", "creative-threads"].includes(storeSlug) ? (
+          <div className="flex items-center gap-2">
             <button
-              onClick={(e) => {
-                e.preventDefault();
-                toast.success("Added to Cart", `${product.name} has been added to your cart.`);
-              }}
-              className="w-full h-9 rounded-xl flex items-center justify-center gap-2 text-xs font-bold font-heading bg-maroon-800 hover:bg-maroon-700 text-white transition-colors shadow-glow"
+              type="button"
+              onClick={handleAddToCart}
+              disabled={isAdding}
+              className={cn(
+                "flex-1 h-9 rounded-xl flex items-center justify-center gap-2 text-xs font-bold font-heading transition-all shadow-glow",
+                justAdded
+                  ? "bg-emerald-600 text-white"
+                  : "bg-maroon-800 hover:bg-maroon-700 text-white"
+              )}
             >
-              <Package className="w-3.5 h-3.5" /> Buy Now
+              {justAdded ? (
+                <>
+                  <Check className="w-3.5 h-3.5" /> Added!
+                </>
+              ) : (
+                <>
+                  <ShoppingCart className="w-3.5 h-3.5" /> Add to Cart
+                </>
+              )}
             </button>
-          ) : (
-            <WhatsAppButton
-              phone={whatsappPhone}
-              productName={product.name}
-              sku={product.sku}
-              price={product.price}
-              size="sm"
-              className="w-full"
-            />
-          )}
+
+            {whatsappPhone && (
+              <WhatsAppButton
+                phone={whatsappPhone}
+                productName={product.name}
+                sku={product.sku}
+                price={product.price}
+                size="sm"
+                className="shrink-0"
+              />
+            )}
+          </div>
         </div>
       </div>
     </motion.div>

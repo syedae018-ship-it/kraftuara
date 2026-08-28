@@ -95,6 +95,14 @@ export function StoreNavbar({ store, className, isSubdomain = false }: StoreNavb
               Collections
             </Link>
           )}
+          {(store.plan === "growth" || store.plan === "pro") && (
+            <Link
+              href={`${storePrefix}/track`}
+              className="text-zinc-400 hover:text-white transition-colors"
+            >
+              Track Order
+            </Link>
+          )}
         </nav>
 
         {/* Search & WhatsApp CTA */}
