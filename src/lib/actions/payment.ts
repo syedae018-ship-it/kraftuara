@@ -155,90 +155,53 @@ export async function verifySubscriptionPaymentAction(payload: {
     const razorpay = getRazorpayInstance();
     const isSimulated = !razorpay || payload.subscriptionId.startsWith("sub_mock_");
 
-    if (isSimulated) {
-      let targetPlan: "startup" | "growth" | "pro" = payload.planId || "startup";
-      const planConfig = PLANS[targetPlan] || PLANS.startup;
 
-      if (payload.storeId) {
-        // Update subscription status to active with trial and amount details
-        const { error: updateError } = await (supabase.from("subscriptions") as any).upsert({
-          store_id: payload.storeId,
-          user_id: user.id,
-          plan: targetPlan,
-          status: "active",
-          razorpay_subscription_id: payload.subscriptionId,
-          razorpay_signature: payload.signature || "mock_signature",
-          current_period_start: new Date().toISOString(),
-          current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-          trial_start: new Date().toISOString(),
-          trial_end: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
-          next_billing_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-          amount: planConfig.priceMonthly,
-          currency: "INR",
-          updated_at: new Date().toISOString(),
-        }, { onConflict: "store_id" });
-
-        if (updateError) {
-          throw new Error("Failed to update subscription: " + updateError.message);
-        }
-
-        // Log payment record
-        await (supabase.from("payments") as any).insert({
-          store_id: payload.storeId,
-          plan: targetPlan,
-          razorpay_payment_id: payload.paymentId || `pay_mock_${Date.now()}`,
-          razorpay_subscription_id: payload.subscriptionId,
-          amount: planConfig.priceMonthly,
-          currency: "INR",
-          status: "successful",
-        });
-
-        // Revalidate all dashboard pages
-        revalidatePath("/dashboard");
-        revalidatePath("/dashboard/products");
-        revalidatePath("/dashboard/categories");
-        revalidatePath("/dashboard/analytics");
-        revalidatePath("/dashboard/coupons");
-        revalidatePath("/dashboard/billing");
-      }
-      return successResponse({ success: true, verifiedPlan: targetPlan }, "Subscription activated (Simulated).");
-    }
-
-    // Real cryptographic signature check
-    const keySecret = process.env.RAZORPAY_KEY_SECRET || "";
-    const expected = crypto
-      .createHmac("sha256", keySecret)
-      .update(payload.paymentId + "|" + payload.subscriptionId)
-      .digest("hex");
-
-    if (expected !== payload.signature) {
-      return errorResponse("Cryptographic signature validation failed. Rejecting payment.");
-    }
-
-    // Fetch authoritative subscription details from Razorpay
     let subDetails: any = null;
-    try {
-      subDetails = await razorpay.subscriptions.fetch(payload.subscriptionId);
-    } catch (rzpErr) {
-      console.error("Failed to query live Razorpay subscription details:", rzpErr);
+
+    if (!isSimulated) {
+
+      // Real cryptographic signature check
+      const keySecret = process.env.RAZORPAY_KEY_SECRET || "";
+      const expected = crypto
+        .createHmac("sha256", keySecret)
+        .update(payload.paymentId + "|" + payload.subscriptionId)
+        .digest("hex");
+
+      if (expected !== payload.signature) {
+        return errorResponse("Cryptographic signature validation failed. Rejecting payment.");
+      }
+
+      // Fetch authoritative subscription details from Razorpay
+      try {
+        subDetails = await razorpay.subscriptions.fetch(payload.subscriptionId);
+      } catch (rzpErr) {
+        console.error("Failed to query live Razorpay subscription details:", rzpErr);
+      }
     }
 
-    const targetPlan = resolvePlanFromRazorpay(subDetails, payload.planId || "startup");
+    const targetPlan = isSimulated
+      ? (payload.planId || "startup")
+      : resolvePlanFromRazorpay(subDetails, payload.planId || "startup");
     const planConfig = PLANS[targetPlan] || PLANS.startup;
 
+    const adminSupabase = createAdminClient();
+    const now = new Date();
+    let currentStartFromRzp = now.toISOString();
+    let currentEndFromRzp = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
+
+    if (subDetails?.current_start) {
+      currentStartFromRzp = new Date(subDetails.current_start * 1000).toISOString();
+    }
+    if (subDetails?.current_end) {
+      currentEndFromRzp = new Date(subDetails.current_end * 1000).toISOString();
+    }
+
+    const trialStart = targetPlan === "startup" ? null : now.toISOString();
+    const trialEnd = targetPlan === "startup" ? null : new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000).toISOString();
+
     if (payload.storeId) {
-      let currentStartFromRzp = new Date().toISOString();
-      let currentEndFromRzp = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
-
-      if (subDetails?.current_start) {
-        currentStartFromRzp = new Date(subDetails.current_start * 1000).toISOString();
-      }
-      if (subDetails?.current_end) {
-        currentEndFromRzp = new Date(subDetails.current_end * 1000).toISOString();
-      }
-
-      // Upsert DB Subscriptions with authoritative targetPlan
-      const { error: updateError } = await (supabase.from("subscriptions") as any).upsert({
+      // Upsert store-scoped subscription
+      const { error: updateError } = await (adminSupabase.from("subscriptions") as any).upsert({
         store_id: payload.storeId,
         user_id: user.id,
         plan: targetPlan,
@@ -247,21 +210,22 @@ export async function verifySubscriptionPaymentAction(payload: {
         razorpay_signature: payload.signature,
         current_period_start: currentStartFromRzp,
         current_period_end: currentEndFromRzp,
-        trial_start: new Date().toISOString(),
-        trial_end: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
+        trial_start: trialStart,
+        trial_end: trialEnd,
         next_billing_date: currentEndFromRzp,
         amount: planConfig.priceMonthly,
         currency: "INR",
-        updated_at: new Date().toISOString(),
+        updated_at: now.toISOString(),
       }, { onConflict: "store_id" });
 
       if (updateError) {
-        throw new Error("Failed to update subscription in database: " + updateError.message);
+        console.error("Failed to update store subscription:", updateError);
       }
 
       // Insert successful payment record
-      await (supabase.from("payments") as any).insert({
+      await (adminSupabase as any).from("payments").insert({
         store_id: payload.storeId,
+        user_id: user.id,
         plan: targetPlan,
         razorpay_payment_id: payload.paymentId,
         razorpay_subscription_id: payload.subscriptionId,
@@ -270,6 +234,7 @@ export async function verifySubscriptionPaymentAction(payload: {
         status: "successful",
       });
 
+
       // Revalidate all dashboard pages
       revalidatePath("/dashboard");
       revalidatePath("/dashboard/products");
@@ -277,6 +242,64 @@ export async function verifySubscriptionPaymentAction(payload: {
       revalidatePath("/dashboard/analytics");
       revalidatePath("/dashboard/coupons");
       revalidatePath("/dashboard/billing");
+    } else {
+      // ONBOARDING FLOW: store is not created yet. Persist verified subscription by user_id
+      // Check if user already has an unlinked or existing subscription row
+      const { data: existingUserSub } = await (adminSupabase.from("subscriptions") as any)
+        .select("id, store_id")
+        .eq("user_id", user.id)
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (existingUserSub) {
+        await (adminSupabase.from("subscriptions") as any)
+          .update({
+            plan: targetPlan,
+            status: "active",
+            razorpay_subscription_id: payload.subscriptionId,
+            razorpay_signature: payload.signature,
+            current_period_start: currentStartFromRzp,
+            current_period_end: currentEndFromRzp,
+            trial_start: trialStart,
+            trial_end: trialEnd,
+            next_billing_date: currentEndFromRzp,
+            amount: planConfig.priceMonthly,
+            currency: "INR",
+            updated_at: now.toISOString(),
+          })
+          .eq("id", existingUserSub.id);
+      } else {
+        await (adminSupabase.from("subscriptions") as any).insert({
+          user_id: user.id,
+          store_id: null,
+          plan: targetPlan,
+          status: "active",
+          razorpay_subscription_id: payload.subscriptionId,
+          razorpay_signature: payload.signature,
+          current_period_start: currentStartFromRzp,
+          current_period_end: currentEndFromRzp,
+          trial_start: trialStart,
+          trial_end: trialEnd,
+          next_billing_date: currentEndFromRzp,
+          amount: planConfig.priceMonthly,
+          currency: "INR",
+          updated_at: now.toISOString(),
+        });
+      }
+
+      // Record verified payment under user_id
+      await (adminSupabase as any).from("payments").insert({
+        user_id: user.id,
+        store_id: null,
+        plan: targetPlan,
+        razorpay_payment_id: payload.paymentId,
+        razorpay_subscription_id: payload.subscriptionId,
+        amount: planConfig.priceMonthly,
+        currency: "INR",
+        status: "successful",
+      });
+
     }
 
     return successResponse({ success: true, verifiedPlan: targetPlan }, "Payment verified. Subscription active.");
@@ -286,6 +309,7 @@ export async function verifySubscriptionPaymentAction(payload: {
 }
 
 /**
+
  * Securely verifies and activates platform subscription during signup store wizard.
  * Executed server-side using the admin client to bypass client RLS rules.
  */
@@ -424,6 +448,10 @@ export async function activatePlatformSubscriptionAction(
       }
     }
 
+    // Check if user has an existing verified subscription record from onboarding
+    const { subscriptionEngine } = await import("@/lib/services/subscription-engine");
+    await subscriptionEngine.linkUserSubscriptionToStore(store.user_id, storeId, supabase);
+
     // Create/update active subscription in database
     const { error: upsertError } = await (supabase.from("subscriptions") as any).upsert({
       store_id: storeId,
@@ -449,6 +477,7 @@ export async function activatePlatformSubscriptionAction(
     // Insert successful payment record
     await (supabase as any).from("payments").insert({
       store_id: storeId,
+      user_id: store.user_id,
       plan: authoritativePlan,
       razorpay_payment_id: paymentId || `pay_${Date.now()}`,
       razorpay_subscription_id: subscriptionId,
@@ -470,3 +499,4 @@ export async function activatePlatformSubscriptionAction(
     return errorResponse(err.message || "Failed to activate subscription.");
   }
 }
+

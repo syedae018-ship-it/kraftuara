@@ -26,33 +26,9 @@ export class SupabaseProductRepository implements IProductRepository {
   private async checkPlanLimit(storeId: string, client?: any) {
     const supabase = client || this.getSupabase();
     
-    // Fetch subscription details
-    const { data: subRow } = await (supabase.from("subscriptions") as any)
-      .select("plan, status, current_period_end")
-      .eq("store_id", storeId)
-      .maybeSingle();
-
-    let plan: PlanTier = "startup";
-    let status = subRow?.status || "active";
-    const expiresAt = subRow?.current_period_end;
-
-    if (subRow) {
-      const dbPlan = normalizePlanTier(subRow.plan);
-      plan = dbPlan;
-      if (expiresAt) {
-        if (new Date(expiresAt).getTime() < Date.now()) {
-          status = "expired";
-        }
-      }
-    }
-
-    // Downgrade resolved entitlement to startup if expired or cancelled
-    if (status === "expired" || status === "cancelled" || status === "pending" || status === "payment_pending") {
-      plan = "startup";
-    }
-
-    // Get limit based on PLANS gating
-    const limit = getProductLimit(plan);
+    const { subscriptionEngine } = await import("@/lib/services/subscription-engine");
+    const sub = await subscriptionEngine.getAuthoritativeSubscription(storeId, null, supabase);
+    const limit = getProductLimit(sub.plan);
 
     const { count } = await supabase
       .from("products")
@@ -60,15 +36,16 @@ export class SupabaseProductRepository implements IProductRepository {
       .eq("store_id", storeId);
     
     if ((count || 0) >= limit) {
-      if (plan === "startup") {
+      if (sub.plan === "startup") {
         throw new Error("You've reached your 12-product limit. Upgrade your plan to add more products.");
-      } else if (plan === "growth") {
+      } else if (sub.plan === "growth") {
         throw new Error("You've reached your 24-product limit. Upgrade to Pro to add more products.");
       } else {
         throw new Error("You've reached your 100-product limit.");
       }
     }
   }
+
 
   private mapProductRow(row: any): Product {
     return {

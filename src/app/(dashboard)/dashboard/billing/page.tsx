@@ -169,6 +169,12 @@ export default function MerchantBillingPage() {
         name: "Kraftaura Platform Upgrade",
         description: `Upgrade to ${targetPlanConfig.name}`,
         image: "https://api.dicebear.com/7.x/initials/svg?seed=Kraftaura",
+        modal: {
+          ondismiss: function () {
+            setProcessingUpgrade(null);
+            toast.info("Payment Cancelled", "Payment was cancelled. Your current plan remains unchanged.");
+          },
+        },
         handler: async function (response: any) {
           setProcessingUpgrade(planId);
           const { verifySubscriptionPaymentAction } = await import("@/lib/actions/payment");
@@ -186,7 +192,7 @@ export default function MerchantBillingPage() {
             await fetchPayments();
             await notifyStateChange();
           } else {
-            toast.error("Signature Verification Failed", verRes.error || "Crypto mismatch.");
+            toast.error("Verification Failed", "Payment verification failed. Your current plan remains unchanged.");
           }
           setProcessingUpgrade(null);
         },
@@ -201,15 +207,16 @@ export default function MerchantBillingPage() {
 
       const rzp = new (window as any).Razorpay(options);
       rzp.on("payment.failed", function (resp: any) {
-        toast.error("Upgrade Failed", resp.error?.description || "Payment failed or cancelled.");
+        toast.error("Payment Failed", "Payment was unsuccessful. Your current plan remains unchanged.");
         setProcessingUpgrade(null);
       });
       rzp.open();
     } catch (err: any) {
-      toast.error("Checkout Launch Error", err.message || "Failed to load checkout.");
+      toast.error("Checkout Launch Error", err.message || "Failed to load checkout. Your current plan remains unchanged.");
       setProcessingUpgrade(null);
     }
   };
+
 
   const handleAdminOverride = async () => {
     if (!activeStore?.id) return;

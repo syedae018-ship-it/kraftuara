@@ -26,37 +26,16 @@ export class SupabaseCategoryRepository implements ICategoryRepository {
   private async checkPlanLimit(storeId: string, client?: any) {
     const supabase = client || this.getSupabase();
     
-    // Fetch subscription details
-    const { data: subRow } = await (supabase.from("subscriptions") as any)
-      .select("plan, status, current_period_end")
-      .eq("store_id", storeId)
-      .maybeSingle();
-
-    let plan: "startup" | "growth" | "pro" = "startup";
-    let status = subRow?.status || "active";
-    const expiresAt = subRow?.current_period_end;
-
-    if (subRow) {
-      const { normalizePlanTier } = await import("@/lib/feature-gating");
-      plan = normalizePlanTier(subRow.plan);
-      if (expiresAt) {
-        if (new Date(expiresAt).getTime() < Date.now()) {
-          status = "expired";
-        }
-      }
-    }
-
-    // Downgrade resolved entitlement if expired or cancelled
-    if (status === "expired" || status === "cancelled" || status === "pending" || status === "payment_pending") {
-      plan = "startup";
-    }
+    const { subscriptionEngine } = await import("@/lib/services/subscription-engine");
+    const sub = await subscriptionEngine.getAuthoritativeSubscription(storeId, null, supabase);
 
     const { getCategoryLimit, isUnlimitedCategories } = await import("@/lib/feature-gating");
-    if (isUnlimitedCategories(plan)) {
+    if (isUnlimitedCategories(sub.plan)) {
       return; // Unlimited categories allowed for Growth & Pro
     }
 
-    const limit = getCategoryLimit(plan);
+    const limit = getCategoryLimit(sub.plan);
+
 
     const { count } = await supabase
       .from("categories")

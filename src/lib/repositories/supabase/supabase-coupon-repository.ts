@@ -22,33 +22,15 @@ export class SupabaseCouponRepository implements ICouponRepository {
       
     if (!storeRow) throw new Error("Access Denied: You do not own this store.");
 
-    // 2. Verify plan
-    const { data: subRow } = await (supabase.from("subscriptions") as any)
-      .select("plan, status, current_period_end")
-      .eq("store_id", storeId)
-      .maybeSingle();
+    // 2. Verify plan via centralized subscription engine
+    const { subscriptionEngine } = await import("@/lib/services/subscription-engine");
+    const canAccess = await subscriptionEngine.hasStoreFeatureAccess(storeId, "coupons", supabase);
 
-    const { normalizePlanTier, hasFeatureAccess } = await import("@/lib/feature-gating");
-
-    let plan: "startup" | "growth" | "pro" = "startup";
-    let status = subRow?.status || "active";
-    const expiresAt = subRow?.current_period_end;
-
-    if (subRow) {
-      plan = normalizePlanTier(subRow.plan);
-      if (expiresAt && new Date(expiresAt).getTime() < Date.now()) {
-        status = "expired";
-      }
-    }
-
-    if (status === "expired" || status === "cancelled" || status === "pending" || status === "payment_pending") {
-      plan = "startup";
-    }
-
-    if (!hasFeatureAccess(plan, "coupons")) {
+    if (!canAccess) {
       throw new Error("Promo codes and coupons are exclusive to Growth and Pro plans. Please upgrade to unlock coupons.");
     }
   }
+
 
   async getAll(storeId: string, client?: any): Promise<Coupon[]> {
     const supabase = client || this.getSupabase();

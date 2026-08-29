@@ -132,40 +132,15 @@ export function DummyAuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         if (userStores && userStores.length > 0) {
-          const { normalizePlanTier } = await import("@/lib/feature-gating");
+          const { subscriptionEngine } = await import("@/lib/services/subscription-engine");
           const mappedStores: DummyStore[] = await Promise.all(
             userStores.map(async (s: any) => {
-              const sub = Array.isArray(s.subscriptions) ? s.subscriptions[0] : s.subscriptions;
-              let plan = "startup";
-              const validStatuses = ["active", "authenticated", "trialing"];
-              if (sub && validStatuses.includes(sub.status)) {
-                const isExpired = sub.current_period_end ? new Date(sub.current_period_end).getTime() < Date.now() : false;
-                if (!isExpired) {
-                  plan = normalizePlanTier(sub.plan);
-                }
-              } else if (!sub) {
-                // Fallback check: if subscriptions table relation is empty, check recent successful payments
-                try {
-                  const { data: latestPayment } = await (supabase.from("payments") as any)
-                    .select("plan")
-                    .eq("store_id", s.id)
-                    .eq("status", "successful")
-                    .order("created_at", { ascending: false })
-                    .limit(1)
-                    .maybeSingle();
-
-                  if (latestPayment?.plan) {
-                    plan = normalizePlanTier(latestPayment.plan);
-                  }
-                } catch {
-                  // Ignore fallback query error
-                }
-              }
+              const authSub = await subscriptionEngine.getAuthoritativeSubscription(s.id, u.id, supabase);
               return {
                 id: s.id,
                 name: s.name,
                 slug: s.slug,
-                plan,
+                plan: authSub.plan,
                 category: s.category || "",
                 logoUrl: s.logo_url || "",
                 primaryColor: s.primary_color || "",
@@ -178,6 +153,7 @@ export function DummyAuthProvider({ children }: { children: React.ReactNode }) {
 
           const savedActiveStoreId = typeof window !== "undefined" ? localStorage.getItem("symar_active_store_id") : null;
           const found = mappedStores.find((s) => s.id === savedActiveStoreId);
+
           const currentStore = found || mappedStores[0];
           setActiveStore(currentStore);
 
@@ -589,14 +565,18 @@ export function DummyAuthProvider({ children }: { children: React.ReactNode }) {
         display_order: 1,
       });
 
-      // 4. Secure Subscription Setup
-      const selectedPlan = (typeof window !== "undefined" && localStorage.getItem("symar_selected_plan")) || "startup";
-      const rzpSubId = typeof window !== "undefined" ? localStorage.getItem("symar_checkout_subscription_id") : null;
+      // 4. Secure Subscription Setup: query user-level verified subscription first
+      const { subscriptionEngine } = await import("@/lib/services/subscription-engine");
+      const userSub = await subscriptionEngine.getAuthoritativeSubscription(store.id, currentUser.id, supabase);
+
+      const selectedPlan = (typeof window !== "undefined" && localStorage.getItem("symar_selected_plan")) || userSub.plan || "startup";
+      const targetPlan = userSub.plan !== "startup" ? userSub.plan : selectedPlan;
+      const rzpSubId = userSub.razorpaySubscriptionId || (typeof window !== "undefined" ? localStorage.getItem("symar_checkout_subscription_id") : null);
       const rzpPaymentId = typeof window !== "undefined" ? localStorage.getItem("symar_checkout_payment_id") : null;
       const rzpSignature = typeof window !== "undefined" ? localStorage.getItem("symar_checkout_signature") : null;
 
       const { activatePlatformSubscriptionAction } = await import("@/lib/actions/payment");
-      const subRes = await activatePlatformSubscriptionAction(store.id, selectedPlan as any, {
+      const subRes = await activatePlatformSubscriptionAction(store.id, targetPlan as any, {
         subscriptionId: rzpSubId,
         paymentId: rzpPaymentId,
         signature: rzpSignature,
@@ -605,6 +585,9 @@ export function DummyAuthProvider({ children }: { children: React.ReactNode }) {
       if (!subRes.success) {
         console.error("Subscription activation failed during store setup:", subRes.error);
       }
+
+      // Link any user subscription to store
+      await subscriptionEngine.linkUserSubscriptionToStore(currentUser.id, store.id, supabase);
 
       // Clean up localStorage checkout credentials
       if (typeof window !== "undefined") {
@@ -622,6 +605,7 @@ export function DummyAuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsLoading(false);
     }
+
   };
 
   const impersonate = () => {};

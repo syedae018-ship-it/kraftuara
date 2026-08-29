@@ -14,53 +14,16 @@ export class SupabaseStorefrontRepository implements IStorefrontRepository {
     return createClient();
   }
 
-  /**
-   * Resolves the store's active plan tier from the subscriptions table.
-   * Returns "startup" when no subscription exists or the sub is expired/cancelled.
-   */
   private async resolveStorePlan(storeId: string, supabase: any): Promise<string> {
     try {
-      const { data: subRow } = await (supabase.from("subscriptions") as any)
-        .select("plan, status, current_period_end")
-        .eq("store_id", storeId)
-        .maybeSingle();
-
-      if (!subRow) {
-        // Fallback check if subscription table is linking or if store had successful payment
-        try {
-          const { data: latestPayment } = await (supabase.from("payments") as any)
-            .select("plan")
-            .eq("store_id", storeId)
-            .eq("status", "successful")
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .maybeSingle();
-
-          if (latestPayment?.plan) {
-            return normalizePlanTier(latestPayment.plan);
-          }
-        } catch {
-          // Ignore fallback query error
-        }
-        return "startup";
-      }
-
-      const plan = normalizePlanTier(subRow.plan);
-      let status = subRow.status || "active";
-
-      if (subRow.current_period_end && new Date(subRow.current_period_end).getTime() < Date.now()) {
-        status = "expired";
-      }
-
-      if (status === "expired" || status === "cancelled" || status === "pending") {
-        return "startup";
-      }
-
-      return plan;
+      const { subscriptionEngine } = await import("@/lib/services/subscription-engine");
+      const authSub = await subscriptionEngine.getAuthoritativeSubscription(storeId, null, supabase);
+      return authSub.plan;
     } catch {
       return "startup";
     }
   }
+
 
 
   async getStoreBySlug(slug: string, client?: any): Promise<StoreData | null> {

@@ -48,7 +48,12 @@ export async function POST(request: NextRequest) {
 
     const payload = body.payload;
 
-    if (eventType === "subscription.activated" || eventType === "subscription.charged") {
+    if (
+      eventType === "subscription.authenticated" ||
+      eventType === "subscription.activated" ||
+      eventType === "subscription.charged" ||
+      eventType === "subscription.updated"
+    ) {
       const subEntity = payload.subscription?.entity;
       if (!subEntity) {
         return NextResponse.json({ error: "Subscription payload missing." }, { status: 400 });
@@ -58,19 +63,14 @@ export async function POST(request: NextRequest) {
       const storeIdFromNotes = notes.storeId || notes.store_id;
       const userIdFromNotes = notes.userId || notes.user_id;
 
-      let sub = null;
-      let fetchError = null;
+      let sub: any = null;
 
       // 1. Try to find local subscription row by Razorpay subscription ID
-      const { data: subByRzp, error: fetchErr } = await (supabase as any)
+      const { data: subByRzp } = await (supabase as any)
         .from("subscriptions")
-        .select("store_id, plan, current_period_end, status")
+        .select("id, store_id, user_id, plan, current_period_end, status")
         .eq("razorpay_subscription_id", subEntity.id)
         .maybeSingle();
-
-      if (fetchErr) {
-        fetchError = fetchErr;
-      }
 
       if (subByRzp) {
         sub = subByRzp;
@@ -78,12 +78,12 @@ export async function POST(request: NextRequest) {
         // 2. Fallback to notes storeId
         const { data: subByStore } = await (supabase as any)
           .from("subscriptions")
-          .select("store_id, plan, current_period_end, status")
+          .select("id, store_id, user_id, plan, current_period_end, status")
           .eq("store_id", storeIdFromNotes)
           .maybeSingle();
         sub = subByStore;
       } else if (userIdFromNotes) {
-        // 3. Fallback to user's latest store (handles onboarding race condition)
+        // 3. Fallback to user's latest store
         const { data: userStore } = await (supabase as any)
           .from("stores")
           .select("id")
@@ -95,6 +95,7 @@ export async function POST(request: NextRequest) {
         if (userStore) {
           sub = {
             store_id: userStore.id,
+            user_id: userIdFromNotes,
             plan: null,
             current_period_end: null,
             status: "payment_pending",
@@ -102,29 +103,21 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      if (fetchError || !sub) {
-        // If store is still not created, log and return 200 so Razorpay does not endlessly retry
-        console.warn(`Webhook received for subscription ${subEntity.id}, but no linked store yet.`);
-        return NextResponse.json({ success: true, message: "Subscription acknowledged, waiting for store link." });
-      }
-
-      const targetPlan = resolvePlanFromRazorpay(subEntity, (sub.plan as any) || "startup");
+      const targetPlan = resolvePlanFromRazorpay(subEntity, (sub?.plan as any) || "startup");
       const planConfig = PLANS[targetPlan] || PLANS.startup;
       const amount = planConfig.priceMonthly;
 
-      const newPeriodEnd = new Date(subEntity.current_end * 1000).toISOString();
-      const newPeriodStart = new Date(subEntity.current_start * 1000).toISOString();
-
-      // Avoid race conditions: only update if period end is further out, status needs updating, or plan needs updating
-      const isNewer = !sub.current_period_end || new Date(newPeriodEnd).getTime() > new Date(sub.current_period_end).getTime();
-
+      const newPeriodEnd = subEntity.current_end ? new Date(subEntity.current_end * 1000).toISOString() : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+      const newPeriodStart = subEntity.current_start ? new Date(subEntity.current_start * 1000).toISOString() : new Date().toISOString();
       const trialStart = subEntity.created_at ? new Date(subEntity.created_at * 1000).toISOString() : new Date().toISOString();
       const trialEnd = subEntity.start_at ? new Date(subEntity.start_at * 1000).toISOString() : new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString();
 
-      if (isNewer || sub.status !== "active" || sub.plan !== targetPlan) {
+      if (sub?.store_id) {
         await (supabase as any)
           .from("subscriptions")
-          .update({
+          .upsert({
+            store_id: sub.store_id,
+            user_id: sub.user_id || userIdFromNotes || null,
             plan: targetPlan,
             status: "active",
             razorpay_subscription_id: subEntity.id,
@@ -136,17 +129,12 @@ export async function POST(request: NextRequest) {
             amount: amount,
             currency: "INR",
             updated_at: new Date().toISOString(),
-          })
-          .eq("store_id", sub.store_id);
-      }
+          }, { onConflict: "store_id" });
 
-      // Log payment record in payments table
-      const paymentEntity = payload.payment?.entity;
-
-      await (supabase as any)
-        .from("payments")
-        .insert({
+        const paymentEntity = payload.payment?.entity;
+        await (supabase as any).from("payments").insert({
           store_id: sub.store_id,
+          user_id: sub.user_id || userIdFromNotes || null,
           plan: targetPlan,
           razorpay_payment_id: paymentEntity?.id || `webhk_${eventId}`,
           razorpay_subscription_id: subEntity.id,
@@ -154,25 +142,68 @@ export async function POST(request: NextRequest) {
           currency: "INR",
           status: "successful",
         });
+      } else if (userIdFromNotes) {
+        // Persist under user_id so subsequent store creation wizard links seamlessly
+        await (supabase as any).from("subscriptions").insert({
+          user_id: userIdFromNotes,
+          store_id: null,
+          plan: targetPlan,
+          status: "active",
+          razorpay_subscription_id: subEntity.id,
+          current_period_start: newPeriodStart,
+          current_period_end: newPeriodEnd,
+          trial_start: trialStart,
+          trial_end: trialEnd,
+          next_billing_date: newPeriodEnd,
+          amount: amount,
+          currency: "INR",
+          updated_at: new Date().toISOString(),
+        });
+
+        const paymentEntity = payload.payment?.entity;
+        await (supabase as any).from("payments").insert({
+          user_id: userIdFromNotes,
+          store_id: null,
+          plan: targetPlan,
+          razorpay_payment_id: paymentEntity?.id || `webhk_${eventId}`,
+          razorpay_subscription_id: subEntity.id,
+          amount: amount,
+          currency: "INR",
+          status: "successful",
+        });
+      }
+    }
+
+    if (eventType === "subscription.pending" || eventType === "subscription.halted") {
+      const subEntity = payload.subscription?.entity;
+      if (subEntity?.id) {
+        await (supabase as any)
+          .from("subscriptions")
+          .update({
+            status: "payment_pending",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("razorpay_subscription_id", subEntity.id);
+      }
     }
 
     if (eventType === "subscription.cancelled" || eventType === "subscription.completed") {
       const subEntity = payload.subscription?.entity;
-      if (!subEntity) {
-        return NextResponse.json({ error: "Subscription payload missing." }, { status: 400 });
+      if (subEntity) {
+        await (supabase as any)
+          .from("subscriptions")
+          .update({
+            status: "cancelled",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("razorpay_subscription_id", subEntity.id);
       }
-
-      await (supabase as any)
-        .from("subscriptions")
-        .update({
-          status: "cancelled",
-        })
-        .eq("razorpay_subscription_id", subEntity.id);
     }
 
     return NextResponse.json({ success: true });
   } catch (err: any) {
     console.error("Webhook processing error:", err);
+
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
