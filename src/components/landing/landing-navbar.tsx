@@ -38,7 +38,7 @@ export function LandingNavbar() {
               <span className="font-extrabold text-white">Kraft</span>
               <span className="font-normal text-zinc-300">aura</span>
             </div>
-            <span className="text-[10px] text-zinc-400 font-body -mt-0.5">Shopify Lite for Indian Creators</span>
+            <span className="text-[10px] text-zinc-400 font-body -mt-0.5">Online Store Builder for India</span>
           </div>
         </Link>
 

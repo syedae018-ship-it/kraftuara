@@ -36,8 +36,8 @@ import { cn } from "@/lib/utils";
 const craftStoreClassicTemplate = {
   id: "bloom",
   name: "Kraftaura Classic",
-  tag: "Artisan, Homeware, Boutique & Modern Catalog",
-  desc: "Clean, high-converting light aesthetic tailored for boutique storefronts, handcrafted artisan goods, and modern brands with instant WhatsApp buy.",
+  tag: "Modern Storefront & Product Catalog Layout",
+  desc: "Clean, high-converting storefront layout designed for boutique stores, artisan makers, retail businesses, and modern Indian brands.",
   desktopImg: "https://images.unsplash.com/photo-1612196808214-b8e1d6145a8c?w=1400",
   mobileImg: "https://images.unsplash.com/photo-1594035910387-fea47794261f?w=600",
   accent: "from-amber-500/20 to-maroon-900/30",
@@ -46,37 +46,37 @@ const craftStoreClassicTemplate = {
 const featuresList = [
   {
     title: "Store Builder",
-    desc: "Drag and drop sections with instant live preview. Set up in under 2 minutes without coding.",
+    desc: "Launch a branded online store with instant live preview. Set up in under 2 minutes with zero coding required.",
     icon: Layers,
   },
   {
-    title: "WhatsApp Store",
-    desc: "Instant direct-to-WhatsApp order routing with pre-filled cart summaries & buyer address.",
+    title: "WhatsApp & Direct Orders",
+    desc: "Enable instant WhatsApp order routing alongside direct store checkout with automated buyer summaries.",
     icon: MessageSquare,
   },
   {
-    title: "E-commerce Engine",
-    desc: "Full checkout support with Razorpay integration, online payments, shipping, and automated receipts.",
+    title: "Online Payments",
+    desc: "Accept UPI, debit/credit cards, and net banking seamlessly with integrated Razorpay payment gateway.",
     icon: ShoppingBag,
   },
   {
-    title: "Real-time Analytics",
-    desc: "Track visitors, link clicks, category conversions, and store revenue in a sleek dashboard.",
+    title: "Store Analytics",
+    desc: "Track store visitors, product views, traffic sources, and revenue metrics in a real-time merchant dashboard.",
     icon: BarChart3,
   },
   {
-    title: "Creative Services",
-    desc: "Order custom banner graphics and promotional assets directly within your store admin panel.",
+    title: "Creative Hub",
+    desc: "Order custom banner graphics and promotional marketing assets directly within your store admin panel.",
     icon: Paintbrush,
   },
   {
-    title: "Storefront Design",
-    desc: "Kraftaura Classic layout with complete typography, palette customizer, and instant responsive layouts.",
+    title: "Product Catalog",
+    desc: "Organize products, collections, categories, inventory alerts, and promotional discount coupon codes.",
     icon: Sparkles,
   },
   {
-    title: "Fast Setup",
-    desc: "Optimized performance, mobile responsiveness, and automatic domain management.",
+    title: "Fast & Mobile-First",
+    desc: "Lightning-fast page speeds, mobile-optimized layouts, bank-grade SSL security, and custom domain mapping.",
     icon: Zap,
   },
 ];
@@ -140,22 +140,27 @@ const pricingPlans = [
 
 const faqs = [
   {
-    q: "How does the WhatsApp Ordering system work?",
-    a: "When customers click 'Buy on WhatsApp' or check out on your store, their cart is converted into a pre-formatted WhatsApp message and sent directly to your business phone number.",
+    q: "How does the online store builder work?",
+    a: "Kraftaura provides a ready-to-use online store platform. You can upload products, set prices, customize branding colors and fonts, and begin selling immediately without writing any code.",
+  },
+  {
+    q: "How does WhatsApp ordering and checkout work?",
+    a: "When customers choose to order via WhatsApp, their cart details, selected items, and delivery address are automatically formatted into a WhatsApp message and sent directly to your business number.",
+  },
+  {
+    q: "Can I accept online payments like UPI and cards?",
+    a: "Yes. Kraftaura integrates directly with Razorpay, allowing your customers to pay via UPI (Google Pay, PhonePe, Paytm), Debit/Credit Cards, and Net Banking.",
   },
   {
     q: "Can I use my own custom domain?",
-    a: "Yes! While every store comes with a free brand.platform.com subdomain, Pro Plan allows you to connect your custom domain (e.g. store.com).",
+    a: "Yes. While every store comes with a free brand subdomain, you can connect your own custom domain (e.g. yourstore.com) on supported plans.",
   },
   {
-    q: "Do I need coding skills to customize my store?",
-    a: "Not at all. Our visual store editor lets you customize colors, logos, fonts, buttons, and layout order in real time with instant live previews.",
-  },
-  {
-    q: "What payment gateways are supported?",
-    a: "Business plan stores support Razorpay for direct UPI, Credit/Debit cards, and net banking payments alongside WhatsApp manual payment confirmation.",
+    q: "Do I need coding or design skills?",
+    a: "Not at all. The visual store editor allows you to manage products, categories, logos, banners, and store styles easily with live preview.",
   },
 ];
+
 
 export function LandingPage() {
   const [activeDevice, setActiveDevice] = useState<"desktop" | "mobile">("desktop");
@@ -180,7 +185,7 @@ export function LandingPage() {
         <div className="space-y-5 max-w-4xl mx-auto relative z-10">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-maroon-950/80 border border-maroon-700/50 text-maroon-300 text-xs font-semibold font-heading shadow-glow">
             <Sparkles className="w-3.5 h-3.5 text-maroon-400" />
-            <span>Next-Gen WhatsApp Commerce & Storefront Platform</span>
+            <span>Online Store Builder for Small Businesses in India</span>
           </div>
 
           {/* Main headline */}
@@ -303,13 +308,13 @@ export function LandingPage() {
       <section id="templates" className="pt-12 pb-24 px-4 sm:px-6 lg:px-12 max-w-7xl mx-auto space-y-12 border-t border-white/10">
         <div className="text-center space-y-3">
           <Badge variant="maroon" className="text-xs uppercase tracking-wider">
-            Signature Design System
+            Storefront Templates
           </Badge>
           <h2 className="text-3xl sm:text-4xl font-bold font-heading text-white tracking-tight">
-            Kraftaura Classic
+            Modern Online Store Templates Designed to Convert
           </h2>
           <p className="text-xs text-zinc-400 max-w-xl mx-auto font-body">
-            Tailored storefront design optimized for artisan makers, boutique designers, and modern brands.
+            Tailored online store layouts optimized for small businesses, artisan makers, boutique designers, and growing Indian brands.
           </p>
         </div>
 
@@ -360,11 +365,11 @@ export function LandingPage() {
                 </div>
                 <div className="flex items-center gap-2 text-xs text-zinc-300 font-body">
                   <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                  Font & color customization presets
+                  Font, color & brand theme customization
                 </div>
                 <div className="flex items-center gap-2 text-xs text-zinc-300 font-body">
                   <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                  Instant checkout via WhatsApp
+                  Direct online checkout & WhatsApp ordering
                 </div>
               </div>
 
@@ -436,13 +441,13 @@ export function LandingPage() {
       <section id="features" className="py-24 px-4 sm:px-6 lg:px-12 max-w-7xl mx-auto space-y-12 border-t border-white/10">
         <div className="text-center space-y-3">
           <Badge variant="maroon" className="text-xs uppercase tracking-wider">
-            All-in-One SaaS Toolkit
+            All-in-One Store Platform
           </Badge>
           <h2 className="text-3xl sm:text-4xl font-bold font-heading text-white tracking-tight">
-            Engineered for Modern SaaS Merchants
+            Everything You Need to Run Your Online Store
           </h2>
           <p className="text-sm text-zinc-400 max-w-xl mx-auto">
-            Everything you need to showcase, market, and sell your products seamlessly.
+            Comprehensive tools built for small businesses in India to showcase products, accept online payments, manage orders, and grow sales.
           </p>
         </div>
 
@@ -471,13 +476,13 @@ export function LandingPage() {
       <section id="pricing" className="py-24 px-4 sm:px-6 lg:px-12 max-w-7xl mx-auto space-y-12 border-t border-white/10">
         <div className="text-center space-y-3">
           <Badge variant="maroon" className="text-xs uppercase tracking-wider">
-            Flexible Plans
+            Affordable Plans
           </Badge>
           <h2 className="text-3xl sm:text-4xl font-bold font-heading text-white tracking-tight">
             Transparent Pricing for Every Business Tier
           </h2>
           <p className="text-sm text-zinc-400 max-w-xl mx-auto">
-            Get started with a 3-day free trial on any of our plans.
+            Simple, transparent plans designed for growing businesses in India. Includes a 3-day free trial on all plans.
           </p>
         </div>
 
@@ -587,10 +592,10 @@ export function LandingPage() {
       <section className="py-24 px-4 sm:px-6 lg:px-12 max-w-7xl mx-auto space-y-12 border-t border-white/10 text-center">
         <div className="space-y-3">
           <Badge variant="maroon" className="text-xs uppercase tracking-wider">
-            Merchant Love
+            Merchant Stories
           </Badge>
           <h2 className="text-3xl sm:text-4xl font-bold font-heading text-white tracking-tight">
-            Trusted by 100+ Catalog Merchants
+            Trusted by Growing Indian Businesses
           </h2>
         </div>
 
@@ -646,7 +651,7 @@ export function LandingPage() {
             <div className="text-sm tracking-wide flex items-baseline font-heading">
               <span className="font-extrabold text-white">Kraft</span>
               <span className="font-normal text-zinc-300">aura</span>
-              <span className="text-[10px] text-zinc-500 uppercase tracking-widest ml-1 font-mono">SaaS Platform</span>
+              <span className="text-[10px] text-zinc-500 uppercase tracking-widest ml-1 font-mono">Online Store Platform</span>
             </div>
           </div>
 
