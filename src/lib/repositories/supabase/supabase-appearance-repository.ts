@@ -25,8 +25,17 @@ export class SupabaseAppearanceRepository implements IAppearanceRepository {
       .maybeSingle();
 
     if (error || !data) {
+      const resolved = resolveThemeTokens(initialAppearanceSettings);
       return {
         ...initialAppearanceSettings,
+        paletteId: resolved.paletteId,
+        tokens: resolved.tokens,
+        colors: {
+          primary: resolved.tokens.primary,
+          secondary: resolved.tokens.secondary,
+          accent: resolved.tokens.accent,
+          background: resolved.tokens.background,
+        },
         branding: {
           ...initialAppearanceSettings.branding,
           name: storeName,
@@ -38,13 +47,14 @@ export class SupabaseAppearanceRepository implements IAppearanceRepository {
           facebook: s?.facebook || undefined,
           email: s?.email || undefined,
           address: s?.business_address || undefined,
-        }
+        },
       };
     }
 
+
     const dbSettings = data?.metadata?.appearance || {};
-    const { resolveThemeTokens } = await import("@/lib/theme-token-resolver");
     const resolved = resolveThemeTokens(dbSettings);
+
 
     return {
       themeId: dbSettings.themeId || "bloom",

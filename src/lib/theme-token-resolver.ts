@@ -18,7 +18,8 @@ import {
   adjustLightness,
   validateTokenContrast,
 } from "./color-utils";
-import { getFontStack } from "@/components/appearance/typography-picker";
+import { getFontStack } from "./typography-utils";
+
 
 export interface ResolvedTheme {
   paletteId: CuratedPaletteId;

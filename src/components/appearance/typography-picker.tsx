@@ -10,45 +10,9 @@ export interface TypographyPickerProps {
   className?: string;
 }
 
-export const SUPPORTED_FONTS = [
-  "Helvetica Neue",
-  "Poppins",
-  "Inter",
-  "Montserrat",
-  "Roboto",
-  "Open Sans",
-  "Lato",
-  "DM Sans",
-  "Manrope",
-  "Plus Jakarta Sans",
-  "Archivo",
-  "Oswald",
-  "Impact",
-  "Playfair Display",
-  "Space Grotesk",
-];
+import { SUPPORTED_FONTS, fontStacks, getFontStack } from "@/lib/typography-utils";
+export { SUPPORTED_FONTS, fontStacks, getFontStack };
 
-export const fontStacks: Record<string, string> = {
-  "Helvetica Neue": '"Helvetica Neue", Helvetica, Arial, sans-serif',
-  "Poppins": '"Poppins", sans-serif',
-  "Inter": '"Inter", sans-serif',
-  "Montserrat": '"Montserrat", sans-serif',
-  "Roboto": '"Roboto", sans-serif',
-  "Open Sans": '"Open Sans", sans-serif',
-  "Lato": '"Lato", sans-serif',
-  "DM Sans": '"DM Sans", sans-serif',
-  "Manrope": '"Manrope", sans-serif',
-  "Plus Jakarta Sans": '"Plus Jakarta Sans", sans-serif',
-  "Archivo": '"Archivo", sans-serif',
-  "Oswald": '"Oswald", sans-serif',
-  "Impact": 'Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif',
-  "Playfair Display": '"Playfair Display", serif',
-  "Space Grotesk": '"Space Grotesk", sans-serif',
-};
-
-export const getFontStack = (font: string) => {
-  return fontStacks[font] || `"${font}", sans-serif`;
-};
 
 export function TypographyPicker({ typography, onChange, className }: TypographyPickerProps) {
   const headingFont = typography.headingFont || "Helvetica Neue";

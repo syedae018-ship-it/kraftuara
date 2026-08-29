@@ -6,12 +6,12 @@ import Header from "../layout/Header";
 import Footer from "../layout/Footer";
 import ProductList from "./ProductList";
 import { StoreData } from "@/types/store";
-import { getFontStack } from "@/components/appearance/typography-picker";
+import { getFontStack } from "@/lib/typography-utils";
 import { resolveImageUrl } from "@/lib/image-resolver";
 import { CollectionSection } from "@/components/storefront/collection-section";
+import { resolveThemeTokens } from "@/lib/theme-token-resolver";
 
 export function getBloomThemeStyles(appearanceOrColors: any, typography?: any) {
-  const { resolveThemeTokens } = require("@/lib/theme-token-resolver");
   const settingsObj = appearanceOrColors?.branding || appearanceOrColors?.paletteId || appearanceOrColors?.customOverrides
     ? appearanceOrColors
     : { colors: appearanceOrColors, typography };
@@ -19,6 +19,7 @@ export function getBloomThemeStyles(appearanceOrColors: any, typography?: any) {
   const resolved = resolveThemeTokens(settingsObj);
   return resolved.styleObject;
 }
+
 
 
 export function getBloomFontsLink(typography: any) {

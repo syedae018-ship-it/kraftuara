@@ -3,7 +3,8 @@
 import React, { useState } from "react";
 import { AppearanceSettings } from "@/types/theme";
 import { Product } from "@/types/product";
-import { getFontStack } from "./typography-picker";
+import { getFontStack } from "@/lib/typography-utils";
+
 import { Category } from "@/types/category";
 
 const initialMockCategories: Category[] = [
