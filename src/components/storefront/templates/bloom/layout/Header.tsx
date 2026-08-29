@@ -9,6 +9,7 @@ import { Button } from "../ui/button";
 import { getStoreBasePath } from "@/lib/urls";
 import { StoreData } from "@/types/store";
 import { resolveImageUrl } from "@/lib/image-resolver";
+import { hasFeatureAccess } from "@/lib/feature-gating";
 
 export default function Header({ store, isSubdomain = false }: { store: StoreData; isSubdomain?: boolean }) {
   const { cart } = useCart();
@@ -49,12 +50,14 @@ export default function Header({ store, isSubdomain = false }: { store: StoreDat
 
   const isActivePath = (path: string) => pathname === path || (path === "/" && pathname === basePath);
 
-  const canTrackOrders = store.plan === "growth" || store.plan === "pro";
+  const canTrackOrders = hasFeatureAccess(store.plan || "startup", "customer_order_tracking");
 
   const navItems = [
     ...(canTrackOrders ? [{ href: trackLink, label: "Track Order" }] : []),
     { href: contactLink, label: "Contact" },
   ];
+
+
 
   return (
     <header

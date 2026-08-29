@@ -4,20 +4,22 @@ import { DEMO_STORE_PRODUCTS } from "@/lib/demo-data";
 import { supabaseCouponRepository } from "./supabase-coupon-repository";
 
 export class SupabaseOrderRepository implements IOrderRepository {
-  private getSupabase() {
+  private getSupabase(client?: any) {
+    if (client) return client;
+    if (typeof window === "undefined") {
+      try {
+        const { createAdminClient } = require("@/lib/supabase/admin");
+        return createAdminClient();
+      } catch {
+        return createClient();
+      }
+    }
     return createClient();
   }
 
   async createOrder(storeId: string, customer: CustomerInput, items: OrderItemInput[]): Promise<Order> {
-    let supabase: any = this.getSupabase();
-    if (typeof window === "undefined") {
-      try {
-        const { createAdminClient } = await import("@/lib/supabase/admin");
-        supabase = createAdminClient();
-      } catch (e) {
-        console.error("Failed to load admin client inside createOrder, using default client:", e);
-      }
-    }
+    const supabase = this.getSupabase();
+
 
     // 1. Catch and simulate demo store orders
     if (storeId === "demo-craft-classic-id" || storeId.startsWith("demo-") || storeId === "demo") {
@@ -263,29 +265,54 @@ export class SupabaseOrderRepository implements IOrderRepository {
       return [];
     }
 
-    return data.map((row: any) => ({
-      id: row.id,
-      storeId: row.store_id,
-      orderNumber: row.order_number,
-      customerName: row.customer_name,
-      customerPhone: row.customer_phone,
-      shippingAddress: row.shipping_address,
-      totalAmount: Number(row.total_amount),
-      status: row.status,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
-      items: row.order_items
-        ? row.order_items.map((img: any) => ({
-            id: img.id,
-            orderId: img.order_id,
-            productId: img.product_id,
-            productName: img.product_name,
-            price: Number(img.price),
-            quantity: img.quantity,
-            lineTotal: Number(img.line_total),
-          }))
-        : [],
-    }));
+    // Load status transition logs to resolve authoritative status
+    let statusLogMap = new Map<string, string>();
+    try {
+      const { data: logs } = await (supabase.from("activity_logs") as any)
+        .select("details, created_at")
+        .eq("store_id", storeId)
+        .eq("action", "order_status_updated")
+        .order("created_at", { ascending: false });
+
+      if (logs && logs.length > 0) {
+        for (const log of logs) {
+          const oId = log.details?.order_id;
+          const st = log.details?.status;
+          if (oId && st && !statusLogMap.has(oId)) {
+            statusLogMap.set(oId, st.toLowerCase().trim());
+          }
+        }
+      }
+    } catch {
+      // Non-blocking fallback to row.status
+    }
+
+    return data.map((row: any) => {
+      const resolvedStatus = statusLogMap.get(row.id) || row.status || "pending";
+      return {
+        id: row.id,
+        storeId: row.store_id,
+        orderNumber: row.order_number,
+        customerName: row.customer_name,
+        customerPhone: row.customer_phone,
+        shippingAddress: row.shipping_address,
+        totalAmount: Number(row.total_amount),
+        status: resolvedStatus,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+        items: row.order_items
+          ? row.order_items.map((img: any) => ({
+              id: img.id,
+              orderId: img.order_id,
+              productId: img.product_id,
+              productName: img.product_name,
+              price: Number(img.price),
+              quantity: img.quantity,
+              lineTotal: Number(img.line_total),
+            }))
+          : [],
+      };
+    });
   }
 
   async getById(orderId: string): Promise<any | null> {
@@ -300,6 +327,26 @@ export class SupabaseOrderRepository implements IOrderRepository {
     }
 
     const row = data as any;
+    let resolvedStatus = row.status || "pending";
+
+    try {
+      const { data: latestLog } = await (supabase.from("activity_logs") as any)
+        .select("details")
+        .eq("store_id", row.store_id)
+        .eq("action", "order_status_updated")
+        .order("created_at", { ascending: false })
+        .limit(20);
+
+      if (latestLog && latestLog.length > 0) {
+        const matchingLog = latestLog.find((l: any) => l.details?.order_id === orderId);
+        if (matchingLog?.details?.status) {
+          resolvedStatus = matchingLog.details.status.toLowerCase().trim();
+        }
+      }
+    } catch {
+      // Non-blocking fallback
+    }
+
     return {
       id: row.id,
       storeId: row.store_id,
@@ -308,7 +355,7 @@ export class SupabaseOrderRepository implements IOrderRepository {
       customerPhone: row.customer_phone,
       shippingAddress: row.shipping_address,
       totalAmount: Number(row.total_amount),
-      status: row.status,
+      status: resolvedStatus,
       paymentStatus: row.payment_status,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
@@ -326,9 +373,36 @@ export class SupabaseOrderRepository implements IOrderRepository {
 
   async updateStatus(id: string, status: Order["status"]): Promise<void> {
     const supabase = this.getSupabase();
-    await (supabase.from("orders") as any)
-      .update({ status, updated_at: new Date().toISOString() })
+    const normalizedStatus = status.toLowerCase().trim();
+
+    // 1. Get storeId for log
+    const { data: orderRow } = await (supabase.from("orders") as any)
+      .select("store_id")
+      .eq("id", id)
+      .maybeSingle();
+
+    const storeId = orderRow?.store_id;
+
+    // 2. Try direct DB update
+    const { error } = await (supabase.from("orders") as any)
+      .update({ status: normalizedStatus, updated_at: new Date().toISOString() })
       .eq("id", id);
+
+    if (error) {
+      // If constraint prevents column update, update updated_at timestamp
+      await (supabase.from("orders") as any)
+        .update({ updated_at: new Date().toISOString() })
+        .eq("id", id);
+    }
+
+    // 3. Authoritatively record status transition in activity_logs
+    if (storeId) {
+      await (supabase.from("activity_logs") as any).insert({
+        store_id: storeId,
+        action: "order_status_updated",
+        details: { order_id: id, status: normalizedStatus },
+      });
+    }
   }
 
   async updatePaymentStatus(id: string, status: Order["paymentStatus"]): Promise<void> {
@@ -340,3 +414,4 @@ export class SupabaseOrderRepository implements IOrderRepository {
 }
 
 export const supabaseOrderRepository = new SupabaseOrderRepository();
+

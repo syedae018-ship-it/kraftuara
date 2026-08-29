@@ -25,7 +25,25 @@ export class SupabaseStorefrontRepository implements IStorefrontRepository {
         .eq("store_id", storeId)
         .maybeSingle();
 
-      if (!subRow) return "startup";
+      if (!subRow) {
+        // Fallback check if subscription table is linking or if store had successful payment
+        try {
+          const { data: latestPayment } = await (supabase.from("payments") as any)
+            .select("plan")
+            .eq("store_id", storeId)
+            .eq("status", "successful")
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (latestPayment?.plan) {
+            return normalizePlanTier(latestPayment.plan);
+          }
+        } catch {
+          // Ignore fallback query error
+        }
+        return "startup";
+      }
 
       const plan = normalizePlanTier(subRow.plan);
       let status = subRow.status || "active";
@@ -43,6 +61,7 @@ export class SupabaseStorefrontRepository implements IStorefrontRepository {
       return "startup";
     }
   }
+
 
   async getStoreBySlug(slug: string, client?: any): Promise<StoreData | null> {
     const isDemoSlug = ["demo", "demo-craft-classic", "craft-classic", "aroma-perfumes", "tech-haven", "creative-threads"].includes(slug);

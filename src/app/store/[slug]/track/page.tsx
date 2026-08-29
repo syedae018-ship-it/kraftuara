@@ -25,6 +25,8 @@ export async function generateMetadata({
   };
 }
 
+import { hasFeatureAccess } from "@/lib/feature-gating";
+
 export default async function TrackOrderRoute({
   params,
   searchParams,
@@ -41,9 +43,9 @@ export default async function TrackOrderRoute({
   const store = await storefrontRepository.getStoreBySlug(slug, supabase);
   if (!store) return notFound();
 
-  // Order tracking is only available for Growth and Pro stores
-  const storePlan = store.plan || "startup";
-  if (storePlan === "startup") return notFound();
+  // Order tracking entitlement enforced via centralized feature gating engine
+  const canTrackOrders = hasFeatureAccess(store.plan || "startup", "customer_order_tracking");
+  if (!canTrackOrders) return notFound();
 
   return (
     <BloomTrackOrderPage
@@ -53,3 +55,4 @@ export default async function TrackOrderRoute({
     />
   );
 }
+

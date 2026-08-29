@@ -1,5 +1,6 @@
 import { ReactNode } from "react";
 import { Database } from "./database";
+export * from "./order";
 
 export type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
 export type StoreRow = Database["public"]["Tables"]["stores"]["Row"];

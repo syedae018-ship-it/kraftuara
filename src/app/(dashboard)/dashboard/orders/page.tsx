@@ -31,6 +31,8 @@ import { orderRepository } from "@/lib/repositories/order-repository";
 import { getOrderDetailsAction, updateOrderStatusAction } from "@/lib/actions/order";
 import { PlanGate } from "@/components/dashboard/plan-gate";
 
+import { OrderStatus, CANONICAL_ORDER_STATUSES } from "@/types/order";
+
 export default function MerchantOrdersPage() {
   const { activeStore } = useAuth();
   const [orders, setOrders] = useState<any[]>([]);
@@ -66,7 +68,7 @@ export default function MerchantOrdersPage() {
           items: itemsList,
           total: `₹${Number(o.totalAmount).toLocaleString()}`,
           rawTotal: o.totalAmount,
-          status: o.status, // keep raw lowercase status
+          status: o.status, // canonical lowercase status
           date: new Date(o.createdAt).toLocaleString(),
         };
       });
@@ -106,29 +108,33 @@ export default function MerchantOrdersPage() {
   // Change status of selected order
   const handleStatusChange = async (newStatus: string) => {
     if (!selectedOrder) return;
+    const normalized = newStatus.toLowerCase().trim() as OrderStatus;
+    if (!CANONICAL_ORDER_STATUSES.includes(normalized)) return;
+
     setIsUpdatingStatus(true);
     try {
-      const response = await updateOrderStatusAction(selectedOrder.rawId, newStatus as any);
+      const response = await updateOrderStatusAction(selectedOrder.rawId, normalized);
       if (response.success) {
-        toast.success("Order Updated", `Order status set to ${newStatus}.`);
+        toast.success("Order Updated", `Order status set to ${normalized}.`);
         
-        // Re-load details
+        // Re-load authoritative details
         const detailsRes = await getOrderDetailsAction(selectedOrder.rawId);
         if (detailsRes.success && detailsRes.order) {
           setSelectedOrderDetails(detailsRes.order);
         }
         
         // Refresh orders list
-        fetchOrders();
+        await fetchOrders();
       } else {
-        toast.error("Update Failed", response.error || "Failed to update status.");
+        toast.error("Update Failed", response.error || "We couldn't update the order status. Please try again.");
       }
     } catch (e) {
-      toast.error("Error", "An unexpected error occurred.");
+      toast.error("Error", "We couldn't update the order status. Please try again.");
     } finally {
       setIsUpdatingStatus(false);
     }
   };
+
 
   // Copy phone or address utilities
   const handleCopyText = (text: string, label: string) => {

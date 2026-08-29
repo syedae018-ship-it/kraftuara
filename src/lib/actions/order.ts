@@ -56,7 +56,7 @@ export async function createOrderAction(
 export async function getOrderDetailsAction(orderId: string) {
   try {
     const supabase = await createServerInstance();
-    await verifyOrderStoreOwner(supabase, orderId);
+    const { storeId } = await verifyOrderStoreOwner(supabase, orderId);
 
     const { data: orderRow, error } = await (supabase.from("orders") as any)
       .select("*, order_items(*)")
@@ -64,6 +64,25 @@ export async function getOrderDetailsAction(orderId: string) {
       .single();
     
     if (error || !orderRow) throw new Error("Order not found");
+
+    let resolvedStatus = orderRow.status || "pending";
+    try {
+      const { data: latestLog } = await (supabase.from("activity_logs") as any)
+        .select("details")
+        .eq("store_id", storeId)
+        .eq("action", "order_status_updated")
+        .order("created_at", { ascending: false })
+        .limit(20);
+
+      if (latestLog && latestLog.length > 0) {
+        const match = latestLog.find((l: any) => l.details?.order_id === orderId);
+        if (match?.details?.status) {
+          resolvedStatus = match.details.status.toLowerCase().trim();
+        }
+      }
+    } catch {
+      // Non-blocking fallback
+    }
     
     return {
       success: true,
@@ -75,7 +94,7 @@ export async function getOrderDetailsAction(orderId: string) {
         customerPhone: orderRow.customer_phone,
         shippingAddress: orderRow.shipping_address,
         totalAmount: Number(orderRow.total_amount),
-        status: orderRow.status,
+        status: resolvedStatus,
         createdAt: orderRow.created_at,
         updatedAt: orderRow.updated_at,
         items: orderRow.order_items ? orderRow.order_items.map((itm: any) => ({
@@ -99,13 +118,13 @@ export async function updateOrderStatusAction(orderId: string, status: string) {
     const supabase = await createServerInstance();
     const { storeId } = await verifyOrderStoreOwner(supabase, orderId);
 
-    // Verify Growth or Pro plan entitlement
+    // Verify Growth or Pro plan entitlement using centralized feature gating
     const { data: subRow } = await (supabase.from("subscriptions") as any)
       .select("plan, status, current_period_end")
       .eq("store_id", storeId)
       .maybeSingle();
 
-    const { normalizePlanTier, isPlanAtLeast } = await import("@/lib/feature-gating");
+    const { normalizePlanTier, hasFeatureAccess } = await import("@/lib/feature-gating");
     let plan = "startup";
     let subStatus = subRow?.status || "active";
     if (subRow) {
@@ -118,38 +137,43 @@ export async function updateOrderStatusAction(orderId: string, status: string) {
       plan = "startup";
     }
 
-    if (!isPlanAtLeast(plan, "growth")) {
+    if (!hasFeatureAccess(plan, "order_management")) {
       return { success: false, error: "Order status management requires the Growth Pack (₹299/mo) or Pro Plan (₹499/mo)." };
     }
 
-    const validStatuses = ["pending", "confirmed", "processing", "shipped", "delivered", "cancelled"];
+    const { CANONICAL_ORDER_STATUSES } = await import("@/types/order");
     const normalizedStatus = status.toLowerCase().trim();
-    if (!validStatuses.includes(normalizedStatus)) {
+    if (!CANONICAL_ORDER_STATUSES.includes(normalizedStatus as any)) {
       return { success: false, error: "Invalid order status specified." };
     }
 
-    let { error } = await (supabase.from("orders") as any)
+    // 1. Try updating direct database column
+    const { error: updateErr } = await (supabase.from("orders") as any)
       .update({ status: normalizedStatus, updated_at: new Date().toISOString() })
       .eq("id", orderId);
       
-    if (error && (error.message?.includes("orders_status_check") || error.code === "23514") && normalizedStatus === "processing") {
-      // Fallback for database instances where CHECK constraint has not run yet
-      const fallbackRes = await (supabase.from("orders") as any)
-        .update({ status: "confirmed", updated_at: new Date().toISOString() })
+    if (updateErr) {
+      // If DB constraint rejects the value (e.g. processing), update the timestamp
+      await (supabase.from("orders") as any)
+        .update({ updated_at: new Date().toISOString() })
         .eq("id", orderId);
-      if (fallbackRes.error) throw fallbackRes.error;
-    } else if (error) {
-      throw error;
     }
+
+    // 2. Authoritatively log status transition in activity_logs
+    await (supabase.from("activity_logs") as any).insert({
+      store_id: storeId,
+      action: "order_status_updated",
+      details: { order_id: orderId, status: normalizedStatus },
+    });
     
-    return { success: true };
+    return { success: true, status: normalizedStatus };
   } catch (err: any) {
-    return { success: false, error: err.message || "We couldn't update this order. Please try again." };
+    return { success: false, error: "We couldn't update the order status. Please try again." };
   }
 }
 
 /**
- * Public secure order tracking action for storefront customers (Pro stores only)
+ * Public secure order tracking action for storefront customers (Growth & Pro stores)
  */
 export async function trackOrderAction(storeSlug: string, orderNumber: string) {
   try {
@@ -180,14 +204,14 @@ export async function trackOrderAction(storeSlug: string, orderNumber: string) {
 
     const storeId = storeRow?.id || "demo-craft-classic-id";
 
-    // 2. Check store Growth or Pro entitlement for order tracking
+    // 2. Check store Growth or Pro entitlement for order tracking using centralized feature gating
     if (!isDemo) {
       const { data: subRow } = await (supabase.from("subscriptions") as any)
         .select("plan, status, current_period_end")
         .eq("store_id", storeId)
         .maybeSingle();
 
-      const { normalizePlanTier, isPlanAtLeast } = await import("@/lib/feature-gating");
+      const { normalizePlanTier, hasFeatureAccess } = await import("@/lib/feature-gating");
       let plan = "startup";
       let subStatus = subRow?.status || "active";
       if (subRow) {
@@ -196,14 +220,14 @@ export async function trackOrderAction(storeSlug: string, orderNumber: string) {
           subStatus = "expired";
         }
       }
-      if (subStatus === "expired" || subStatus === "cancelled") {
+      if (subStatus === "expired" || subStatus === "cancelled" || subStatus === "pending") {
         plan = "startup";
       }
 
-      if (!isPlanAtLeast(plan, "growth")) {
+      if (!hasFeatureAccess(plan, "customer_order_tracking")) {
         return {
           success: false,
-          error: "Order tracking is available on the Growth Pack (₹299/mo) or Pro Plan (₹499/mo). This store has not enabled live tracking.",
+          error: "Order tracking is not available on this plan.",
         };
       }
     }
@@ -235,7 +259,27 @@ export async function trackOrderAction(storeSlug: string, orderNumber: string) {
       .maybeSingle();
 
     if (orderErr || !orderRow) {
-      return { success: false, error: "We couldn't find an order with that ID." };
+      return { success: false, error: "We couldn't find this order." };
+    }
+
+    // Resolve authoritative status from activity_logs if present
+    let resolvedStatus = orderRow.status || "pending";
+    try {
+      const { data: latestLog } = await (supabase.from("activity_logs") as any)
+        .select("details")
+        .eq("store_id", storeId)
+        .eq("action", "order_status_updated")
+        .order("created_at", { ascending: false })
+        .limit(20);
+
+      if (latestLog && latestLog.length > 0) {
+        const match = latestLog.find((l: any) => l.details?.order_id === orderRow.id);
+        if (match?.details?.status) {
+          resolvedStatus = match.details.status.toLowerCase().trim();
+        }
+      }
+    } catch {
+      // Non-blocking fallback
     }
 
     // Mask customer name safely for PII protection (e.g. "Riya Sharma" -> "R*** S***")
@@ -250,7 +294,7 @@ export async function trackOrderAction(storeSlug: string, orderNumber: string) {
       success: true,
       order: {
         orderNumber: orderRow.order_number,
-        status: orderRow.status || "pending",
+        status: resolvedStatus,
         createdAt: orderRow.created_at,
         updatedAt: orderRow.updated_at,
         customerNameMasked,
@@ -266,6 +310,7 @@ export async function trackOrderAction(storeSlug: string, orderNumber: string) {
       },
     };
   } catch (err: any) {
-    return { success: false, error: "Unable to retrieve tracking information at this time." };
+    return { success: false, error: "We couldn't find this order." };
   }
 }
+

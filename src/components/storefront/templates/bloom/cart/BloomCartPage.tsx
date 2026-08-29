@@ -15,8 +15,10 @@ import { ArrowLeft, CheckCircle2, MessageCircle } from "lucide-react";
 import { StoreData } from "@/types/store";
 import { getStoreBasePath } from "@/lib/urls";
 import { formatCurrency } from "@/lib/utils";
+import { hasFeatureAccess } from "@/lib/feature-gating";
 
 export default function BloomCartPage({ store, isSubdomain = false }: { store: StoreData; isSubdomain?: boolean }) {
+
   const { cart } = useCart();
   const [placedOrder, setPlacedOrder] = React.useState<any | null>(null);
   const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
@@ -71,7 +73,7 @@ export default function BloomCartPage({ store, isSubdomain = false }: { store: S
                 Send on WhatsApp
               </a>
 
-              {(store.plan === "growth" || store.plan === "pro") && (
+              {hasFeatureAccess(store.plan || "startup", "customer_order_tracking") && (
                 <Link
                   href={`${basePath}/track?orderId=${placedOrder.orderNumber}`}
                   className="w-full h-10 bg-bloom-secondary border border-bloom-border text-bloom-foreground hover:bg-bloom-secondary/80 flex items-center justify-center gap-2 text-xs font-semibold rounded-xl transition-colors"
@@ -79,6 +81,7 @@ export default function BloomCartPage({ store, isSubdomain = false }: { store: S
                   Track Order #{placedOrder.orderNumber}
                 </Link>
               )}
+
             </div>
 
             <div className="text-center mt-6">

@@ -1,5 +1,7 @@
 
 
+import { OrderStatus } from "@/types/order";
+
 export interface OrderItemInput {
   productId: string;
   name: string;
@@ -18,8 +20,8 @@ export interface Order {
   id: string;
   orderNumber: string;
   storeId: string;
-  status: "pending" | "processing" | "completed" | "cancelled";
-  paymentStatus?: "unpaid" | "paid" | "refunded";
+  status: OrderStatus;
+  paymentStatus?: "unpaid" | "paid" | "refunded" | "pending";
   totalAmount: number;
   customerName: string;
   customerPhone: string;

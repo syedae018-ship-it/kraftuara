@@ -12,6 +12,7 @@ import Link from "next/link";
 import { Separator } from "../ui/separator";
 import { getStoreBasePath } from "@/lib/urls";
 import { StoreData } from "@/types/store";
+import { hasFeatureAccess } from "@/lib/feature-gating";
 
 export default function Footer({ store, isSubdomain = false }: { store: StoreData; isSubdomain?: boolean }) {
   const { branding } = store.appearance;
@@ -19,8 +20,9 @@ export default function Footer({ store, isSubdomain = false }: { store: StoreDat
   const homeLink = basePath || "/";
   const contactLink = `${basePath}/contact`;
   const cartLink = `${basePath}/cart`;
-  const canTrackOrders = store.plan === "growth" || store.plan === "pro";
+  const canTrackOrders = hasFeatureAccess(store.plan || "startup", "customer_order_tracking");
   const trackLink = `${basePath}/track`;
+
 
   const navLinks = [
     { href: homeLink, label: "Store Home" },

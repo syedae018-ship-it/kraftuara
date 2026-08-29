@@ -10,8 +10,10 @@ import { StoreSearch } from "./store-search";
 import { cn } from "@/lib/utils";
 import { getStoreBasePath } from "@/lib/urls";
 import { resolveImageUrl } from "@/lib/image-resolver";
+import { hasFeatureAccess } from "@/lib/feature-gating";
 
 export interface StoreNavbarProps {
+
   store: StoreData;
   className?: string;
   isSubdomain?: boolean;
@@ -95,7 +97,7 @@ export function StoreNavbar({ store, className, isSubdomain = false }: StoreNavb
               Collections
             </Link>
           )}
-          {(store.plan === "growth" || store.plan === "pro") && (
+          {hasFeatureAccess(store.plan || "startup", "customer_order_tracking") && (
             <Link
               href={`${storePrefix}/track`}
               className="text-zinc-400 hover:text-white transition-colors"
@@ -103,7 +105,9 @@ export function StoreNavbar({ store, className, isSubdomain = false }: StoreNavb
               Track Order
             </Link>
           )}
+
         </nav>
+
 
         {/* Search & WhatsApp CTA */}
         <div className="flex items-center gap-2.5">
