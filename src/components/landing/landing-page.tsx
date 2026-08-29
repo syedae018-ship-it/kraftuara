@@ -644,8 +644,8 @@ export function LandingPage() {
       {/* 7. FOOTER */}
       <footer className="border-t border-white/10 bg-[#060606] py-12 px-4 sm:px-6 lg:px-12 font-body text-xs text-zinc-500">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-maroon-800 to-maroon-950 border border-maroon-600/40 flex items-center justify-center text-white font-brand font-bold text-xs uppercase tracking-wider">
+          <Link href="/" className="flex items-center gap-3" aria-label="Kraftaura">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-maroon-800 to-maroon-950 border border-maroon-600/40 flex items-center justify-center text-white font-brand font-bold text-xs uppercase tracking-wider" aria-hidden="true">
               KA
             </div>
             <div className="text-sm tracking-wide flex items-baseline font-heading">
@@ -653,12 +653,13 @@ export function LandingPage() {
               <span className="font-normal text-zinc-300">aura</span>
               <span className="text-[10px] text-zinc-500 uppercase tracking-widest ml-1 font-mono">Online Store Platform</span>
             </div>
-          </div>
+          </Link>
 
           <div className="flex flex-wrap items-center gap-6">
             <a href="#templates" className="hover:text-white transition-colors">Templates</a>
             <a href="#features" className="hover:text-white transition-colors">Features</a>
             <a href="#pricing" className="hover:text-white transition-colors">Pricing</a>
+            <a href="https://www.instagram.com/kraftaura.ai/" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">Instagram</a>
             <Link href="/login" className="hover:text-white transition-colors">My Store Login</Link>
           </div>
 

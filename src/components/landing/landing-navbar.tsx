@@ -29,7 +29,7 @@ export function LandingNavbar() {
     >
       <div className="max-w-7xl mx-auto flex items-center justify-between">
         {/* Brand Logo */}
-        <Link href="/" className="flex items-center gap-3 group">
+        <Link href="/" className="flex items-center gap-3 group" aria-label="Kraftaura">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-maroon-800 to-maroon-950 border border-maroon-600/40 flex items-center justify-center text-white shadow-glow group-hover:scale-105 transition-transform">
             <Store className="w-5 h-5 text-white" />
           </div>

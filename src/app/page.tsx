@@ -37,8 +37,12 @@ const jsonLd = {
       "@id": "https://www.kraftaura.in/#organization",
       name: "Kraftaura",
       url: "https://www.kraftaura.in/",
+      logo: "https://www.kraftaura.in/icon",
+      sameAs: [
+        "https://www.instagram.com/kraftaura.ai/"
+      ],
       description:
-        "Kraftaura is an India-focused online store and catalog platform that helps small and local businesses create a branded online store, showcase products, sell through WhatsApp, accept online payments, and manage their business online.",
+        "Kraftaura is an online store builder and ecommerce platform for small businesses in India to create a branded online store, showcase products, sell through WhatsApp, accept online payments, and manage orders.",
     },
     {
       "@type": "WebSite",
@@ -57,7 +61,7 @@ const jsonLd = {
       operatingSystem: "Web",
       url: "https://www.kraftaura.in/",
       description:
-        "India-focused online store and catalog builder that helps small businesses create a branded online store, sell through WhatsApp, accept online payments, and manage orders.",
+        "Online store builder and ecommerce platform for small businesses in India to create a branded online store, sell through WhatsApp, accept online payments, and manage orders.",
       offers: {
         "@type": "AggregateOffer",
         priceCurrency: "INR",
