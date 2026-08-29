@@ -185,15 +185,15 @@ export function LandingPage() {
 
           {/* Main headline */}
           <h1 className="text-4xl sm:text-6xl lg:text-7xl font-extrabold font-heading tracking-tight text-white leading-[1.1]">
-            Build Your Branded <br />
+            Build Your Online Store <br />
             <span className="bg-clip-text text-transparent bg-gradient-to-r from-white via-zinc-200 to-maroon-400">
-              Online Catalog Store
+              in Minutes
             </span>
           </h1>
 
           {/* Subheadline */}
           <p className="text-base sm:text-lg text-zinc-400 max-w-2xl mx-auto font-body leading-relaxed">
-            Turn social followers into instant buyers. Launch a high-converting storefront with WhatsApp checkout, Kraftaura Classic theme, and real-time store analytics in under 2 minutes.
+            Create a branded online store for your business, sell through WhatsApp, accept online payments, and manage everything in one place.
           </p>
         </div>
 
@@ -262,7 +262,7 @@ export function LandingPage() {
             <div className="relative aspect-[16/9] rounded-xl overflow-hidden group">
               <img
                 src={craftStoreClassicTemplate.desktopImg}
-                alt="Kraftaura Classic Preview"
+                alt="Kraftaura Classic online store showcase on desktop"
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-[#080808] via-transparent to-black/30 flex items-end p-6 sm:p-10 text-left">
@@ -284,7 +284,7 @@ export function LandingPage() {
             <div className="relative w-full h-[450px] sm:h-[550px] rounded-[24px] overflow-hidden bg-[#111111]">
               <img
                 src={craftStoreClassicTemplate.mobileImg}
-                alt="Kraftaura Classic Mobile Preview"
+                alt="Kraftaura Classic online store mobile view with WhatsApp buy button"
                 className="w-full h-full object-cover"
               />
               <div className="absolute bottom-4 left-0 w-full px-4">
@@ -406,7 +406,7 @@ export function LandingPage() {
                   >
                     <img
                       src={craftStoreClassicTemplate.desktopImg}
-                      alt={craftStoreClassicTemplate.name}
+                      alt={`${craftStoreClassicTemplate.name} boutique storefront layout preview on desktop`}
                       className="w-full h-[320px] sm:h-[400px] object-cover rounded-xl"
                     />
                   </motion.div>
@@ -421,7 +421,7 @@ export function LandingPage() {
                   >
                     <img
                       src={craftStoreClassicTemplate.mobileImg}
-                      alt={craftStoreClassicTemplate.name}
+                      alt={`${craftStoreClassicTemplate.name} mobile responsive storefront preview`}
                       className="w-full h-[450px] object-cover rounded-[24px]"
                     />
                   </motion.div>

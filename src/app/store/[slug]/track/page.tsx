@@ -22,6 +22,10 @@ export async function generateMetadata({
   return {
     title: `Track Order | ${store.name}`,
     description: `Track real-time fulfillment and delivery status for orders placed at ${store.name}`,
+    robots: {
+      index: false,
+      follow: false,
+    },
   };
 }
 

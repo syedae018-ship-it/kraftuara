@@ -1,6 +1,14 @@
 import React from "react";
+import type { Metadata } from "next";
 import { Sparkles, Store } from "lucide-react";
 import { Badge } from "@/components/ui/table";
+
+export const metadata: Metadata = {
+  robots: {
+    index: false,
+    follow: false,
+  },
+};
 
 export default function AuthLayout({
   children,

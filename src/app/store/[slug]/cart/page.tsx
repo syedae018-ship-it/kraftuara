@@ -19,6 +19,10 @@ export async function generateMetadata({
   return {
     title: `Shopping Cart | ${store.name}`,
     description: `View items in your cart for ${store.name}`,
+    robots: {
+      index: false,
+      follow: false,
+    },
   };
 }
 

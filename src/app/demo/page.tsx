@@ -6,8 +6,31 @@ import { Metadata } from "next";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Kraftaura Classic — Live Demo Storefront",
-  description: "Interactive live demo of the Kraftaura Classic storefront with WhatsApp ordering and 6 curated artisan products.",
+  title: "Live Store Demo – Kraftaura Online Store Builder",
+  description:
+    "Experience Kraftaura's live demo store. See how your products look with WhatsApp ordering, responsive design, and smooth navigation.",
+  alternates: {
+    canonical: "https://www.kraftaura.in/demo",
+  },
+  openGraph: {
+    title: "Live Store Demo – Kraftaura Online Store Builder",
+    description:
+      "Experience Kraftaura's live demo store. See how your products look with WhatsApp ordering, responsive design, and smooth navigation.",
+    url: "https://www.kraftaura.in/demo",
+    siteName: "Kraftaura",
+    locale: "en_IN",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Live Store Demo – Kraftaura Online Store Builder",
+    description:
+      "Experience Kraftaura's live demo store. See how your products look with WhatsApp ordering, responsive design, and smooth navigation.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 export default async function DemoPage({

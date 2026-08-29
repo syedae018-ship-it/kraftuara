@@ -18,8 +18,25 @@ const bodyFont = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Kraftaura | Multi-Tenant Catalog SaaS Platform",
-  description: "Kraftaura is the next-generation multi-tenant catalog store builder.",
+  metadataBase: new URL("https://www.kraftaura.in"),
+  title: {
+    default: "Kraftaura – Online Store Builder for Small Businesses in India",
+    template: "%s | Kraftaura",
+  },
+  description:
+    "Create your online store in minutes with Kraftaura. Sell through WhatsApp, accept online payments, manage products and grow your small business in India.",
+  openGraph: {
+    siteName: "Kraftaura",
+    locale: "en_IN",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 export default function RootLayout({
