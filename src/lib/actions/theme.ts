@@ -12,35 +12,36 @@ interface ActionResponse<T = void> {
 
 const THEME_PRESETS: Record<string, {
   name: string;
+  paletteId: string;
   colors: { primary: string; secondary: string; accent: string; background: string };
   typography: { headingFont: string; bodyFont: string; animationStyle: string };
 }> = {
   bloom: {
-    name: "Kraftaura Classic",
-    colors: { primary: "#18181B", secondary: "#F4F4F5", accent: "#F97316", background: "#FFFFFF" },
+    name: "Charcoal / Orange",
+    paletteId: "charcoal-orange",
+    colors: { primary: "#202124", secondary: "#EEEEEE", accent: "#F97316", background: "#F7F7F7" },
     typography: { headingFont: "Plus Jakarta Sans", bodyFont: "Inter", animationStyle: "smooth" },
   },
   luxury: {
-    name: "Luxury",
-    colors: { primary: "#F59E0B", secondary: "#1C1917", accent: "#D97706", background: "#0C0A09" },
+    name: "Midnight Luxury",
+    paletteId: "midnight-luxury",
+    colors: { primary: "#C9A96E", secondary: "#242220", accent: "#E4C98A", background: "#0B0B0C" },
     typography: { headingFont: "Playfair Display", bodyFont: "Plus Jakarta Sans", animationStyle: "luxurious" },
   },
   modern: {
-    name: "Modern",
-    colors: { primary: "#0284C7", secondary: "#F8FAFC", accent: "#0EA5E9", background: "#FFFFFF" },
-    typography: { headingFont: "Space Grotesk", bodyFont: "Inter", animationStyle: "crisp" },
+    name: "Warm Maroon",
+    paletteId: "warm-maroon",
+    colors: { primary: "#7A1028", secondary: "#F2E6DF", accent: "#B88A3B", background: "#FFF9F5" },
+    typography: { headingFont: "Plus Jakarta Sans", bodyFont: "Inter", animationStyle: "smooth" },
   },
   creative: {
-    name: "Creative",
-    colors: { primary: "#EC4899", secondary: "#18181B", accent: "#F43F5E", background: "#09090B" },
-    typography: { headingFont: "Syne", bodyFont: "Plus Jakarta Sans", animationStyle: "vibrant" },
-  },
-  midnight: {
-    name: "Midnight",
-    colors: { primary: "#6366F1", secondary: "#1E1B4B", accent: "#818CF8", background: "#0F172A" },
-    typography: { headingFont: "Outfit", bodyFont: "Inter", animationStyle: "smooth" },
+    name: "Olive / Natural",
+    paletteId: "olive-natural",
+    colors: { primary: "#536B3E", secondary: "#E6ECE0", accent: "#A88A4A", background: "#F7F7F2" },
+    typography: { headingFont: "Plus Jakarta Sans", bodyFont: "Inter", animationStyle: "smooth" },
   },
 };
+
 
 export async function applyThemeAction(
   storeId: string,
@@ -107,10 +108,13 @@ export async function applyThemeAction(
     const updatedAppearance = {
       ...existingAppearance,
       themeId,
+      paletteId: preset.paletteId,
+      customOverrides: {},
       colors: preset.colors,
       typography: preset.typography,
       updatedAt: new Date().toISOString(),
     };
+
 
     const updatedMetadata = {
       ...existingMetadata,

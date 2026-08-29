@@ -12,6 +12,7 @@ const initialMockCategories: Category[] = [
 ];
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/utils";
+import { resolveThemeTokens } from "@/lib/theme-token-resolver";
 import {
   Monitor,
   Tablet,
@@ -55,6 +56,8 @@ export function PreviewWindow({
   products,
 }: PreviewWindowProps) {
   const [device, setDevice] = useState<"desktop" | "tablet" | "mobile">("desktop");
+  const resolvedTheme = resolveThemeTokens(settings);
+
 
   const headingFont = settings.typography.headingFont || "Helvetica Neue";
   const bodyFont = settings.typography.bodyFont || "Inter";
@@ -165,21 +168,14 @@ export function PreviewWindow({
             device === "desktop" && "w-full max-w-5xl rounded-2xl"
           )}
           style={{
-            backgroundColor: "var(--bloom-background)",
-            color: "var(--bloom-foreground)",
-            borderColor: "var(--bloom-border)",
-            "--bloom-background": settings.colors.background || "#FFFFFF",
-            "--bloom-foreground": settings.colors.primary || "#18181B",
-            "--bloom-primary": settings.colors.accent || "#F97316",
-            "--bloom-secondary": settings.colors.secondary || "#F4F4F5",
-            "--bloom-border": settings.colors.secondary || "#F4F4F5",
-            "--bloom-accent": `${settings.colors.accent || "#F97316"}15`,
-            "--font-heading": getFontStack(headingFont),
-            "--font-body": getFontStack(bodyFont),
-          } as React.CSSProperties}
+            backgroundColor: "var(--color-background)",
+            color: "var(--color-text-primary)",
+            borderColor: "var(--color-border)",
+            ...resolvedTheme.styleObject,
+          }}
         >
           {/* Header */}
-          <header className="p-4 border-b border-[var(--bloom-border)] flex items-center justify-between sticky top-0 z-30 bg-[var(--bloom-background)]/95 backdrop-blur-md">
+          <header className="p-4 border-b border-[var(--color-border)] flex items-center justify-between sticky top-0 z-30 bg-[var(--color-surface)]/95 backdrop-blur-md">
             <div className="flex items-center gap-3">
               {settings.branding.logoUrl ? (
                 <img
@@ -192,36 +188,36 @@ export function PreviewWindow({
                 />
               ) : (
                 <div
-                  style={{ backgroundColor: "var(--bloom-primary)" }}
-                  className="w-8 h-8 rounded-lg border border-transparent flex items-center justify-center font-bold text-white text-xs"
+                  style={{ backgroundColor: "var(--color-primary)", color: "var(--color-primary-foreground)" }}
+                  className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs shadow-sm"
                 >
                   {settings.branding.name.charAt(0)}
                 </div>
               )}
               <div className="text-left">
-                <h4 style={{ fontFamily: "var(--font-heading)" }} className="text-sm font-bold text-[var(--bloom-foreground)] tracking-tight">{settings.branding.name}</h4>
-                <p style={{ fontFamily: "var(--font-body)" }} className="text-[10px] text-[var(--bloom-foreground)] opacity-70">{settings.branding.tagline}</p>
+                <h4 style={{ fontFamily: "var(--font-heading)" }} className="text-sm font-bold text-[var(--color-text-primary)] tracking-tight">{settings.branding.name}</h4>
+                <p style={{ fontFamily: "var(--font-body)" }} className="text-[10px] text-[var(--color-text-secondary)]">{settings.branding.tagline}</p>
               </div>
             </div>
 
             <button
               type="button"
-              style={{ backgroundColor: "var(--bloom-primary)" }}
-              className="px-3.5 py-1.5 text-[11px] font-semibold text-white shadow-sm flex items-center gap-1.5 rounded-xl hover:opacity-90 transition-opacity"
+              style={{ backgroundColor: "var(--color-cta)", color: "var(--color-cta-foreground)" }}
+              className="px-3.5 py-1.5 text-[11px] font-semibold shadow-sm flex items-center gap-1.5 rounded-xl hover:opacity-90 transition-opacity"
             >
               <MessageSquare className="w-3.5 h-3.5" /> WhatsApp Shop
             </button>
           </header>
 
           {/* Body Sections */}
-          <main style={{ fontFamily: "var(--font-body)" }} className="flex-1 space-y-12 p-4 sm:p-8">
+          <main style={{ fontFamily: "var(--font-body)" }} className="flex-1 space-y-12 p-4 sm:p-8 bg-[var(--color-background)]">
             {/* Hero */}
             <section
-              style={{ backgroundColor: "var(--bloom-secondary)" }}
-              className="relative p-8 rounded-2xl overflow-hidden text-center space-y-4 border border-[var(--bloom-border)]"
+              style={{ backgroundColor: "var(--color-background-secondary)", borderColor: "var(--color-border)" }}
+              className="relative p-8 rounded-2xl overflow-hidden text-center space-y-4 border"
             >
               {settings.branding.heroBannerUrl && (
-                <div className="absolute inset-0 z-0 opacity-10">
+                <div className="absolute inset-0 z-0 opacity-15">
                   <img
                     src={resolveImageUrl(settings.branding.heroBannerUrl)}
                     alt="Hero"
@@ -231,32 +227,32 @@ export function PreviewWindow({
               )}
               <div className="relative z-10 space-y-3 max-w-2xl mx-auto">
                 <span
-                  style={{ color: "var(--bloom-foreground)", backgroundColor: "rgba(255,255,255,0.8)" }}
-                  className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border border-[var(--bloom-border)] inline-block"
+                  style={{ color: "var(--color-text-primary)", backgroundColor: "var(--color-surface)", borderColor: "var(--color-border)" }}
+                  className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border inline-block shadow-sm"
                 >
                   Official Catalog
                 </span>
                 <h1
                   style={{ fontFamily: "var(--font-heading)" }}
-                  className="text-2xl sm:text-3xl font-extrabold text-[var(--bloom-foreground)] tracking-tight leading-tight"
+                  className="text-2xl sm:text-3xl font-extrabold text-[var(--color-text-primary)] tracking-tight leading-tight"
                 >
                   {settings.branding.tagline || settings.branding.name}
                 </h1>
-                <p className="text-xs text-[var(--bloom-foreground)] opacity-80 leading-relaxed max-w-lg mx-auto">
+                <p className="text-xs text-[var(--color-text-secondary)] leading-relaxed max-w-lg mx-auto">
                   {settings.branding.description || "Discover premium products handcrafted with care."}
                 </p>
                 <div className="pt-2 flex items-center justify-center gap-3">
                   <button
                     type="button"
-                    style={{ backgroundColor: "var(--bloom-primary)" }}
-                    className="px-5 py-2.5 text-xs font-bold text-white shadow-sm rounded-xl hover:opacity-90 transition-opacity"
+                    style={{ backgroundColor: "var(--color-cta)", color: "var(--color-cta-foreground)" }}
+                    className="px-5 py-2.5 text-xs font-bold shadow-sm rounded-xl hover:opacity-90 transition-opacity"
                   >
                     View All Products
                   </button>
                   <button
                     type="button"
-                    style={{ borderColor: "var(--bloom-border)", color: "var(--bloom-foreground)" }}
-                    className="px-5 py-2.5 text-xs font-semibold border rounded-xl hover:bg-white/50 transition-colors"
+                    style={{ backgroundColor: "var(--color-secondary)", color: "var(--color-secondary-foreground)", borderColor: "var(--color-border)" }}
+                    className="px-5 py-2.5 text-xs font-semibold border rounded-xl hover:opacity-90 transition-opacity"
                   >
                     About Us
                   </button>
@@ -268,12 +264,12 @@ export function PreviewWindow({
             <section className="space-y-4 text-left">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 style={{ fontFamily: "var(--font-heading)" }} className="text-base font-bold text-[var(--bloom-foreground)]">Our Catalog</h3>
-                  <p className="text-xs text-[var(--bloom-foreground)] opacity-70">Handmade with love &amp; premium materials</p>
+                  <h3 style={{ fontFamily: "var(--font-heading)" }} className="text-base font-bold text-[var(--color-text-primary)]">Our Catalog</h3>
+                  <p className="text-xs text-[var(--color-text-secondary)]">Handmade with love &amp; premium materials</p>
                 </div>
                 <button
                   type="button"
-                  style={{ color: "var(--bloom-primary)" }}
+                  style={{ color: "var(--color-cta)" }}
                   className="text-xs font-semibold hover:underline"
                 >
                   View All →
@@ -281,17 +277,21 @@ export function PreviewWindow({
               </div>
 
               {!products || products.length === 0 ? (
-                <div className="p-8 text-center bg-[var(--bloom-secondary)] rounded-2xl border border-[var(--bloom-border)]">
+                <div style={{ backgroundColor: "var(--color-surface)", borderColor: "var(--color-border)" }} className="p-8 text-center rounded-2xl border">
                   <Package className="w-8 h-8 mx-auto text-zinc-400 mb-2" />
-                  <span className="text-xs text-[var(--bloom-foreground)] opacity-70 block">
+                  <span className="text-xs text-[var(--color-text-secondary)] block">
                     No products added yet. Add products from the dashboard to display them here.
                   </span>
                 </div>
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                   {products.slice(0, 6).map((prod) => (
-                    <div key={prod.id} className="group relative bg-[var(--bloom-background)] border border-[var(--bloom-border)] rounded-2xl overflow-hidden hover:shadow-md transition-all flex flex-col justify-between p-3 space-y-2 text-left">
-                      <div className="aspect-square rounded-xl bg-[var(--bloom-secondary)] overflow-hidden relative">
+                    <div
+                      key={prod.id}
+                      style={{ backgroundColor: "var(--color-surface)", borderColor: "var(--color-border)" }}
+                      className="group relative border rounded-2xl overflow-hidden hover:shadow-md transition-all flex flex-col justify-between p-3 space-y-2 text-left"
+                    >
+                      <div style={{ backgroundColor: "var(--color-background-secondary)" }} className="aspect-square rounded-xl overflow-hidden relative">
                         {prod.images && prod.images.length > 0 ? (
                           <img
                             src={resolveImageUrl(prod.images[0].url)}
@@ -302,15 +302,22 @@ export function PreviewWindow({
                             }}
                           />
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center text-zinc-300">
+                          <div className="w-full h-full flex items-center justify-center text-zinc-400">
                             <Package className="w-6 h-6" />
                           </div>
                         )}
                       </div>
                       <div className="space-y-1">
-                        <h4 className="text-xs font-bold text-[var(--bloom-foreground)] line-clamp-1" style={{ fontFamily: "var(--font-heading)" }}>{prod.name}</h4>
-                        <p className="text-[10px] font-semibold font-mono text-[var(--bloom-primary)]">{formatCurrency(prod.price)}</p>
+                        <h4 className="text-xs font-bold text-[var(--color-text-primary)] line-clamp-1" style={{ fontFamily: "var(--font-heading)" }}>{prod.name}</h4>
+                        <p className="text-xs font-bold font-mono text-[var(--color-price)]">{formatCurrency(prod.price)}</p>
                       </div>
+                      <button
+                        type="button"
+                        style={{ backgroundColor: "var(--color-add-to-cart)", color: "var(--color-add-to-cart-foreground)" }}
+                        className="w-full py-1.5 text-[11px] font-semibold rounded-xl hover:opacity-90 transition-opacity flex items-center justify-center gap-1.5 mt-1"
+                      >
+                        <Package className="w-3.5 h-3.5" /> Add to Cart
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -319,15 +326,22 @@ export function PreviewWindow({
 
             {/* Categories */}
             <section className="space-y-4 text-left">
-              <h3 style={{ fontFamily: "var(--font-heading)" }} className="text-base font-bold text-[var(--bloom-foreground)]">Browse Categories</h3>
+              <h3 style={{ fontFamily: "var(--font-heading)" }} className="text-base font-bold text-[var(--color-text-primary)]">Browse Categories</h3>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {(!categories || categories.length === 0 ? initialMockCategories : categories).slice(0, 4).map((c: Category) => (
-                  <div key={c.id} className="p-3 bg-[var(--bloom-secondary)] border border-[var(--bloom-border)] text-center space-y-1.5 rounded-2xl hover:opacity-90 transition-all cursor-pointer">
-                    <div className="w-9 h-9 rounded-full mx-auto bg-[var(--bloom-background)] border border-[var(--bloom-border)] flex items-center justify-center" style={{ color: "var(--bloom-primary)" }}>
+                  <div
+                    key={c.id}
+                    style={{ backgroundColor: "var(--color-background-secondary)", borderColor: "var(--color-border)" }}
+                    className="p-3 border text-center space-y-1.5 rounded-2xl hover:opacity-90 transition-all cursor-pointer"
+                  >
+                    <div
+                      style={{ backgroundColor: "var(--color-surface)", borderColor: "var(--color-border)", color: "var(--color-primary)" }}
+                      className="w-9 h-9 rounded-full mx-auto border flex items-center justify-center shadow-sm"
+                    >
                       <Package className="w-4.5 h-4.5" />
                     </div>
-                    <h6 style={{ fontFamily: "var(--font-heading)" }} className="text-xs font-bold text-[var(--bloom-foreground)]">{c.name}</h6>
-                    <span className="text-[9px] text-zinc-400 block">{c.productCount || 0} products</span>
+                    <h6 style={{ fontFamily: "var(--font-heading)" }} className="text-xs font-bold text-[var(--color-text-primary)]">{c.name}</h6>
+                    <span className="text-[9px] text-[var(--color-text-secondary)] block">{c.productCount || 0} products</span>
                   </div>
                 ))}
               </div>
@@ -335,10 +349,13 @@ export function PreviewWindow({
           </main>
 
           {/* Footer */}
-          <footer className="p-6 border-t border-[var(--bloom-border)] bg-[var(--bloom-secondary)] text-center space-y-3 text-xs text-zinc-400">
-            <p style={{ fontFamily: "var(--font-heading)" }} className="font-bold text-[var(--bloom-foreground)]">{settings.branding.name} © 2026</p>
-            {settings.branding.address && <p className="text-[11px] text-zinc-500">{settings.branding.address}</p>}
-            <div className="flex justify-center gap-4 text-[10px] text-zinc-500">
+          <footer
+            style={{ backgroundColor: "var(--color-surface)", borderColor: "var(--color-border)" }}
+            className="p-6 border-t text-center space-y-3 text-xs text-[var(--color-text-secondary)]"
+          >
+            <p style={{ fontFamily: "var(--font-heading)" }} className="font-bold text-[var(--color-text-primary)]">{settings.branding.name} © 2026</p>
+            {settings.branding.address && <p className="text-[11px] text-[var(--color-text-secondary)]">{settings.branding.address}</p>}
+            <div className="flex justify-center gap-4 text-[10px] text-[var(--color-text-secondary)]">
               {settings.branding.email && <span>{settings.branding.email}</span>}
               {settings.branding.phone && <span>{settings.branding.phone}</span>}
             </div>
@@ -347,15 +364,26 @@ export function PreviewWindow({
             {(settings.branding.facebook || settings.branding.instagram) && (
               <div className="flex justify-center gap-3 pt-1">
                 {settings.branding.facebook && (
-                  <span className="px-2 py-1 rounded bg-[var(--bloom-background)] border border-[var(--bloom-border)] text-[9px] font-medium text-[var(--bloom-foreground)]">Facebook</span>
+                  <span
+                    style={{ backgroundColor: "var(--color-background-secondary)", borderColor: "var(--color-border)", color: "var(--color-text-primary)" }}
+                    className="px-2 py-1 rounded border text-[9px] font-medium"
+                  >
+                    Facebook
+                  </span>
                 )}
                 {settings.branding.instagram && (
-                  <span className="px-2 py-1 rounded bg-[var(--bloom-background)] border border-[var(--bloom-border)] text-[9px] font-medium text-[var(--bloom-foreground)]">Instagram</span>
+                  <span
+                    style={{ backgroundColor: "var(--color-background-secondary)", borderColor: "var(--color-border)", color: "var(--color-text-primary)" }}
+                    className="px-2 py-1 rounded border text-[9px] font-medium"
+                  >
+                    Instagram
+                  </span>
                 )}
               </div>
             )}
           </footer>
         </div>
+
       </div>
     </div>
   );

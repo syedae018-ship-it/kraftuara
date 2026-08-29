@@ -10,27 +10,16 @@ import { getFontStack } from "@/components/appearance/typography-picker";
 import { resolveImageUrl } from "@/lib/image-resolver";
 import { CollectionSection } from "@/components/storefront/collection-section";
 
-export function getBloomThemeStyles(colors: any, typography: any) {
-  const bg = colors?.background || "#FFFFFF";
-  const text = colors?.primary || "#18181B";
-  const accent = colors?.accent || "#F97316";
-  const secondary = colors?.secondary || "#F4F4F5";
-  const headingFont = typography?.headingFont || "Plus Jakarta Sans";
-  const bodyFont = typography?.bodyFont || "Inter";
+export function getBloomThemeStyles(appearanceOrColors: any, typography?: any) {
+  const { resolveThemeTokens } = require("@/lib/theme-token-resolver");
+  const settingsObj = appearanceOrColors?.branding || appearanceOrColors?.paletteId || appearanceOrColors?.customOverrides
+    ? appearanceOrColors
+    : { colors: appearanceOrColors, typography };
 
-  return {
-    "--bloom-background": bg,
-    "--bloom-card": bg,
-    "--bloom-foreground": text,
-    "--bloom-primary": accent,
-    "--bloom-primary-foreground": "#FFFFFF",
-    "--bloom-secondary": secondary,
-    "--bloom-border": secondary,
-    "--bloom-accent": `${accent}15`,
-    "--font-heading": getFontStack(headingFont),
-    "--font-body": getFontStack(bodyFont),
-  } as React.CSSProperties;
+  const resolved = resolveThemeTokens(settingsObj);
+  return resolved.styleObject;
 }
+
 
 export function getBloomFontsLink(typography: any) {
   const headingFont = typography?.headingFont || "Plus Jakarta Sans";

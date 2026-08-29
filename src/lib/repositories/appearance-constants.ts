@@ -16,6 +16,8 @@ export const defaultSections: HomepageSectionConfig[] = [
 
 export const initialAppearanceSettings: AppearanceSettings = {
   themeId: "bloom",
+  paletteId: "charcoal-orange",
+  customOverrides: {},
   branding: {
     name: "My Store",
     tagline: "Premium Catalog Storefront",
@@ -31,16 +33,17 @@ export const initialAppearanceSettings: AppearanceSettings = {
     address: "",
   },
   colors: {
-    primary: "#18181B",
-    secondary: "#F4F4F5",
+    primary: "#202124",
+    secondary: "#EEEEEE",
     accent: "#F97316",
-    background: "#FFFFFF",
+    background: "#F7F7F7",
   },
   typography: {
-    headingFont: "Helvetica Neue",
+    headingFont: "Plus Jakarta Sans",
     bodyFont: "Inter",
     animationStyle: "smooth",
   },
+
   homepageSections: defaultSections,
   seo: {
     seoTitle: "My Store | Official Catalog",

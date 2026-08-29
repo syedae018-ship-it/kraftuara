@@ -117,9 +117,10 @@ export function AppearanceSidebar({ settings, onChange, className }: AppearanceS
           </button>
           {openTab === "colors" && (
             <div className="p-4 pt-0 border-t border-white/5">
-              <ColorPicker colors={settings.colors} onChange={(colors) => onChange({ colors })} />
+              <ColorPicker settings={settings} onChange={onChange} />
             </div>
           )}
+
         </Card>
 
         {/* 3. Typography & Styles */}

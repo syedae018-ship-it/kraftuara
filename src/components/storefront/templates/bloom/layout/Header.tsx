@@ -82,8 +82,8 @@ export default function Header({ store, isSubdomain = false }: { store: StoreDat
                 />
               ) : (
                 <div
-                  className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-xs shrink-0"
-                  style={{ backgroundColor: "var(--bloom-primary)" }}
+                  className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 shadow-sm"
+                  style={{ backgroundColor: "var(--color-primary)", color: "var(--color-primary-foreground)" }}
                 >
                   {store.name.charAt(0)}
                 </div>
@@ -137,8 +137,8 @@ export default function Header({ store, isSubdomain = false }: { store: StoreDat
               <ShoppingCart className="h-6 w-6 text-bloom-foreground group-hover:text-bloom-primary transition-colors" />
               {cartCount > 0 && (
                 <span
-                  className="absolute -top-1 -right-1 bg-bloom-primary text-bloom-primary-foreground text-xs font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1"
-                  aria-label={`${cartCount} items in cart`}
+                  style={{ backgroundColor: "var(--color-cta)", color: "var(--color-cta-foreground)" }}
+                  className="absolute -top-1 -right-1 text-xs font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1 shadow-sm"
                 >
                   {cartCount > 99 ? "99+" : cartCount}
                 </span>

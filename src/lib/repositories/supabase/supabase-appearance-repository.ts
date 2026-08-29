@@ -2,6 +2,7 @@ import { AppearanceSettings, AppearanceSettingsUpdate } from "@/types/theme";
 import type { IAppearanceRepository } from "@/lib/repositories/appearance-repository";
 import { initialAppearanceSettings } from "@/lib/repositories/appearance-constants";
 import { createClient } from "@/lib/supabase/client";
+import { resolveThemeTokens } from "@/lib/theme-token-resolver";
 
 export class SupabaseAppearanceRepository implements IAppearanceRepository {
   private getSupabase() {
@@ -42,9 +43,14 @@ export class SupabaseAppearanceRepository implements IAppearanceRepository {
     }
 
     const dbSettings = data?.metadata?.appearance || {};
+    const { resolveThemeTokens } = await import("@/lib/theme-token-resolver");
+    const resolved = resolveThemeTokens(dbSettings);
 
     return {
       themeId: dbSettings.themeId || "bloom",
+      paletteId: resolved.paletteId,
+      customOverrides: dbSettings.customOverrides || {},
+      tokens: resolved.tokens,
       branding: {
         name: dbSettings.branding?.name || storeName,
         logoUrl: dbSettings.branding?.logoUrl || s?.logo_url || undefined,
@@ -60,10 +66,10 @@ export class SupabaseAppearanceRepository implements IAppearanceRepository {
         address: dbSettings.branding?.address || s?.business_address || undefined,
       },
       colors: {
-        primary: dbSettings.colors?.primary || "#18181B",
-        secondary: dbSettings.colors?.secondary || "#F4F4F5",
-        accent: dbSettings.colors?.accent || "#F97316",
-        background: dbSettings.colors?.background || "#FFFFFF",
+        primary: resolved.tokens.primary,
+        secondary: resolved.tokens.secondary,
+        accent: resolved.tokens.accent,
+        background: resolved.tokens.background,
       },
       typography: {
         headingFont: dbSettings.typography?.headingFont || "Plus Jakarta Sans",
@@ -83,21 +89,41 @@ export class SupabaseAppearanceRepository implements IAppearanceRepository {
   async updateSettings(storeId: string, settings: AppearanceSettingsUpdate, client?: any): Promise<AppearanceSettings> {
     const supabase = client || this.getSupabase();
     const current = await this.getSettings(storeId, supabase);
+    
+    const resolved = resolveThemeTokens({
+      paletteId: settings.paletteId !== undefined ? settings.paletteId : current.paletteId,
+      customOverrides: settings.customOverrides !== undefined ? { ...current.customOverrides, ...settings.customOverrides } : current.customOverrides,
+      colors: { ...current.colors, ...settings.colors },
+    });
+
+
     const merged: AppearanceSettings = {
       ...current,
       ...settings,
+      themeId: settings.themeId || current.themeId || "bloom",
+      paletteId: resolved.paletteId,
+      customOverrides: settings.customOverrides !== undefined ? { ...current.customOverrides, ...settings.customOverrides } : current.customOverrides,
+      tokens: resolved.tokens,
+      colors: {
+        primary: resolved.tokens.primary,
+        secondary: resolved.tokens.secondary,
+        accent: resolved.tokens.accent,
+        background: resolved.tokens.background,
+      },
       branding: { ...current.branding, ...settings.branding },
-      colors: { ...current.colors, ...settings.colors },
       typography: { ...current.typography, ...settings.typography },
+      homepageSections: settings.homepageSections || current.homepageSections,
       seo: { ...current.seo, ...settings.seo },
       updatedAt: new Date().toISOString(),
     };
+
 
     // Load existing settings
     const { data: settingsRow } = await (supabase.from("store_settings") as any)
       .select("id, metadata")
       .eq("store_id", storeId)
       .maybeSingle();
+
 
     const existingMetadata = settingsRow?.metadata || {};
     const updatedMetadata = {

@@ -485,8 +485,10 @@ export default function OrderSummary({ store, onOrderPlaced }: { store: StoreDat
             type="submit"
             size="lg"
             disabled={isSubmitting || cart.length === 0 || !hasWhatsApp}
-            className="w-full bg-bloom-primary text-bloom-primary-foreground hover:bg-bloom-primary/90 flex items-center justify-center gap-2 text-sm font-semibold h-11 disabled:opacity-50"
+            style={{ backgroundColor: "var(--color-cta)", color: "var(--color-cta-foreground)" }}
+            className="w-full hover:opacity-90 flex items-center justify-center gap-2 text-sm font-semibold h-11 disabled:opacity-50 transition-opacity"
           >
+
             {isSubmitting ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />

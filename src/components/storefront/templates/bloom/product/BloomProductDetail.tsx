@@ -144,54 +144,56 @@ export default function BloomProductDetail({
           {/* Details View */}
           <div className="space-y-6">
             <div className="space-y-2">
-              <span className="text-xs uppercase font-bold tracking-wider text-bloom-primary font-mono">
+              <span style={{ color: "var(--color-accent)" }} className="text-xs uppercase font-bold tracking-wider font-mono">
                 {product.categoryName || "Catalog"}
               </span>
-              <h1 className="text-3xl lg:text-4xl font-bold text-bloom-foreground tracking-tight font-heading">
+              <h1 style={{ color: "var(--color-text-primary)" }} className="text-3xl lg:text-4xl font-bold tracking-tight font-heading">
                 {product.name}
               </h1>
             </div>
 
             <div className="flex items-center gap-3">
-              <span className="text-3xl font-bold text-bloom-foreground font-mono">
+              <span style={{ color: "var(--color-price)" }} className="text-3xl font-bold font-mono">
                 {formatCurrency(product.price)}
               </span>
               {product.compareAtPrice && product.compareAtPrice > product.price && (
-                <span className="text-lg text-bloom-muted line-through font-mono">
+                <span style={{ color: "var(--color-price-original)" }} className="text-lg line-through font-mono">
                   {formatCurrency(product.compareAtPrice)}
                 </span>
               )}
             </div>
 
-            <p className="text-bloom-muted leading-relaxed text-sm">
+            <p style={{ color: "var(--color-text-secondary)" }} className="leading-relaxed text-sm">
               {product.longDescription || product.shortDescription}
             </p>
 
-            <Separator className="bg-bloom-border" />
+            <Separator style={{ backgroundColor: "var(--color-border)" }} />
 
             <div className="space-y-4">
               <div>
-                <label className="text-xs font-semibold text-bloom-foreground uppercase tracking-wider mb-2 block">
+                <label style={{ color: "var(--color-text-primary)" }} className="text-xs font-semibold uppercase tracking-wider mb-2 block font-heading">
                   Quantity
                 </label>
                 <div className="flex items-center gap-3">
-                  <div className="flex items-center border border-bloom-border rounded-lg bg-bloom-background">
+                  <div style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-surface)" }} className="flex items-center border rounded-lg">
                     <Button
                       variant="ghost"
                       size="icon"
                       onClick={() => handleQuantityChange("decrement")}
                       disabled={quantity <= 1}
+                      style={{ color: "var(--color-text-primary)" }}
                       className="h-10 w-10 rounded-r-none border-0"
                     >
                       <Minus className="h-4 w-4" />
                     </Button>
-                    <span className="px-4 py-2 min-w-[60px] text-center font-semibold text-sm text-bloom-foreground font-mono">
+                    <span style={{ color: "var(--color-text-primary)" }} className="px-4 py-2 min-w-[60px] text-center font-semibold text-sm font-mono">
                       {quantity}
                     </span>
                     <Button
                       variant="ghost"
                       size="icon"
                       onClick={() => handleQuantityChange("increment")}
+                      style={{ color: "var(--color-text-primary)" }}
                       className="h-10 w-10 rounded-l-none border-0"
                     >
                       <Plus className="h-4 w-4" />
@@ -200,15 +202,14 @@ export default function BloomProductDetail({
                 </div>
               </div>
 
-              <div className="pt-2">
+              <div className="pt-2 flex flex-col sm:flex-row gap-3">
                 <Button
                   size="lg"
-                  className={cn(
-                    "w-full transition-all duration-300 text-sm font-semibold h-11",
-                    justAdded
-                      ? "bg-green-600 text-white hover:bg-green-600"
-                      : "bg-bloom-primary text-bloom-primary-foreground hover:bg-bloom-primary/90"
-                  )}
+                  style={{
+                    backgroundColor: justAdded ? "#16a34a" : "var(--color-add-to-cart)",
+                    color: justAdded ? "#ffffff" : "var(--color-add-to-cart-foreground)",
+                  }}
+                  className="flex-1 transition-all duration-300 text-sm font-semibold h-11 hover:opacity-90"
                   onClick={handleAddToCart}
                   disabled={isAdding}
                 >
@@ -229,7 +230,20 @@ export default function BloomProductDetail({
                     </div>
                   )}
                 </Button>
+
+                <Button
+                  size="lg"
+                  style={{
+                    backgroundColor: "var(--color-buy-now)",
+                    color: "var(--color-buy-now-foreground)",
+                  }}
+                  className="flex-1 transition-all duration-300 text-sm font-semibold h-11 hover:opacity-90"
+                  onClick={handleBuyNow}
+                >
+                  Buy Now
+                </Button>
               </div>
+
 
               <div className="flex items-center gap-4 pt-2">
                 <Button

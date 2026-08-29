@@ -74,10 +74,16 @@ export default function ProductCard({
   const productLink = `${basePath}/product/${product.slug}`;
 
   return (
-    <Card className="group overflow-hidden bg-bloom-card border-bloom-border hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
+    <Card
+      style={{ backgroundColor: "var(--color-surface)", borderColor: "var(--color-border)" }}
+      className="group overflow-hidden border hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
+    >
       <div className="relative overflow-hidden">
         <Link href={productLink} className="block relative">
-          <div className="aspect-square overflow-hidden bg-bloom-secondary flex items-center justify-center">
+          <div
+            style={{ backgroundColor: "var(--color-background-secondary)" }}
+            className="aspect-square overflow-hidden flex items-center justify-center"
+          >
             {imageUrl ? (
               <ProductImage
                 src={imageUrl}
@@ -85,8 +91,8 @@ export default function ProductCard({
                 className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
               />
             ) : (
-              <div className="w-full h-full bg-bloom-secondary flex items-center justify-center">
-                <div className="text-bloom-muted text-xs">
+              <div className="w-full h-full flex items-center justify-center">
+                <div style={{ color: "var(--color-text-muted)" }} className="text-xs">
                   Image not available
                 </div>
               </div>
@@ -98,7 +104,8 @@ export default function ProductCard({
               <Button
                 size="sm"
                 type="button"
-                className="bg-bloom-primary text-bloom-primary-foreground hover:bg-bloom-primary/90"
+                style={{ backgroundColor: "var(--color-cta)", color: "var(--color-cta-foreground)" }}
+                className="hover:opacity-90"
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
@@ -113,31 +120,33 @@ export default function ProductCard({
         </Link>
       </div>
 
-      <CardContent className="p-4 space-y-3 bg-bloom-card">
+      <CardContent style={{ backgroundColor: "var(--color-surface)" }} className="p-4 space-y-3">
         <Link href={productLink}>
-          <h2 className="font-semibold text-bloom-foreground line-clamp-2 hover:text-bloom-primary transition-colors text-sm font-heading leading-tight">
+          <h2
+            style={{ color: "var(--color-text-primary)" }}
+            className="font-semibold line-clamp-2 hover:opacity-80 transition-opacity text-sm font-heading leading-tight"
+          >
             {product.name}
           </h2>
         </Link>
 
         <div className="flex items-center gap-2">
-          <span className="text-base font-bold text-bloom-foreground">
+          <span style={{ color: "var(--color-price)" }} className="text-base font-bold font-mono">
             {formatCurrency(product.price)}
           </span>
           {product.compareAtPrice && product.compareAtPrice > product.price && (
-            <span className="text-xs text-bloom-muted line-through">
+            <span style={{ color: "var(--color-price-original)" }} className="text-xs line-through font-mono">
               {formatCurrency(product.compareAtPrice)}
             </span>
           )}
         </div>
 
         <Button
-          className={cn(
-            "w-full transition-all duration-300 text-xs py-2 h-9",
-            justAdded
-              ? "bg-green-600 text-white hover:bg-green-600"
-              : "bg-bloom-primary text-bloom-primary-foreground hover:bg-bloom-primary/90"
-          )}
+          style={{
+            backgroundColor: justAdded ? "#16a34a" : "var(--color-add-to-cart)",
+            color: justAdded ? "#ffffff" : "var(--color-add-to-cart-foreground)",
+          }}
+          className="w-full transition-all duration-300 text-xs py-2 h-9 hover:opacity-90 font-medium"
           onClick={handleAddToCart}
           disabled={isAdding}
         >
@@ -162,3 +171,4 @@ export default function ProductCard({
     </Card>
   );
 }
+
