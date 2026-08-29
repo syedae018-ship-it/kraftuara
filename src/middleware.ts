@@ -170,7 +170,9 @@ export async function middleware(request: NextRequest) {
       return withCookies(NextResponse.redirect(new URL("/login", request.url)));
     }
 
-    if (isLoggedIn && isUserAdmin) {
+    const hasImpersonation = request.cookies.has("kraftaura_impersonation");
+
+    if (isLoggedIn && isUserAdmin && !hasImpersonation) {
       if (isDashboardRoute) {
         return withCookies(NextResponse.redirect(new URL("/admin", request.url)));
       }
@@ -179,6 +181,7 @@ export async function middleware(request: NextRequest) {
         return withCookies(NextResponse.redirect(new URL("/dashboard", request.url)));
       }
     }
+
 
     return response;
   } catch (err) {

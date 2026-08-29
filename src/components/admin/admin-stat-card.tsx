@@ -2,7 +2,7 @@
 
 import React from "react";
 import { StatCard } from "@/components/dashboard/stat-card";
-import { Users, Store, Package, Sparkles, Activity } from "lucide-react";
+import { Users, Store, Activity } from "lucide-react";
 import { PlatformStats } from "@/types/admin";
 import { formatCurrency } from "@/lib/utils";
 
@@ -12,29 +12,26 @@ export function AdminStatCard({ stats }: { stats: PlatformStats }) {
       <StatCard
         title="Total Merchant Users"
         value={stats.totalUsers.toString()}
-        delta={{ value: `+${stats.growthPercent}% growth`, isPositive: true }}
-        subtitle="Registered SaaS accounts"
+        subtitle="Registered merchant accounts"
         icon={<Users className="w-4 h-4 text-maroon-400" />}
         variant="maroon"
       />
       <StatCard
         title="Live Stores"
         value={`${stats.liveStores} / ${stats.activeStores}`}
-        delta={{ value: "94 active domains", isPositive: true }}
-        subtitle="Active storefronts"
-        icon={<Store className="w-4 h-4" />}
+        subtitle="Active merchant storefronts"
+        icon={<Store className="w-4 h-4 text-amber-400" />}
       />
       <StatCard
-        title="Gross Platform MRR"
+        title="Platform MRR"
         value={formatCurrency(stats.mrr)}
-        delta={{ value: "+18.4% MRR", isPositive: true }}
-        subtitle="Monthly recurring revenue"
+        subtitle="From active subscriptions"
         icon={<span className="text-xs font-bold font-mono text-emerald-400">₹</span>}
       />
       <StatCard
-        title="Platform Health"
-        value={stats.platformHealth.toUpperCase()}
-        subtitle="99.99% Uptime SLA"
+        title="Platform Revenue"
+        value={formatCurrency(stats.totalRevenue)}
+        subtitle={`${stats.successfulPaymentsCount || 0} successful payments`}
         icon={<Activity className="w-4 h-4 text-emerald-400" />}
       />
     </div>

@@ -25,20 +25,28 @@ export default function AdminCouponsPage() {
     setCoupons([created, ...coupons]);
   };
 
+  const handleCouponDeleted = (id: string) => {
+    setCoupons(coupons.filter((c) => c.id !== id));
+  };
+
   return (
     <AdminLayout>
       <SectionTitle
-        title="Promo Codes & Discount Coupons"
-        description="Issue promotional discount codes, flat discounts, and usage limits."
+        title="Promo Codes & SaaS Discounts"
+        description="Issue promotional discount codes, flat discounts, and usage limits for subscription plans."
         badge={
           <Badge variant="maroon" className="gap-1 font-mono text-[11px]">
-            <Ticket className="w-3 h-3 text-maroon-300" /> {coupons.length} Active Coupons
+            <Ticket className="w-3 h-3 text-maroon-300" /> {coupons.length} Active Codes
           </Badge>
         }
       />
 
       <div className="pb-20">
-        <CouponCard coupons={coupons} onCreateCoupon={handleCreateCoupon} />
+        <CouponCard
+          coupons={coupons}
+          onCreateCoupon={handleCreateCoupon}
+          onCouponDeleted={handleCouponDeleted}
+        />
       </div>
     </AdminLayout>
   );

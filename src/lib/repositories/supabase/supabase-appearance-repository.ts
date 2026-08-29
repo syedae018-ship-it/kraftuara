@@ -176,8 +176,14 @@ export class SupabaseAppearanceRepository implements IAppearanceRepository {
       }
     }
 
+    // Auto-publish appearance changes to live storefront
+    const { autoPublishStoreAction } = await import("@/lib/actions/store");
+    await autoPublishStoreAction(storeId);
+
+
     return merged;
   }
+
 
   async resetToDefaults(storeId: string, client?: any): Promise<AppearanceSettings> {
     const supabase = client || this.getSupabase();

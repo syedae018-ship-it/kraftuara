@@ -159,6 +159,10 @@ export class SupabaseCategoryRepository implements ICategoryRepository {
       throw new Error(error?.message || "Failed to create category");
     }
 
+    // Auto-publish category creation to live storefront
+    const { autoPublishStoreAction } = await import("@/lib/actions/store");
+    await autoPublishStoreAction(storeId);
+
     return {
       id: (data as any).id,
       name: (data as any).name,
@@ -178,7 +182,8 @@ export class SupabaseCategoryRepository implements ICategoryRepository {
     const { data: rawRow } = await (supabase.from("categories") as any).select("store_id").eq("id", id).maybeSingle();
     if (!rawRow) return null;
     
-    await this.checkStoreOwner(rawRow.store_id, supabase);
+    const storeId = rawRow.store_id;
+    await this.checkStoreOwner(storeId, supabase);
 
     const { data, error } = await (supabase.from("categories") as any)
       .update({
@@ -192,6 +197,10 @@ export class SupabaseCategoryRepository implements ICategoryRepository {
       .single();
 
     if (error || !data) return null;
+
+    // Auto-publish category update to live storefront
+    const { autoPublishStoreAction } = await import("@/lib/actions/store");
+    await autoPublishStoreAction(storeId);
 
     const row = data as any;
     
@@ -220,9 +229,14 @@ export class SupabaseCategoryRepository implements ICategoryRepository {
     const { data: rawRow } = await (supabase.from("categories") as any).select("store_id").eq("id", id).maybeSingle();
     if (!rawRow) return false;
     
-    await this.checkStoreOwner(rawRow.store_id, supabase);
+    const storeId = rawRow.store_id;
+    await this.checkStoreOwner(storeId, supabase);
 
     const { error } = await supabase.from("categories").delete().eq("id", id);
+    if (!error) {
+      const { autoPublishStoreAction } = await import("@/lib/actions/store");
+      await autoPublishStoreAction(storeId);
+    }
     return !error;
   }
 
@@ -234,7 +248,8 @@ export class SupabaseCategoryRepository implements ICategoryRepository {
     const { data: first } = await (supabase.from("categories") as any).select("store_id").eq("id", orderedIds[0]).single();
     if (!first) return false;
     
-    await this.checkStoreOwner(first.store_id, supabase);
+    const storeId = first.store_id;
+    await this.checkStoreOwner(storeId, supabase);
 
     for (let index = 0; index < orderedIds.length; index++) {
       const id = orderedIds[index];
@@ -242,8 +257,14 @@ export class SupabaseCategoryRepository implements ICategoryRepository {
         .update({ position: index + 1 })
         .eq("id", id);
     }
+
+    const { autoPublishStoreAction } = await import("@/lib/actions/store");
+    await autoPublishStoreAction(storeId);
+
     return true;
   }
+
+
 
   async duplicate(storeId: string, id: string, client?: any): Promise<Category | null> {
     const supabase = client || this.getSupabase();

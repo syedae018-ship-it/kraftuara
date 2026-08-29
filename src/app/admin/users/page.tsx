@@ -35,6 +35,10 @@ export default function AdminUsersPage() {
     setUsers([newUser, ...users]);
   };
 
+  const handleUserDeleted = (deletedId: string) => {
+    setUsers(users.filter((u) => u.id !== deletedId));
+  };
+
   return (
     <AdminLayout>
       <SectionTitle
@@ -53,7 +57,11 @@ export default function AdminUsersPage() {
       />
 
       <div className="pb-20">
-        <UserTable users={users} onToggleStatus={handleToggleUserStatus} />
+        <UserTable
+          users={users}
+          onToggleStatus={handleToggleUserStatus}
+          onUserDeleted={handleUserDeleted}
+        />
       </div>
 
       <CreateUserModal

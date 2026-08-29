@@ -218,6 +218,11 @@ export class SupabaseProductRepository implements IProductRepository {
 
     const fullProduct = await this.getById(createdProductId, supabase);
     if (!fullProduct) throw new Error("Created product could not be retrieved");
+
+    // Auto-publish product creation to live storefront
+    const { autoPublishStoreAction } = await import("@/lib/actions/store");
+    await autoPublishStoreAction(storeId);
+
     return fullProduct;
   }
 
@@ -299,6 +304,10 @@ export class SupabaseProductRepository implements IProductRepository {
       }
     }
 
+    // Auto-publish product update to live storefront
+    const { autoPublishStoreAction } = await import("@/lib/actions/store");
+    await autoPublishStoreAction(storeId);
+
     return this.getById(id, supabase);
   }
 
@@ -307,13 +316,19 @@ export class SupabaseProductRepository implements IProductRepository {
     const { data: rawRow } = await (supabase.from("products") as any).select("store_id").eq("id", id).maybeSingle();
     if (!rawRow) return false;
     
-    await this.checkStoreOwner(rawRow.store_id, supabase);
+    const storeId = rawRow.store_id;
+    await this.checkStoreOwner(storeId, supabase);
 
     const { error } = await (supabase.from("products") as any).delete().eq("id", id);
+    if (!error) {
+      const { autoPublishStoreAction } = await import("@/lib/actions/store");
+      await autoPublishStoreAction(storeId);
+    }
     return !error;
   }
 
   async bulkDelete(ids: string[], client?: any): Promise<boolean> {
+
     let success = true;
     for (const id of ids) {
       const deleted = await this.delete(id, client);
@@ -342,3 +357,4 @@ export class SupabaseProductRepository implements IProductRepository {
 }
 
 export const supabaseProductRepository = new SupabaseProductRepository();
+

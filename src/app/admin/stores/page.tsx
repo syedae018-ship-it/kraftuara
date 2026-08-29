@@ -28,6 +28,10 @@ export default function AdminStoresPage() {
     toast.success("Store Updated", `Store ${updated.name} status changed to ${next}.`);
   };
 
+  const handleStoreDeleted = (deletedId: string) => {
+    setStores(stores.filter((s) => s.id !== deletedId));
+  };
+
   return (
     <AdminLayout>
       <SectionTitle
@@ -41,7 +45,11 @@ export default function AdminStoresPage() {
       />
 
       <div className="pb-20">
-        <StoreTable stores={stores} onToggleStatus={handleToggleStoreStatus} />
+        <StoreTable
+          stores={stores}
+          onToggleStatus={handleToggleStoreStatus}
+          onStoreDeleted={handleStoreDeleted}
+        />
       </div>
     </AdminLayout>
   );

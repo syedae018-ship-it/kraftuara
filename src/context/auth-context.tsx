@@ -608,8 +608,35 @@ export function DummyAuthProvider({ children }: { children: React.ReactNode }) {
 
   };
 
-  const impersonate = () => {};
-  const stopImpersonating = () => {};
+  const impersonate = async (merchantUser: any) => {
+    try {
+      setIsLoading(true);
+      const { startImpersonationAction } = await import("@/lib/actions/admin");
+      const res = await startImpersonationAction(merchantUser.id);
+      if (res.success) {
+        if (typeof window !== "undefined" && res.data?.storeId) {
+          localStorage.setItem("symar_active_store_id", res.data.storeId);
+        }
+        window.location.href = "/dashboard";
+      } else {
+        alert(res.error || "Failed to start impersonation.");
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const stopImpersonating = async () => {
+    try {
+      setIsLoading(true);
+      const { stopImpersonationAction } = await import("@/lib/actions/admin");
+      await stopImpersonationAction();
+      window.location.href = "/admin/users";
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
 
   return (
     <AuthContext.Provider

@@ -6,6 +6,8 @@ import { Navbar } from "./navbar";
 import { BreadcrumbItem } from "@/types";
 import { AnimatePresence, motion } from "framer-motion";
 
+import { ImpersonationBanner } from "./impersonation-banner";
+
 export interface DashboardLayoutProps {
   children: React.ReactNode;
   breadcrumbs?: BreadcrumbItem[];
@@ -16,7 +18,10 @@ export function DashboardLayout({ children, breadcrumbs }: DashboardLayoutProps)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-[#080808] text-white flex flex-col lg:flex-row font-body antialiased">
+    <div className="min-h-screen bg-[#080808] text-white flex flex-col font-body antialiased">
+      <ImpersonationBanner />
+      <div className="flex flex-col lg:flex-row flex-1">
+
       {/* Desktop Sidebar */}
       <div className="hidden lg:block">
         <Sidebar
@@ -60,5 +65,7 @@ export function DashboardLayout({ children, breadcrumbs }: DashboardLayoutProps)
         </main>
       </div>
     </div>
+  </div>
   );
+
 }

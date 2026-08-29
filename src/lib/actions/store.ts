@@ -397,67 +397,60 @@ export async function publishStoreChangesAction(storeId: string): Promise<Action
       return errorResponse("Store not found or access denied.");
     }
 
-    // Fetch all current draft data
-    const appearance = await supabaseAppearanceRepository.getSettings(storeId, supabase);
-    const categories = await supabaseCategoryRepository.getAll(storeId, supabase);
-    const collections = await supabaseCollectionRepository.getAll(storeId, supabase);
-    const { products } = await supabaseProductRepository.getAll(storeId, undefined, 1, 1000, supabase);
+    const { publishingEngine } = await import("@/lib/services/publishing-engine");
+    const result = await publishingEngine.publishStore(storeId, { force: true, supabaseClient: supabase });
 
-    // Fetch existing settings metadata
-    const { data: settingsRow } = await (supabase.from("store_settings") as any)
-      .select("id, metadata")
-      .eq("store_id", storeId)
-      .maybeSingle();
-
-    const existingMetadata = (settingsRow as any)?.metadata || {};
-    const rawShipping = existingMetadata.shipping;
-    const shipping = {
-      freeShippingEnabled: rawShipping?.freeShippingEnabled !== undefined ? Boolean(rawShipping.freeShippingEnabled) : true,
-      freeShippingThreshold: typeof rawShipping?.freeShippingThreshold === "number" ? rawShipping.freeShippingThreshold : 0,
-      shippingFee: typeof rawShipping?.shippingFee === "number" ? rawShipping.shippingFee : 50,
-    };
-
-    const updatedMetadata = {
-      ...existingMetadata,
-      shipping,
-      published_snapshot: {
-        id: storeId,
-        name: (storeRow as any).name,
-        slug: (storeRow as any).slug,
-        appearance,
-        categories,
-        collections,
-        products,
-        shipping,
-      }
-    };
-
-    if (settingsRow) {
-      const { error: updateErr } = await (supabase.from("store_settings") as any)
-        .update({ metadata: updatedMetadata })
-        .eq("id", (settingsRow as any).id);
-      if (updateErr) throw updateErr;
-    } else {
-      const { error: insertErr } = await (supabase.from("store_settings") as any)
-        .insert({
-          store_id: storeId,
-          metadata: updatedMetadata
-        });
-      if (insertErr) throw insertErr;
+    if (!result.success) {
+      return errorResponse(result.error || "Failed to publish store changes.");
     }
 
-    // Also make sure is_published is true on the store itself
-    await (supabase.from("stores") as any)
-      .update({ is_published: true })
-      .eq("id", storeId);
-
-    revalidatePath(`/store/${(storeRow as any).slug}`);
-    
-    return successResponse(undefined, "Changes published successfully to live store.");
+    return successResponse(undefined, result.message || "Changes published successfully to live store.");
   } catch (err) {
     return errorResponse(getErrorMessage(err));
   }
 }
+
+/**
+ * Fetch current store publishing status and revision
+ */
+export async function getStorePublishStatusAction(
+  storeId: string
+): Promise<ActionResponse<{ revision: number; status: string; publishedAt?: string; lastError?: string }>> {
+  try {
+    const supabase = await createServerSupabaseClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return errorResponse("Unauthorized");
+
+    const { publishingEngine } = await import("@/lib/services/publishing-engine");
+    const status = await publishingEngine.getPublishStatus(storeId, supabase);
+    return successResponse(status);
+  } catch (err) {
+    return errorResponse(getErrorMessage(err));
+  }
+}
+
+/**
+ * Non-blocking / automatic background publish action called after data mutations
+ */
+
+export async function autoPublishStoreAction(storeId: string): Promise<ActionResponse<void>> {
+  try {
+    const supabase = await createServerSupabaseClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return errorResponse("Unauthorized");
+
+    const { publishingEngine } = await import("@/lib/services/publishing-engine");
+    const result = await publishingEngine.triggerAutoPublish(storeId, supabase);
+    if (!result.success) {
+      return errorResponse(result.error || "Auto-publish failed.");
+    }
+    return successResponse(undefined, "Auto-published successfully.");
+  } catch (err) {
+    return errorResponse(getErrorMessage(err));
+  }
+}
+
+
 
 /**
  * Fetch shipping settings for a store
@@ -581,14 +574,14 @@ export async function updateStoreShippingSettingsAction(
       if (insertErr) throw insertErr;
     }
 
-    const slug = (storeRow as any)?.slug;
-    if (slug) {
-      revalidatePath(`/store/${slug}`);
-      revalidatePath(`/store/${slug}/cart`);
-    }
+    // Auto-publish shipping update to live storefront
+    const { publishingEngine } = await import("@/lib/services/publishing-engine");
+    await publishingEngine.triggerAutoPublish(storeId, supabase);
+
     revalidatePath("/dashboard/settings");
 
-    return successResponse(undefined, "Shipping settings updated successfully.");
+    return successResponse(undefined, "Shipping settings updated & published successfully.");
+
   } catch (err) {
     return errorResponse(getErrorMessage(err));
   }

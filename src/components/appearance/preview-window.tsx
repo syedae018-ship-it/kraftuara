@@ -115,7 +115,7 @@ export function PreviewWindow({
           </button>
 
           <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-950/60 border border-emerald-800/40 text-[10px] font-mono text-emerald-400">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> Auto-saved
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> Auto-published & Live
           </span>
         </div>
 
@@ -154,10 +154,11 @@ export function PreviewWindow({
         </div>
 
         {/* Save/Publish */}
-        <Button variant="primary" size="sm" onClick={onSave} isLoading={isSaving} leftIcon={<Save className="w-3.5 h-3.5" />}>
+        <Button variant="outline" size="sm" onClick={onSave} isLoading={isSaving} leftIcon={<Save className="w-3.5 h-3.5" />} className="border-white/10 text-xs">
           Publish Changes
         </Button>
       </div>
+
 
       {/* Mock Viewport */}
       <div className="flex-grow overflow-y-auto p-4 sm:p-8 flex justify-center bg-[#050505]">

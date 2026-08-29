@@ -75,6 +75,10 @@ export class SupabaseCollectionRepository implements ICollectionRepository {
       throw new Error(error?.message || "Failed to create collection");
     }
 
+    // Auto-publish collection creation to live storefront
+    const { autoPublishStoreAction } = await import("@/lib/actions/store");
+    await autoPublishStoreAction(storeId);
+
     return {
       id: (data as any).id,
       name: (data as any).name,
@@ -107,6 +111,12 @@ export class SupabaseCollectionRepository implements ICollectionRepository {
     if (error || !data) return null;
 
     const row = data as any;
+    const storeId = row.store_id;
+    if (storeId) {
+      const { autoPublishStoreAction } = await import("@/lib/actions/store");
+      await autoPublishStoreAction(storeId);
+    }
+
     return {
       id: row.id,
       name: row.name,
@@ -124,9 +134,18 @@ export class SupabaseCollectionRepository implements ICollectionRepository {
 
   async delete(id: string, client?: any): Promise<boolean> {
     const supabase = client || this.getSupabase();
+    const { data: rawRow } = await (supabase.from("collections" as any) as any).select("store_id").eq("id", id).maybeSingle();
+    const storeId = rawRow?.store_id;
+
     const { error } = await supabase.from("collections" as any).delete().eq("id", id);
+    if (!error && storeId) {
+      const { autoPublishStoreAction } = await import("@/lib/actions/store");
+      await autoPublishStoreAction(storeId);
+    }
     return !error;
   }
+
+
 
   async reorder(orderedIds: string[], client?: any): Promise<boolean> {
     const supabase = client || this.getSupabase();

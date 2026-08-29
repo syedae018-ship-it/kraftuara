@@ -143,13 +143,13 @@ export async function applyThemeAction(
       if (insertErr) throw insertErr;
     }
 
-    const slug = (storeRow as any)?.slug;
-    if (slug) {
-      revalidatePath(`/store/${slug}`);
-      revalidatePath(`/store/${slug}/cart`);
-    }
+    // Auto-publish theme changes immediately to live store
+    const { publishingEngine } = await import("@/lib/services/publishing-engine");
+    await publishingEngine.triggerAutoPublish(storeId, supabase);
+
     revalidatePath("/dashboard/appearance");
     revalidatePath("/dashboard/themes");
+
 
     return {
       success: true,

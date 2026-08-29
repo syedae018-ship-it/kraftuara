@@ -41,6 +41,8 @@ import {
   Zap,
 } from "lucide-react";
 
+import { PublishStatusBadge } from "@/components/dashboard/publish-status-badge";
+
 export default function DashboardOverview() {
   const router = useRouter();
   const { activeStore, user, isLoading } = useAuth();
@@ -162,7 +164,7 @@ export default function DashboardOverview() {
 
   return (
     <DashboardLayout breadcrumbs={[{ label: "Store Dashboard", href: "/dashboard" }, { label: "Overview" }]}>
-      {/* Page Title & Skeleton Toggle */}
+      {/* Page Title & Consolidated Single Store Action Area */}
       <SectionTitle
         title={`${activeStore.name} Overview`}
         description={`Welcome back, ${user?.name || "Merchant"}. Here is your live catalog metrics summary.`}
@@ -172,14 +174,15 @@ export default function DashboardOverview() {
           </Badge>
         }
         action={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
+            <PublishStatusBadge storeId={activeStore.id} />
             <Button
               variant="outline"
               size="sm"
-              className="border-maroon-800 text-maroon-300 hover:bg-maroon-950/20 text-xs"
+              className="border-white/10 text-zinc-300 hover:text-white hover:bg-white/5 text-xs h-9"
               onClick={handlePublishChanges}
               isLoading={isPublishing}
-              leftIcon={<Sparkles className="w-3.5 h-3.5 text-maroon-400" />}
+              leftIcon={<Sparkles className="w-3.5 h-3.5 text-amber-400" />}
             >
               Publish Changes
             </Button>
@@ -187,10 +190,10 @@ export default function DashboardOverview() {
               <Button
                 variant="primary"
                 size="sm"
-                className="shadow-glow text-xs"
+                className="shadow-glow text-xs h-9"
                 leftIcon={<ExternalLink className="w-3.5 h-3.5" />}
               >
-                Visit Live Store
+                Visit Store
               </Button>
             </a>
           </div>
@@ -198,7 +201,7 @@ export default function DashboardOverview() {
       />
 
       <div className="space-y-8 pb-16">
-        {/* Active Store URL Highlight Card */}
+        {/* Active Store URL Highlight Card (Duplicate buttons removed) */}
         <div className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-gradient-to-r from-[#161215] via-[#121014] to-[#0D0B0E] border border-white/10 flex flex-col lg:flex-row lg:items-center justify-between gap-4 shadow-2xl overflow-hidden">
           <div className="flex items-center gap-3 text-left min-w-0 flex-1">
             <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-gradient-to-br from-maroon-800 to-maroon-950 border border-maroon-600/40 flex items-center justify-center text-white shrink-0 shadow-glow">
@@ -209,9 +212,7 @@ export default function DashboardOverview() {
                 <span className="text-[11px] sm:text-xs font-mono font-bold uppercase tracking-wider text-amber-400">
                   Live Merchant Store
                 </span>
-                <span className="text-[9px] sm:text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                  ● Published
-                </span>
+                <PublishStatusBadge storeId={activeStore.id} showRetry={false} />
               </div>
               <p
                 className="text-xs sm:text-sm font-bold font-mono text-white tracking-tight mt-0.5 truncate block"
@@ -222,48 +223,29 @@ export default function DashboardOverview() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 w-full lg:w-auto shrink-0">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handlePublishChanges}
-              isLoading={isPublishing}
-              leftIcon={<Sparkles className="w-3.5 h-3.5 text-amber-400" />}
-              className="border-maroon-800 text-maroon-300 hover:bg-maroon-950/20 text-xs h-9 justify-center w-full sm:w-auto"
-            >
-              Publish
-            </Button>
+          <div className="flex items-center gap-2 w-full lg:w-auto shrink-0">
             <Button
               variant="outline"
               size="sm"
               onClick={copyStoreUrl}
               leftIcon={<Copy className="w-3.5 h-3.5" />}
-              className="border-white/10 text-xs h-9 justify-center w-full sm:w-auto"
+              className="border-white/10 text-xs h-9 justify-center flex-1 sm:flex-initial"
             >
               Copy Link
             </Button>
-            <a href={liveStoreUrl} target="_blank" rel="noopener noreferrer" className="w-full sm:w-auto">
-              <Button
-                variant="secondary"
-                size="sm"
-                leftIcon={<ExternalLink className="w-3.5 h-3.5" />}
-                className="text-xs border-white/20 h-9 justify-center w-full sm:w-auto"
-              >
-                Visit Store
-              </Button>
-            </a>
-            <Link href="/dashboard/billing" className="w-full sm:w-auto">
+            <Link href="/dashboard/billing" className="flex-1 sm:flex-initial">
               <Button
                 variant="primary"
                 size="sm"
                 leftIcon={<Zap className="w-3.5 h-3.5 text-amber-400" />}
-                className="text-xs font-bold shadow-glow h-9 justify-center w-full sm:w-auto"
+                className="text-xs font-bold shadow-glow h-9 justify-center w-full"
               >
                 Manage Plan
               </Button>
             </Link>
           </div>
         </div>
+
 
         {/* 1. Stat Metric Cards Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
