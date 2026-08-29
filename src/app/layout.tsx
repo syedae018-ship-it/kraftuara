@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Plus_Jakarta_Sans, Inter } from "next/font/google";
+import { GoogleAnalytics } from "@next/third-parties/google";
 import "./globals.css";
 import Providers from "./providers";
 
@@ -44,6 +45,8 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const gaId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || "G-0Z2921645B";
+
   return (
     <html lang="en" className="dark scroll-smooth" suppressHydrationWarning>
       <body
@@ -51,6 +54,8 @@ export default function RootLayout({
       >
         <Providers>{children}</Providers>
       </body>
+      <GoogleAnalytics gaId={gaId} />
     </html>
   );
 }
+
