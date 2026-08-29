@@ -261,15 +261,7 @@ export function DummyAuthProvider({ children }: { children: React.ReactNode }) {
 
     const isAdmin = user && isAdminUser(user.email);
     if (user && stores.length === 0 && !isAdmin) {
-      if (
-        pathname &&
-        !pathname.startsWith("/choose-plan") &&
-        !pathname.startsWith("/choose-template") &&
-        !pathname.startsWith("/create-store") &&
-        !pathname.startsWith("/login") &&
-        !pathname.startsWith("/signup") &&
-        !pathname.startsWith("/verify-email")
-      ) {
+      if (pathname && pathname.startsWith("/dashboard")) {
         router.push("/choose-plan");
       }
     }
