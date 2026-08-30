@@ -68,15 +68,16 @@ export default function AppearancePage() {
     };
     setSettings(merged);
 
-    // Debounce database write (500ms)
+    // Debounce database write & auto-publish (500ms)
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
     }
     saveTimeoutRef.current = setTimeout(async () => {
       try {
         await appearanceRepository.updateSettings(activeStore.id, merged);
+        await publishStoreChangesAction(activeStore.id);
       } catch (err) {
-        console.error("Failed to persist appearance draft:", err);
+        console.error("Failed to persist appearance draft / auto-publish:", err);
       }
     }, 500);
   };

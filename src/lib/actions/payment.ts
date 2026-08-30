@@ -96,11 +96,12 @@ export async function createStoreSubscriptionAction(
       plan_id: planId,
       total_count: 12,
       quantity: 1,
-      customer_notify: 1,
+      customer_notify: 0, // Direct Kraftaura email dispatcher handles branded customer notifications
       notes: {
         storeId: storeId || "",
         planName: planName,
         userId: user.id,
+        userEmail: user.email || "",
       }
     };
 
@@ -302,6 +303,26 @@ export async function verifySubscriptionPaymentAction(payload: {
 
     }
 
+    // Trigger decoupled customer receipt & admin notification
+    try {
+      const { dispatchPaymentNotifications } = await import("@/lib/services/email-service");
+      await dispatchPaymentNotifications({
+        userId: user.id,
+        storeId: payload.storeId || null,
+        fallbackCustomerEmail: user.email,
+        paymentId: payload.paymentId,
+        subscriptionId: payload.subscriptionId,
+        planTier: targetPlan,
+        amount: planConfig.priceMonthly,
+        currency: "INR",
+        purchaseDate: now.toISOString(),
+        currentPeriodEnd: currentEndFromRzp,
+        nextBillingDate: currentEndFromRzp,
+      });
+    } catch (notifyErr) {
+      console.warn("Payment notification dispatch warning:", notifyErr);
+    }
+
     return successResponse({ success: true, verifiedPlan: targetPlan }, "Payment verified. Subscription active.");
   } catch (err: any) {
     return errorResponse(err.message || "Failed to verify signature.");
@@ -485,6 +506,25 @@ export async function activatePlatformSubscriptionAction(
       currency: "INR",
       status: "successful",
     });
+
+    // Trigger decoupled customer receipt & admin notification
+    try {
+      const { dispatchPaymentNotifications } = await import("@/lib/services/email-service");
+      await dispatchPaymentNotifications({
+        userId: store.user_id,
+        storeId: storeId,
+        paymentId: paymentId || `pay_${Date.now()}`,
+        subscriptionId: subscriptionId,
+        planTier: authoritativePlan,
+        amount: planConfig.priceMonthly,
+        currency: "INR",
+        purchaseDate: now.toISOString(),
+        currentPeriodEnd: currentEnd,
+        nextBillingDate: nextBillingDate,
+      });
+    } catch (notifyErr) {
+      console.warn("Payment notification dispatch warning:", notifyErr);
+    }
 
     // Revalidate all dashboard pages
     revalidatePath("/dashboard");

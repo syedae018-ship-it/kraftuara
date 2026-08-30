@@ -172,6 +172,30 @@ export async function POST(request: NextRequest) {
           status: "successful",
         });
       }
+
+      // Dispatch decoupled customer confirmation & admin alert (idempotency prevents duplicate emails)
+      const resolvedUserId = sub?.user_id || userIdFromNotes || null;
+      const paymentEntity = payload.payment?.entity;
+      const effectivePaymentId = paymentEntity?.id || `webhk_${eventId}`;
+
+      try {
+        const { dispatchPaymentNotifications } = await import("@/lib/services/email-service");
+        await dispatchPaymentNotifications({
+          userId: resolvedUserId,
+          storeId: sub?.store_id || storeIdFromNotes || null,
+          fallbackCustomerEmail: notes.userEmail || paymentEntity?.email || subEntity.customer_email || null,
+          paymentId: effectivePaymentId,
+          subscriptionId: subEntity.id,
+          planTier: targetPlan,
+          amount: amount,
+          currency: "INR",
+          purchaseDate: new Date().toISOString(),
+          currentPeriodEnd: newPeriodEnd,
+          nextBillingDate: newPeriodEnd,
+        });
+      } catch (notifyErr) {
+        console.warn("Webhook payment notification warning:", notifyErr);
+      }
     }
 
     if (eventType === "subscription.pending" || eventType === "subscription.halted") {

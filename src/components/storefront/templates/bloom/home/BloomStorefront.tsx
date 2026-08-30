@@ -77,41 +77,42 @@ export default function BloomStorefront({
       <Header store={store} isSubdomain={isSubdomain} />
       
       <main className="flex-grow bg-bloom-background px-4 py-8 sm:py-12 lg:py-16 lg:px-8 max-w-7xl mx-auto w-full">
-        {/* Hero Banner Section */}
+        {/* Hero Banner Section (Responsive 16:9 Aspect Ratio) */}
         <section
           style={{ backgroundColor: "var(--bloom-secondary)" }}
-          className="relative p-6 sm:p-10 rounded-3xl overflow-hidden text-center space-y-4 border border-[var(--bloom-border)] mb-10 max-w-7xl mx-auto shadow-sm"
+          className="relative rounded-3xl overflow-hidden text-center border border-[var(--bloom-border)] mb-8 sm:mb-10 max-w-7xl mx-auto shadow-sm flex items-center justify-center p-6 sm:p-10 md:p-14 min-h-[200px] sm:min-h-[260px] md:min-h-[340px] aspect-[16/9] max-h-[480px]"
         >
           {store.appearance.branding.heroBannerUrl && (
-            <div className="absolute inset-0 z-0 opacity-20">
+            <div className="absolute inset-0 z-0">
               <img
                 src={resolveImageUrl(store.appearance.branding.heroBannerUrl)}
                 alt="Hero Banner"
-                className="w-full h-full object-cover"
+                className="w-full h-full object-cover object-center aspect-[16/9]"
               />
+              <div className="absolute inset-0 bg-black/40 backdrop-blur-[0.5px]" />
             </div>
           )}
-          <div className="relative z-10 space-y-4 max-w-2xl mx-auto">
+          <div className="relative z-10 space-y-3 sm:space-y-4 max-w-2xl mx-auto">
             <span
               style={{ color: "var(--bloom-foreground)", backgroundColor: "var(--bloom-background)" }}
-              className="px-3.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border border-[var(--bloom-border)] inline-block shadow-sm"
+              className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border border-[var(--bloom-border)] inline-block shadow-sm"
             >
               Official Catalog
             </span>
             <h1
               style={{ fontFamily: "var(--font-heading)" }}
-              className="text-3xl sm:text-5xl font-extrabold text-[var(--bloom-foreground)] tracking-tight leading-tight"
+              className="text-2xl sm:text-4xl md:text-5xl font-extrabold text-[var(--bloom-foreground)] tracking-tight leading-tight"
             >
               {store.appearance.branding.tagline || store.appearance.branding.name}
             </h1>
-            <p className="text-xs sm:text-sm text-[var(--bloom-foreground)] opacity-80 leading-relaxed max-w-lg mx-auto">
+            <p className="text-xs sm:text-sm text-[var(--bloom-foreground)] opacity-90 leading-relaxed max-w-lg mx-auto line-clamp-3">
               {store.appearance.branding.description || "Discover premium products handcrafted with care."}
             </p>
             <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
               <a
                 href="#products"
                 style={{ backgroundColor: "var(--bloom-primary)" }}
-                className="px-6 py-2.5 text-xs font-bold text-white shadow-sm rounded-xl hover:opacity-90 transition-opacity"
+                className="px-5 sm:px-6 py-2 sm:py-2.5 text-xs font-bold text-white shadow-sm rounded-xl hover:opacity-90 transition-opacity"
               >
                 View All Products
               </a>
@@ -121,7 +122,7 @@ export default function BloomStorefront({
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{ borderColor: "var(--bloom-border)", color: "var(--bloom-foreground)", backgroundColor: "var(--bloom-background)" }}
-                  className="px-6 py-2.5 text-xs font-semibold border rounded-xl hover:bg-white/10 transition-colors"
+                  className="px-5 sm:px-6 py-2 sm:py-2.5 text-xs font-semibold border rounded-xl hover:bg-white/10 transition-colors"
                 >
                   WhatsApp Shop
                 </a>

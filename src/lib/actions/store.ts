@@ -600,14 +600,24 @@ export async function resolveOgImageAction(url: string): Promise<ActionResponse<
     return errorResponse("URL must use HTTP or HTTPS protocol");
   }
 
-  // Sanitization check
+  // Sanitization & SSRF check
   if (trimmed.toLowerCase().includes("javascript:") || trimmed.toLowerCase().includes("data:") || trimmed.toLowerCase().includes("file:")) {
     return errorResponse("Unsafe URL protocol detected.");
   }
 
   try {
+    const parsedUrl = new URL(trimmed);
+    const { isPrivateOrRestrictedHost } = await import("@/lib/image-resolver");
+    if (isPrivateOrRestrictedHost(parsedUrl.hostname)) {
+      return errorResponse("Access to internal/private network URLs is restricted.");
+    }
+  } catch {
+    return errorResponse("Invalid URL format.");
+  }
+
+  try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
+    const timeoutId = setTimeout(() => controller.abort(), 3500); // 3.5s timeout
 
     const res = await fetch(trimmed, {
       signal: controller.signal,

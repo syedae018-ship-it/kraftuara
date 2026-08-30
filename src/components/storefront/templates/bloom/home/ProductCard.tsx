@@ -120,22 +120,22 @@ export default function ProductCard({
         </Link>
       </div>
 
-      <CardContent style={{ backgroundColor: "var(--color-surface)" }} className="p-4 space-y-3">
+      <CardContent style={{ backgroundColor: "var(--color-surface)" }} className="p-2.5 sm:p-4 space-y-2 sm:space-y-3">
         <Link href={productLink}>
           <h2
             style={{ color: "var(--color-text-primary)" }}
-            className="font-semibold line-clamp-2 hover:opacity-80 transition-opacity text-sm font-heading leading-tight"
+            className="font-semibold line-clamp-2 hover:opacity-80 transition-opacity text-xs sm:text-sm font-heading leading-tight"
           >
             {product.name}
           </h2>
         </Link>
 
-        <div className="flex items-center gap-2">
-          <span style={{ color: "var(--color-price)" }} className="text-base font-bold font-mono">
+        <div className="flex items-baseline gap-1.5 sm:gap-2">
+          <span style={{ color: "var(--color-price)" }} className="text-xs sm:text-base font-bold font-mono">
             {formatCurrency(product.price)}
           </span>
           {product.compareAtPrice && product.compareAtPrice > product.price && (
-            <span style={{ color: "var(--color-price-original)" }} className="text-xs line-through font-mono">
+            <span style={{ color: "var(--color-price-original)" }} className="text-[10px] sm:text-xs line-through font-mono">
               {formatCurrency(product.compareAtPrice)}
             </span>
           )}
@@ -146,23 +146,23 @@ export default function ProductCard({
             backgroundColor: justAdded ? "#16a34a" : "var(--color-add-to-cart)",
             color: justAdded ? "#ffffff" : "var(--color-add-to-cart-foreground)",
           }}
-          className="w-full transition-all duration-300 text-xs py-2 h-9 hover:opacity-90 font-medium"
+          className="w-full transition-all duration-300 text-[11px] sm:text-xs py-1.5 sm:py-2 h-8 sm:h-9 hover:opacity-90 font-medium"
           onClick={handleAddToCart}
           disabled={isAdding}
         >
           {isAdding ? (
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <div className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
               Adding...
             </div>
           ) : justAdded ? (
-            <div className="flex items-center gap-2">
-              <Check className="h-4 w-4" />
-              Added to Cart!
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <Check className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              Added!
             </div>
           ) : (
-            <div className="flex items-center gap-2">
-              <ShoppingCart className="h-4 w-4" />
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <ShoppingCart className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               Add to Cart
             </div>
           )}

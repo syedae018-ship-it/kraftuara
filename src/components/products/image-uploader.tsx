@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
-import { Upload, Link as LinkIcon, Star, Trash2, ArrowLeft, ArrowRight, Loader2, Plus } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Upload, Link as LinkIcon, Star, Trash2, ArrowLeft, ArrowRight, Loader2, Plus, CheckCircle2, AlertCircle, Eye } from "lucide-react";
 import { ProductImage } from "@/types/product";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -9,8 +9,7 @@ import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/auth-context";
 import { StorageService } from "@/lib/services/storage-service";
-
-import { resolveProductImageUrl, FALLBACK_PRODUCT_IMAGE } from "@/lib/image-resolver";
+import { resolveProductImageUrl, FALLBACK_PRODUCT_IMAGE, preClassifyImageUrl } from "@/lib/image-resolver";
 
 export { resolveProductImageUrl as resolveOnlineImageUrl };
 
@@ -25,7 +24,40 @@ export function ImageUploader({ images, onChange, className }: ImageUploaderProp
   const [dragActive, setDragActive] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isValidatingUrl, setIsValidatingUrl] = useState(false);
+  const [livePreviewUrl, setLivePreviewUrl] = useState<string | null>(null);
+  const [urlWarning, setUrlWarning] = useState<string | null>(null);
+  const [urlError, setUrlError] = useState<string | null>(null);
   const { activeStore } = useAuth();
+
+  // Instant live preview calculation when urlInput changes
+  useEffect(() => {
+    const trimmed = urlInput.trim();
+    if (!trimmed) {
+      setLivePreviewUrl(null);
+      setUrlWarning(null);
+      setUrlError(null);
+      return;
+    }
+
+    const classification = preClassifyImageUrl(trimmed);
+    if (classification.isBlockedWebpage) {
+      setLivePreviewUrl(null);
+      setUrlError(classification.guidance || "This link points to a webpage, not a direct image URL.");
+      setUrlWarning(null);
+    } else {
+      setLivePreviewUrl(classification.resolvedUrl);
+      setUrlError(null);
+      if (classification.sourceType === "google_drive") {
+        setUrlWarning("Google Drive share link detected: automatically converting to direct image stream.");
+      } else if (classification.sourceType === "youtube_thumbnail") {
+        setUrlWarning("YouTube video link detected: using high-quality video thumbnail.");
+      } else if (classification.sourceType === "instagram_media") {
+        setUrlWarning("Instagram public media post detected: resolving public thumbnail.");
+      } else {
+        setUrlWarning(null);
+      }
+    }
+  }, [urlInput]);
 
   const handleAddUrl = async () => {
     const trimmedInput = urlInput.trim();
@@ -33,12 +65,43 @@ export function ImageUploader({ images, onChange, className }: ImageUploaderProp
 
     setIsValidatingUrl(true);
     try {
-      const resolvedUrl = resolveProductImageUrl(trimmedInput);
+      // 1. Client pre-classification
+      const classification = preClassifyImageUrl(trimmedInput);
+      if (classification.isBlockedWebpage) {
+        toast.error("Webpage URL Detected", classification.guidance || "This link points to a webpage, not an image file.");
+        setUrlError(classification.guidance || "Please provide a direct image link.");
+        setIsValidatingUrl(false);
+        return;
+      }
 
+      const targetUrl = classification.resolvedUrl;
+
+      // 2. Server-side / API verification
+      try {
+        const res = await fetch("/api/validate-image", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: trimmedInput }),
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          if (!data.isValid) {
+            toast.error("Invalid Image URL", data.error || "The link could not be verified as a valid image.");
+            setUrlError(data.error || "Image could not be loaded.");
+            setIsValidatingUrl(false);
+            return;
+          }
+        }
+      } catch {
+        // If API route is unreachable, continue with client image load test
+      }
+
+      // 3. In-browser image element load check
       const checkImageLoad = (url: string): Promise<boolean> => {
         return new Promise((resolve) => {
           const img = new Image();
-          const timer = setTimeout(() => resolve(true), 3000); // Resilience fallback
+          const timer = setTimeout(() => resolve(true), 3500); // 3.5s resilience timeout
           img.src = url;
           img.onload = () => {
             clearTimeout(timer);
@@ -46,8 +109,8 @@ export function ImageUploader({ images, onChange, className }: ImageUploaderProp
           };
           img.onerror = () => {
             clearTimeout(timer);
-            // If it's a valid http/https URL, still resolve true so custom CDNs work
-            if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("/")) {
+            // Allow if valid http/https URL with image extension or Google UserContent CDN
+            if (url.includes("googleusercontent.com") || url.includes("unsplash.com") || /\.(jpg|jpeg|png|webp|gif|svg)/i.test(url)) {
               resolve(true);
             } else {
               resolve(false);
@@ -56,25 +119,30 @@ export function ImageUploader({ images, onChange, className }: ImageUploaderProp
         });
       };
 
-      const isLoaded = await checkImageLoad(resolvedUrl);
+      const isLoaded = await checkImageLoad(targetUrl);
 
       if (!isLoaded) {
         toast.error(
-          "Invalid Image URL",
-          "The link could not be loaded as an image. Please ensure the link is a valid public image URL."
+          "Inaccessible Image",
+          "This image couldn't be loaded. Please check the URL or use another publicly accessible image URL."
         );
+        setUrlError("This image couldn't be loaded. Please ensure it is publicly accessible.");
+        setIsValidatingUrl(false);
         return;
       }
 
       const newImg: ProductImage = {
         id: `img-${Date.now()}`,
-        url: resolvedUrl,
+        url: targetUrl,
         position: images.length,
         isCover: images.length === 0,
       };
 
       onChange([...images, newImg]);
       setUrlInput("");
+      setLivePreviewUrl(null);
+      setUrlWarning(null);
+      setUrlError(null);
       toast.success("Image Added", "Image added to gallery.");
     } catch (err: any) {
       toast.error("Validation Error", err.message || "Failed to validate image URL.");
@@ -104,11 +172,6 @@ export function ImageUploader({ images, onChange, className }: ImageUploaderProp
           continue;
         }
 
-        // IMPORTANT: Always go through StorageService — never use URL.createObjectURL().
-        // blob: URLs only exist in the uploading browser tab and are immediately broken
-        // when the server-side storefront (Next.js Server Component) tries to render them.
-        // StorageService in mock mode converts to a persistent base64 data URL.
-        // StorageService in Supabase mode uploads to a bucket and returns a public CDN URL.
         const cleanFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
         const path = `${storeId}/${Date.now()}-${idx}-${cleanFileName}`;
         const res = await StorageService.uploadFile("product-images", path, file);
@@ -142,7 +205,6 @@ export function ImageUploader({ images, onChange, className }: ImageUploaderProp
     if (files && files.length > 0) {
       processAndUploadFiles(files);
     }
-    // Reset input so the same file can be re-selected
     e.target.value = "";
   };
 
@@ -188,9 +250,9 @@ export function ImageUploader({ images, onChange, className }: ImageUploaderProp
     <div className={cn("space-y-4", className)}>
       <div className="flex items-center justify-between">
         <label className="text-xs font-semibold text-zinc-300 font-heading tracking-wide">
-          Product Media Gallery ({images.length})
+          Media Gallery ({images.length})
         </label>
-        <span className="text-[11px] text-zinc-500 font-body">PNG, JPG, WebP or Image URL · 5MB per file</span>
+        <span className="text-[11px] text-zinc-500 font-body">Direct URLs, Google Drive, JPG, PNG, WebP · Max 5MB</span>
       </div>
 
       {/* Drag & Drop Upload Zone */}
@@ -222,7 +284,7 @@ export function ImageUploader({ images, onChange, className }: ImageUploaderProp
             </div>
             <div>
               <p className="text-xs font-semibold font-heading text-white">
-                Drag &amp; drop product images here, or{" "}
+                Drag &amp; drop images here, or{" "}
                 <label className="text-maroon-400 hover:underline cursor-pointer">
                   browse files
                   <input
@@ -235,32 +297,75 @@ export function ImageUploader({ images, onChange, className }: ImageUploaderProp
                   />
                 </label>
               </p>
-              <p className="text-[11px] text-zinc-500 font-body mt-0.5">High resolution square images recommended</p>
+              <p className="text-[11px] text-zinc-500 font-body mt-0.5">High resolution square or 16:9 images recommended</p>
             </div>
           </>
         )}
       </div>
 
       {/* Add via Image URL Input */}
-      <div className="flex items-center gap-2">
-        <div className="flex-1">
-          <Input
-            placeholder={isValidatingUrl ? "Checking image link..." : "Paste direct Image URL (e.g. https://...)"}
-            value={urlInput}
-            onChange={(e) => setUrlInput(e.target.value)}
-            disabled={isValidatingUrl}
-            leftIcon={<LinkIcon className="w-4 h-4 text-zinc-500" />}
-          />
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <div className="flex-1">
+            <Input
+              placeholder={isValidatingUrl ? "Validating image resource..." : "Paste direct image URL (JPG, PNG, Google Drive link, etc.)"}
+              value={urlInput}
+              onChange={(e) => setUrlInput(e.target.value)}
+              disabled={isValidatingUrl}
+              leftIcon={<LinkIcon className="w-4 h-4 text-zinc-500" />}
+            />
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleAddUrl}
+            disabled={isValidatingUrl || !urlInput.trim() || Boolean(urlError)}
+            leftIcon={isValidatingUrl ? <Loader2 className="w-3.5 h-3.5 animate-spin text-maroon-400" /> : <Plus className="w-3.5 h-3.5" />}
+          >
+            {isValidatingUrl ? "Validating..." : "Add URL"}
+          </Button>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleAddUrl}
-          disabled={isValidatingUrl || !urlInput.trim()}
-          leftIcon={isValidatingUrl ? <Loader2 className="w-3.5 h-3.5 animate-spin text-maroon-400" /> : <Plus className="w-3.5 h-3.5" />}
-        >
-          {isValidatingUrl ? "Validating..." : "Add URL"}
-        </Button>
+
+        {/* Live URL Guidance / Warning / Error Message */}
+        {urlError && (
+          <div className="flex items-start gap-2 p-2.5 rounded-xl bg-red-950/40 border border-red-800/40 text-red-300 text-xs font-body">
+            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-400" />
+            <span>{urlError}</span>
+          </div>
+        )}
+
+        {urlWarning && !urlError && (
+          <div className="flex items-start gap-2 p-2.5 rounded-xl bg-amber-950/40 border border-amber-800/40 text-amber-300 text-xs font-body">
+            <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5 text-amber-400" />
+            <span>{urlWarning}</span>
+          </div>
+        )}
+
+        {/* Instant Live Image Preview Area */}
+        {livePreviewUrl && !urlError && (
+          <div className="p-3 rounded-2xl bg-[#151515] border border-white/10 space-y-2">
+            <div className="flex items-center justify-between text-xs font-heading font-semibold text-zinc-300">
+              <span className="flex items-center gap-1.5 text-zinc-400">
+                <Eye className="w-3.5 h-3.5 text-maroon-400" /> URL Live Preview
+              </span>
+              <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800/40">
+                Ready to add
+              </span>
+            </div>
+            <div className="relative aspect-video max-h-40 rounded-xl overflow-hidden bg-[#111111] border border-white/5 flex items-center justify-center">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={livePreviewUrl}
+                alt="URL Preview"
+                className="w-full h-full object-contain"
+                onError={() => {
+                  setUrlError("This image couldn't be loaded. Please check permissions or use another publicly accessible image URL.");
+                  setLivePreviewUrl(null);
+                }}
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Image Gallery Grid & Sorter */}

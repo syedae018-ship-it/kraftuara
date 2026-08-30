@@ -89,7 +89,13 @@ export function AppearanceSidebar({ settings, onChange, className }: AppearanceS
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs font-semibold text-zinc-300 font-heading">Hero Banner Image</label>
+                <div className="flex items-baseline justify-between">
+                  <label className="text-xs font-semibold text-zinc-300 font-heading">Hero Banner Image (16:9 ratio)</label>
+                  <span className="text-[10px] text-zinc-500 font-mono">16:9 Aspect Ratio</span>
+                </div>
+                <p className="text-[11px] text-zinc-400 font-body">
+                  One 16:9 source banner scales smoothly across Desktop, Tablet, and Mobile without stretching.
+                </p>
                 <ImageUploader
                   images={
                     settings.branding.heroBannerUrl
