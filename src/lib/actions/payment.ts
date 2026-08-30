@@ -30,7 +30,8 @@ const getRazorpayInstance = () => {
  */
 export async function createStoreSubscriptionAction(
   storeId: string | null | undefined,
-  planName: PlanTier
+  planName: PlanTier,
+  interval: "monthly" | "annual" = "monthly"
 ): Promise<ActionResponse<{ subscriptionId: string; keyId: string; isSimulated: boolean }>> {
   try {
     const supabase = await createServerSupabaseClient();
@@ -53,18 +54,23 @@ export async function createStoreSubscriptionAction(
       }
     }
 
-    // Lookup plan pricing from source-of-truth configuration
-    const planConfig = PLANS[planName];
+    // Lookup plan pricing from single-source-of-truth configuration
+    const { getAuthoritativePlan } = await import("@/lib/services/plan-service");
+    const planConfig = await getAuthoritativePlan(planName);
+    
     if (!planConfig) {
       return errorResponse("Invalid plan selection.");
+    }
+
+    if (planConfig.status === "inactive") {
+      return errorResponse("This plan is currently not open for new subscriptions. Please select another plan.");
     }
 
     const razorpay = getRazorpayInstance();
     const isSimulated = !razorpay;
 
-    // Trial Eligibility: Startup plan NEVER has a trial. Growth and Pro have 3-day trial only if not already consumed.
-    const isStartup = planName === "startup";
-    let isTrialEligible = !isStartup;
+    // Trial Eligibility: based on planConfig.isTrialEligible
+    let isTrialEligible = Boolean(planConfig.isTrialEligible);
 
     if (isTrialEligible) {
       const { data: pastSubs } = await (supabase.from("subscriptions") as any)
@@ -90,24 +96,25 @@ export async function createStoreSubscriptionAction(
     }
 
     // Real Razorpay Subscription API call
-    // Only attach trial start_at for Growth & Pro if eligible
-    const planId = await getOrCreateRazorpayPlan(razorpay, planName);
+    const planId = await getOrCreateRazorpayPlan(razorpay, planName, interval);
     const subscriptionPayload: any = {
       plan_id: planId,
-      total_count: 12,
+      total_count: interval === "annual" ? 1 : 12,
       quantity: 1,
       customer_notify: 0, // Direct Kraftaura email dispatcher handles branded customer notifications
       notes: {
         storeId: storeId || "",
         planName: planName,
+        billingInterval: interval,
         userId: user.id,
         userEmail: user.email || "",
       }
     };
 
     if (isTrialEligible) {
-      const trialEndTimestamp = Math.floor(Date.now() / 1000) + 3 * 24 * 60 * 60;
-      subscriptionPayload.start_at = trialEndTimestamp; // billing begins after 3-day trial
+      const durationDays = planConfig.trialDays || 3;
+      const trialEndTimestamp = Math.floor(Date.now() / 1000) + durationDays * 24 * 60 * 60;
+      subscriptionPayload.start_at = trialEndTimestamp; // billing begins after trial
     }
     
     const subscription = await razorpay.subscriptions.create(subscriptionPayload);

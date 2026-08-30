@@ -124,8 +124,9 @@ export class SupabaseAdminRepository implements IAdminRepository {
 
 
   async getPlans(): Promise<Plan[]> {
-    const { PLANS } = await import("@/lib/feature-gating");
-    return Object.values(PLANS).map((p) => ({
+    const { getAllPlans } = await import("@/lib/services/plan-service");
+    const dynamicPlans = await getAllPlans(true);
+    return dynamicPlans.map((p) => ({
       id: p.id,
       name: p.name,
       price: p.priceMonthly,
@@ -137,7 +138,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
       },
       features: p.featuresDisplay,
       isPopular: p.popular,
-      status: "active",
+      status: p.status === "inactive" ? "archived" : "active",
     }));
   }
 

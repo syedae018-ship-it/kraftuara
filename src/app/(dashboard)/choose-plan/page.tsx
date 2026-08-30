@@ -14,22 +14,24 @@ import { Badge } from "@/components/ui/table";
 import { useAuth } from "@/context/auth-context";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { PLANS, PlanTier } from "@/lib/feature-gating";
+import { PLANS, PlanTier, BillingInterval } from "@/lib/feature-gating";
 
 interface DisplayPlan {
   id: PlanTier;
   name: string;
   planName: PlanTier;
-  price: string;
-  amount: number;
+  priceMonthly: number;
+  priceAnnual: number;
   description: string;
   badge?: string;
   popular?: boolean;
+  isTrialEligible?: boolean;
   features: string[];
 }
 
 export default function ChoosePlanPage() {
   const router = useRouter();
+  const [billingInterval, setBillingInterval] = useState<BillingInterval>("monthly");
 
   // Dynamically load Razorpay SDK checkout script
   useEffect(() => {
@@ -53,11 +55,12 @@ export default function ChoosePlanPage() {
     id: p.id,
     name: p.name,
     planName: p.id,
-    price: `₹${p.priceMonthly.toLocaleString("en-IN")}`,
-    amount: p.priceMonthly,
+    priceMonthly: p.priceMonthly,
+    priceAnnual: p.priceAnnual,
     description: p.description,
     badge: p.badge,
     popular: p.popular,
+    isTrialEligible: p.isTrialEligible,
     features: p.featuresDisplay,
   }));
 
@@ -67,7 +70,7 @@ export default function ChoosePlanPage() {
 
     try {
       const { createStoreSubscriptionAction } = await import("@/lib/actions/payment");
-      const res = await createStoreSubscriptionAction(null, plan.planName);
+      const res = await createStoreSubscriptionAction(null, plan.planName, billingInterval);
 
       if (!res.success) {
         toast.error("Checkout Error", res.error || "Failed to initialize subscription checkout.");
@@ -108,8 +111,14 @@ export default function ChoosePlanPage() {
         key: keyId,
         subscription_id: subscriptionId,
         name: "Kraftaura Catalog Platform",
-        description: `${plan.name} Subscription`,
+        description: `${plan.name} (${billingInterval === "annual" ? "Annual" : "Monthly"}) Subscription`,
         image: "https://api.dicebear.com/7.x/initials/svg?seed=Kraftaura",
+        modal: {
+          ondismiss: function () {
+            setProcessingPayment(false);
+            toast.info("Payment Cancelled", "Checkout was cancelled. Your plan has not been changed.");
+          },
+        },
         handler: async function (response: any) {
           setProcessingPayment(true);
           const { verifySubscriptionPaymentAction } = await import("@/lib/actions/payment");
@@ -167,20 +176,54 @@ export default function ChoosePlanPage() {
         {/* Header Section */}
         <div className="space-y-3">
           <Badge variant="maroon" className="gap-1 text-[11px] uppercase tracking-wider">
-            <Sparkles className="w-3 h-3 text-maroon-300" /> Step 3 of 5 • Subscription & Plan Activation
+            <Sparkles className="w-3 h-3 text-maroon-300" /> Step 3 of 5 • Subscription &amp; Plan Activation
           </Badge>
           <h1 className="text-3xl sm:text-5xl font-extrabold font-heading tracking-tight text-white">
             Choose Your Platform Plan
           </h1>
           <p className="text-xs sm:text-sm text-zinc-400 max-w-xl mx-auto leading-relaxed">
-            Select the plan tailored for your business volume. Upgrade or downgrade anytime directly from your merchant dashboard.
+            Select the plan tailored for your business volume. Upgrade or modify anytime directly from your merchant dashboard.
           </p>
+
+          {/* Monthly / Annual Billing Toggle */}
+          <div className="pt-4 flex items-center justify-center">
+            <div className="bg-[#111111] p-1 rounded-2xl border border-white/10 flex items-center gap-1">
+              <button
+                onClick={() => setBillingInterval("monthly")}
+                className={cn(
+                  "px-5 py-2 rounded-xl text-xs font-heading font-semibold transition-all",
+                  billingInterval === "monthly"
+                    ? "bg-maroon-800 text-white shadow-glow"
+                    : "text-zinc-400 hover:text-white"
+                )}
+              >
+                Monthly Billing
+              </button>
+              <button
+                onClick={() => setBillingInterval("annual")}
+                className={cn(
+                  "px-5 py-2 rounded-xl text-xs font-heading font-semibold transition-all flex items-center gap-1.5",
+                  billingInterval === "annual"
+                    ? "bg-maroon-800 text-white shadow-glow"
+                    : "text-zinc-400 hover:text-white"
+                )}
+              >
+                <span>Annual Billing</span>
+                <span className="text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-700/50 px-1.5 py-0.5 rounded-md font-mono">
+                  Save ~17%
+                </span>
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Plans Selection Grid (4 Plans) */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 text-left items-stretch">
           {displayPlans.map((plan) => {
             const isPopular = plan.popular;
+            const isAnnual = billingInterval === "annual";
+            const currentPrice = isAnnual ? `₹${plan.priceAnnual.toLocaleString("en-IN")}` : `₹${plan.priceMonthly.toLocaleString("en-IN")}`;
+            const periodLabel = isAnnual ? "year" : "month";
 
             return (
               <div
@@ -213,10 +256,15 @@ export default function ChoosePlanPage() {
                     </p>
                     <div className="flex items-baseline gap-1 mt-4">
                       <span className="text-2xl sm:text-3xl font-extrabold font-heading text-white">
-                        {plan.price}
+                        {currentPrice}
                       </span>
-                      <span className="text-xs text-zinc-500 font-mono">/ month</span>
+                      <span className="text-xs text-zinc-500 font-mono">/ {periodLabel}</span>
                     </div>
+                    {isAnnual && (
+                      <p className="text-[10px] text-emerald-400 font-mono mt-1 font-semibold">
+                        (Equivalent to ₹{Math.round(plan.priceAnnual / 12)}/mo)
+                      </p>
+                    )}
                   </div>
 
                   <ul className="space-y-2.5 pt-4 border-t border-white/5 text-[11px] text-zinc-300 font-body">
@@ -228,11 +276,9 @@ export default function ChoosePlanPage() {
                     ))}
                   </ul>
 
-                  {plan.id !== "startup" && (
-                    <div className="text-[9px] text-zinc-400 font-body text-center bg-white/5 p-2 rounded-xl border border-white/5 mt-2">
-                      🎁 Includes a 3-Day Free Trial (requires automatic recurring authorization)
-                    </div>
-                  )}
+                  <div className="text-[9px] text-zinc-400 font-body text-center bg-white/5 p-2 rounded-xl border border-white/5 mt-2">
+                    {plan.isTrialEligible ? "🎁 Includes a 3-Day Free Trial" : "⚡ Direct Activation (No trial period)"}
+                  </div>
                 </div>
 
                 <Button
@@ -258,7 +304,6 @@ export default function ChoosePlanPage() {
           <span className="flex items-center gap-1.5"><Zap className="w-4 h-4 text-emerald-400" /> Instant Activation</span>
         </div>
       </div>
-
     </div>
   );
 }

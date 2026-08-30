@@ -120,6 +120,7 @@ const faqs = [
 
 export function LandingPage() {
   const [activeDevice, setActiveDevice] = useState<"desktop" | "mobile">("desktop");
+  const [billingInterval, setBillingInterval] = useState<"monthly" | "annual">("monthly");
   const [openFaq, setOpenFaq] = useState<number | null>(0);
 
   const currentTemplateObj = craftStoreClassicTemplate;
@@ -429,7 +430,7 @@ export function LandingPage() {
       </section>
 
       {/* 4. PRICING SECTION */}
-      <section id="pricing" className="py-24 px-4 sm:px-6 lg:px-12 max-w-7xl mx-auto space-y-12 border-t border-white/10">
+      <section id="pricing" className="py-24 px-4 sm:px-6 lg:px-12 max-w-7xl mx-auto space-y-10 border-t border-white/10">
         <div className="text-center space-y-3">
           <Badge variant="maroon" className="text-xs uppercase tracking-wider">
             Affordable Plans
@@ -438,73 +439,111 @@ export function LandingPage() {
             Transparent Pricing for Every Business Tier
           </h2>
           <p className="text-sm text-zinc-400 max-w-xl mx-auto">
-            Simple, transparent plans designed for growing businesses in India. Includes a 3-day free trial on all plans.
+            Simple, transparent plans designed for growing businesses in India. Includes a 3-day free trial on eligible plans.
           </p>
+
+          {/* Monthly / Annual Billing Toggle */}
+          <div className="pt-4 flex items-center justify-center">
+            <div className="bg-[#111111] p-1 rounded-2xl border border-white/10 flex items-center gap-1">
+              <button
+                onClick={() => setBillingInterval("monthly")}
+                className={cn(
+                  "px-5 py-2 rounded-xl text-xs font-heading font-semibold transition-all",
+                  billingInterval === "monthly"
+                    ? "bg-maroon-800 text-white shadow-glow"
+                    : "text-zinc-400 hover:text-white"
+                )}
+              >
+                Monthly Billing
+              </button>
+              <button
+                onClick={() => setBillingInterval("annual")}
+                className={cn(
+                  "px-5 py-2 rounded-xl text-xs font-heading font-semibold transition-all flex items-center gap-1.5",
+                  billingInterval === "annual"
+                    ? "bg-maroon-800 text-white shadow-glow"
+                    : "text-zinc-400 hover:text-white"
+                )}
+              >
+                <span>Annual Billing</span>
+                <span className="text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-700/50 px-1.5 py-0.5 rounded-md font-mono">
+                  Save ~17%
+                </span>
+              </button>
+            </div>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 items-stretch max-w-7xl mx-auto">
-          {pricingPlans.map((plan: any) => (
-            <div
-              key={plan.name}
-              className={cn(
-                "relative rounded-3xl p-6 flex flex-col justify-between transition-all duration-300 border text-left",
-                plan.popular
-                  ? "bg-[#151515] border-maroon-600 shadow-glow-lg maroon-gradient-border"
-                  : "bg-[#111111] border-white/10 hover:border-white/20"
-              )}
-            >
-              {plan.badge && (
-                <div className={cn(
-                  "absolute -top-3.5 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full text-[10px] uppercase font-mono font-bold tracking-widest text-white shadow-glow border",
-                  plan.popular ? "bg-maroon-800 border-maroon-500" : "bg-white/10 border-white/20 text-zinc-300"
-                )}>
-                  {plan.badge}
-                </div>
-              )}
+          {Object.values(PLANS).map((p) => {
+            const isAnnual = billingInterval === "annual";
+            const displayPrice = isAnnual ? `₹${p.priceAnnual.toLocaleString("en-IN")}` : `₹${p.priceMonthly.toLocaleString("en-IN")}`;
+            const periodLabel = isAnnual ? "year" : "month";
+            const href = `/signup?plan=${p.id}&interval=${billingInterval}`;
 
-              <div className="space-y-6">
-                <div>
-                  <h3 className="text-xs font-mono font-bold uppercase tracking-widest text-maroon-400">
-                    {plan.name}
-                  </h3>
-                  <div className="flex items-baseline gap-1 mt-2">
-                    <span className="text-2xl sm:text-3xl font-extrabold font-heading text-white">{plan.price}</span>
-                    <span className="text-xs text-zinc-500 font-body">/{plan.period}</span>
+            return (
+              <div
+                key={p.id}
+                className={cn(
+                  "relative rounded-3xl p-6 flex flex-col justify-between transition-all duration-300 border text-left",
+                  p.popular
+                    ? "bg-[#151515] border-maroon-600 shadow-glow-lg maroon-gradient-border"
+                    : "bg-[#111111] border-white/10 hover:border-white/20"
+                )}
+              >
+                {p.badge && (
+                  <div className={cn(
+                    "absolute -top-3.5 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full text-[10px] uppercase font-mono font-bold tracking-widest text-white shadow-glow border",
+                    p.popular ? "bg-maroon-800 border-maroon-500" : "bg-white/10 border-white/20 text-zinc-300"
+                  )}>
+                    {p.badge}
                   </div>
-                  {plan.setupFee && (
-                    <p className="text-[10px] text-amber-500 font-mono mt-1 font-semibold">
-                      + {plan.setupFee}
-                    </p>
-                  )}
-                  <p className="text-xs text-zinc-400 mt-2 font-body">{plan.description}</p>
-                </div>
+                )}
 
-                <div className="space-y-2.5 border-t border-white/10 pt-4">
-                  {plan.features.map((feat: any, idx: number) => (
-                    <div key={idx} className="flex items-center gap-2 text-xs text-zinc-300 font-body">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                      <span>{feat}</span>
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-xs font-mono font-bold uppercase tracking-widest text-maroon-400">
+                      {p.name}
+                    </h3>
+                    <div className="flex items-baseline gap-1 mt-2">
+                      <span className="text-2xl sm:text-3xl font-extrabold font-heading text-white">{displayPrice}</span>
+                      <span className="text-xs text-zinc-500 font-body">/{periodLabel}</span>
                     </div>
-                  ))}
+                    {isAnnual && (
+                      <p className="text-[10px] text-emerald-400 font-mono mt-1 font-semibold">
+                        (Equivalent to ₹{Math.round(p.priceAnnual / 12)}/mo)
+                      </p>
+                    )}
+                    <p className="text-xs text-zinc-400 mt-2 font-body">{p.description}</p>
+                  </div>
+
+                  <div className="space-y-2.5 border-t border-white/10 pt-4">
+                    {p.featuresDisplay.map((feat: any, idx: number) => (
+                      <div key={idx} className="flex items-center gap-2 text-xs text-zinc-300 font-body">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                        <span>{feat}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="text-[9px] text-zinc-400 font-body text-center bg-white/5 p-2 rounded-xl border border-white/5 mt-2">
+                    {p.isTrialEligible ? "🎁 Includes a 3-Day Free Trial" : "⚡ Direct Activation (No trial period)"}
+                  </div>
                 </div>
 
-                <div className="text-[9px] text-zinc-400 font-body text-center bg-white/5 p-2 rounded-xl border border-white/5 mt-2">
-                  🎁 Includes a 3-Day Free Trial (requires automatic recurring authorization)
+                <div className="pt-6 mt-6 border-t border-white/10">
+                  <Link href={href} className="w-full">
+                    <Button
+                      variant={p.popular ? "primary" : "secondary"}
+                      className="w-full justify-center h-11 text-xs font-semibold uppercase tracking-wider"
+                    >
+                      Choose {p.name}
+                    </Button>
+                  </Link>
                 </div>
               </div>
-
-              <div className="pt-6 mt-6 border-t border-white/10">
-                <Link href={plan.href} className="w-full">
-                  <Button
-                    variant={plan.popular ? "primary" : "secondary"}
-                    className="w-full justify-center h-11 text-xs font-semibold uppercase tracking-wider"
-                  >
-                    {plan.cta}
-                  </Button>
-                </Link>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </section>
 

@@ -27,6 +27,7 @@ export default function MerchantBillingPage() {
   const { activeStore, user, refreshSession } = useAuth();
   const [subscription, setSubscription] = useState<StoreSubscription | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [billingInterval, setBillingInterval] = useState<"monthly" | "annual">("monthly");
   
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminPlan, setAdminPlan] = useState<PlanTier>("startup");
@@ -107,7 +108,7 @@ export default function MerchantBillingPage() {
 
     try {
       const { createStoreSubscriptionAction } = await import("@/lib/actions/payment");
-      const res = await createStoreSubscriptionAction(activeStore.id, planId);
+      const res = await createStoreSubscriptionAction(activeStore.id, planId, billingInterval);
 
       if (!res.success) {
         toast.error("Upgrade Error", res.error || "Failed to create subscription order.");
@@ -358,14 +359,47 @@ export default function MerchantBillingPage() {
 
         {/* Upgrade/Change Plans Grid (All 4 Plans) */}
         <div className="space-y-3.5">
-          <h3 className="text-xs font-bold font-heading uppercase tracking-wider text-zinc-500">
-            Available Platform Plans
-          </h3>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <h3 className="text-xs font-bold font-heading uppercase tracking-wider text-zinc-500">
+              Available Platform Plans
+            </h3>
+
+            {/* Monthly / Annual Toggle */}
+            <div className="bg-[#111111] p-1 rounded-2xl border border-white/10 flex items-center gap-1 self-start sm:self-auto">
+              <button
+                onClick={() => setBillingInterval("monthly")}
+                className={cn(
+                  "px-4 py-1.5 rounded-xl text-xs font-heading font-semibold transition-all",
+                  billingInterval === "monthly"
+                    ? "bg-maroon-800 text-white shadow-glow"
+                    : "text-zinc-400 hover:text-white"
+                )}
+              >
+                Monthly
+              </button>
+              <button
+                onClick={() => setBillingInterval("annual")}
+                className={cn(
+                  "px-4 py-1.5 rounded-xl text-xs font-heading font-semibold transition-all flex items-center gap-1",
+                  billingInterval === "annual"
+                    ? "bg-maroon-800 text-white shadow-glow"
+                    : "text-zinc-400 hover:text-white"
+                )}
+              >
+                <span>Annual</span>
+                <span className="text-[9px] bg-emerald-950 text-emerald-400 border border-emerald-700/50 px-1 py-0.2 rounded font-mono">
+                  -17%
+                </span>
+              </button>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {PLANS_CATALOG.map((p) => {
+            {Object.values(PLANS).map((p) => {
               const isCurrent = subscription?.plan === p.id && subscription.status === "active";
               const isDowngrade = p.hierarchyWeight < currentPlanWeight;
-              const isUpgrade = p.hierarchyWeight > currentPlanWeight;
+              const isAnnual = billingInterval === "annual";
+              const displayPrice = isAnnual ? `₹${p.priceAnnual.toLocaleString("en-IN")}/yr` : `₹${p.priceMonthly.toLocaleString("en-IN")}/mo`;
 
               let buttonLabel = `Upgrade to ${p.name}`;
               let buttonDisabled = false;
@@ -393,10 +427,15 @@ export default function MerchantBillingPage() {
                       <h4 className="text-sm font-bold font-heading text-white">{p.name}</h4>
                       {isCurrent && <CheckCircle2 className="w-4 h-4 text-maroon-400 shrink-0" />}
                     </div>
-                    <div className="text-lg font-bold font-mono text-white">{p.price}</div>
-                    <p className="text-xs text-zinc-400 font-body leading-relaxed">{p.desc}</p>
+                    <div className="text-lg font-bold font-mono text-white">{displayPrice}</div>
+                    {isAnnual && (
+                      <p className="text-[10px] text-emerald-400 font-mono">
+                        (₹{Math.round(p.priceAnnual / 12)}/mo billed annually)
+                      </p>
+                    )}
+                    <p className="text-xs text-zinc-400 font-body leading-relaxed">{p.description}</p>
                     <span className="text-[10px] font-mono text-zinc-500 block pt-1">
-                      Max Products limit: {p.limit}
+                      Max Products limit: {p.productLimit}
                     </span>
                   </div>
 

@@ -5,6 +5,7 @@
 
 export type PlanTier = "startup" | "growth" | "pro" | "premium_ai";
 export type PlanId = PlanTier;
+export type BillingInterval = "monthly" | "annual";
 
 export type FeatureKey =
   | "dashboard"
@@ -38,6 +39,7 @@ export interface PlanConfig {
   id: PlanTier;
   name: string;
   priceMonthly: number;
+  priceAnnual: number;
   description: string;
   allowedFeatures: FeatureKey[];
   productLimit: number;
@@ -46,6 +48,11 @@ export interface PlanConfig {
   badge?: string;
   hierarchyWeight: number;
   featuresDisplay: string[];
+  status?: "active" | "inactive" | "archived";
+  isTrialEligible?: boolean;
+  trialDays?: number;
+  displayOrder?: number;
+  updatedAt?: string;
 }
 
 export const UNLIMITED_CATEGORY_LIMIT = 999999;
@@ -55,6 +62,7 @@ export const PLANS: Record<PlanTier, PlanConfig> = {
     id: "startup",
     name: "Startup Pack",
     priceMonthly: 99,
+    priceAnnual: 990,
     description: "Perfect for new merchants & WhatsApp catalog storefronts.",
     allowedFeatures: [
       "dashboard",
@@ -68,6 +76,10 @@ export const PLANS: Record<PlanTier, PlanConfig> = {
     productLimit: 12,
     categoryLimit: 1,
     hierarchyWeight: 1,
+    displayOrder: 1,
+    status: "active",
+    isTrialEligible: false,
+    trialDays: 0,
     featuresDisplay: [
       "WhatsApp Catalog Order Routing",
       "Basic Merchant Dashboard",
@@ -82,6 +94,7 @@ export const PLANS: Record<PlanTier, PlanConfig> = {
     id: "growth",
     name: "Growth Pack",
     priceMonthly: 299,
+    priceAnnual: 2990,
     description: "Enhanced growth with Traffic Analytics, Coupons & Multiple Categories.",
     allowedFeatures: [
       // Inherits all Startup features
@@ -108,6 +121,10 @@ export const PLANS: Record<PlanTier, PlanConfig> = {
     popular: true,
     badge: "MOST POPULAR",
     hierarchyWeight: 2,
+    displayOrder: 2,
+    status: "active",
+    isTrialEligible: true,
+    trialDays: 3,
     featuresDisplay: [
       "Everything in Startup Pack",
       "Product Management (up to 24 products)",
@@ -122,6 +139,7 @@ export const PLANS: Record<PlanTier, PlanConfig> = {
     id: "pro",
     name: "Pro Plan",
     priceMonthly: 499,
+    priceAnnual: 4990,
     description: "Complete E-commerce with Direct Payments, Invoicing & Custom Domains.",
     allowedFeatures: [
       // Inherits all Startup & Growth features
@@ -154,6 +172,10 @@ export const PLANS: Record<PlanTier, PlanConfig> = {
     categoryLimit: UNLIMITED_CATEGORY_LIMIT,
     badge: "FULL E-COMMERCE",
     hierarchyWeight: 3,
+    displayOrder: 3,
+    status: "active",
+    isTrialEligible: true,
+    trialDays: 3,
     featuresDisplay: [
       "Everything in Growth Pack",
       "Product Management (up to 100 products)",
@@ -170,6 +192,7 @@ export const PLANS: Record<PlanTier, PlanConfig> = {
     id: "premium_ai",
     name: "Premium / AI Plan",
     priceMonthly: 1499,
+    priceAnnual: 14990,
     description: "VIP growth suite with Pro E-commerce, AI Commercials & 24/7 Dedicated Support.",
     allowedFeatures: [
       // Inherits all Pro features
@@ -205,6 +228,10 @@ export const PLANS: Record<PlanTier, PlanConfig> = {
     categoryLimit: UNLIMITED_CATEGORY_LIMIT,
     badge: "AI SUITE & VIP",
     hierarchyWeight: 4,
+    displayOrder: 4,
+    status: "active",
+    isTrialEligible: true,
+    trialDays: 3,
     featuresDisplay: [
       "Everything in Pro Plan",
       "1 AI Ad Commercial Video Reel",
@@ -238,11 +265,30 @@ export function normalizePlanTier(planName?: string | null): PlanTier {
 }
 
 /**
+ * In-memory active plans registry populated dynamically from database / plan-service.
+ */
+let dynamicPlansRegistry: Record<PlanTier, PlanConfig> = { ...PLANS };
+
+/**
+ * Returns the current in-memory dynamic plans registry.
+ */
+export function getDynamicPlansRegistry(): Record<PlanTier, PlanConfig> {
+  return dynamicPlansRegistry;
+}
+
+/**
+ * Updates the in-memory plan registry dynamically.
+ */
+export function setDynamicPlansRegistry(updatedPlans: Record<PlanTier, PlanConfig>) {
+  dynamicPlansRegistry = { ...dynamicPlansRegistry, ...updatedPlans };
+}
+
+/**
  * Retrieves the PlanConfig for a given plan tier
  */
 export function getPlanConfig(planName?: string | null): PlanConfig {
   const tier = normalizePlanTier(planName);
-  return PLANS[tier] || PLANS.startup;
+  return dynamicPlansRegistry[tier] || PLANS[tier] || PLANS.startup;
 }
 
 /**
@@ -309,9 +355,13 @@ export function hasFeatureAccess(planName?: string | null, feature?: FeatureKey)
  * Returns the minimum required plan for a given feature key.
  */
 export function getRequiredPlanForFeature(feature: FeatureKey): PlanTier {
-  if (PLANS.startup.allowedFeatures.includes(feature)) return "startup";
-  if (PLANS.growth.allowedFeatures.includes(feature)) return "growth";
-  if (PLANS.pro.allowedFeatures.includes(feature)) return "pro";
+  const plans = Object.values(dynamicPlansRegistry);
+  const sorted = [...plans].sort((a, b) => a.hierarchyWeight - b.hierarchyWeight);
+  for (const p of sorted) {
+    if (p.allowedFeatures.includes(feature)) {
+      return p.id;
+    }
+  }
   return "premium_ai";
 }
 
@@ -330,18 +380,13 @@ export function canCreateProduct(
   currentCount: number
 ): { allowed: boolean; limit: number; current: number; message?: string } {
   const tier = normalizePlanTier(planName);
-  const limit = getProductLimit(tier);
+  const planCfg = getPlanConfig(tier);
+  const limit = planCfg.productLimit;
   const allowed = currentCount < limit;
 
   if (!allowed) {
-    let message = `You've reached your ${limit}-product limit. Upgrade your plan to add more products.`;
-    if (tier === "startup") {
-      message = "You've reached your 12-product limit. Upgrade your plan to add more products.";
-    } else if (tier === "growth") {
-      message = "You've reached your 24-product limit. Upgrade to Pro to add more products.";
-    } else {
-      message = `You've reached your ${limit}-product limit.`;
-    }
+    const displayName = planCfg.name;
+    const message = `You've reached your ${limit}-product limit for ${displayName}. Upgrade your plan to add more products.`;
     return { allowed: false, limit, current: currentCount, message };
   }
 
@@ -356,8 +401,9 @@ export function canCreateCategory(
   currentCount: number
 ): { allowed: boolean; limit: number; current: number; isUnlimited: boolean; message?: string } {
   const tier = normalizePlanTier(planName);
-  const isUnlimited = isUnlimitedCategories(tier);
-  const limit = getCategoryLimit(tier);
+  const planCfg = getPlanConfig(tier);
+  const isUnlimited = planCfg.categoryLimit >= UNLIMITED_CATEGORY_LIMIT;
+  const limit = planCfg.categoryLimit;
 
   if (isUnlimited) {
     return { allowed: true, limit, current: currentCount, isUnlimited: true };
@@ -365,7 +411,8 @@ export function canCreateCategory(
 
   const allowed = currentCount < limit;
   if (!allowed) {
-    const message = "Startup Pack allows 1 category maximum. Upgrade your plan to create more categories.";
+    const displayName = planCfg.name;
+    const message = `${displayName} allows ${limit} category maximum. Upgrade your plan to create more categories.`;
     return { allowed: false, limit, current: currentCount, isUnlimited: false, message };
   }
 
