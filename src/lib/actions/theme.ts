@@ -2,6 +2,7 @@
 
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { TypographyConfig } from "@/types/theme";
 
 interface ActionResponse<T = void> {
   success: boolean;
@@ -14,7 +15,7 @@ const THEME_PRESETS: Record<string, {
   name: string;
   paletteId: string;
   colors: { primary: string; secondary: string; accent: string; background: string };
-  typography: { headingFont: string; bodyFont: string; animationStyle: string };
+  typography: TypographyConfig;
 }> = {
   bloom: {
     name: "Charcoal / Orange",
@@ -104,13 +105,26 @@ export async function applyThemeAction(
     const existingAppearance = existingMetadata.appearance || {};
 
     const preset = THEME_PRESETS[themeId] || THEME_PRESETS.bloom;
+    const { resolveThemeTokens } = await import("@/lib/theme-token-resolver");
+    const resolved = resolveThemeTokens({
+      paletteId: preset.paletteId as any,
+      customOverrides: {},
+      colors: preset.colors,
+      typography: preset.typography,
+    });
 
     const updatedAppearance = {
       ...existingAppearance,
       themeId,
-      paletteId: preset.paletteId,
+      paletteId: resolved.paletteId,
       customOverrides: {},
-      colors: preset.colors,
+      tokens: resolved.tokens,
+      colors: {
+        primary: resolved.tokens.primary,
+        secondary: resolved.tokens.secondary,
+        accent: resolved.tokens.accent,
+        background: resolved.tokens.background,
+      },
       typography: preset.typography,
       updatedAt: new Date().toISOString(),
     };

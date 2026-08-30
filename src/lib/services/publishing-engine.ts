@@ -179,10 +179,12 @@ export class PublishingEngine {
       if (slug) {
         try {
           const { revalidatePath } = await import("next/cache");
+          revalidatePath(`/store/${slug}`, "layout");
           revalidatePath(`/store/${slug}`);
           revalidatePath(`/store/${slug}/cart`);
           revalidatePath(`/store/${slug}/contact`);
           revalidatePath(`/store/${slug}/track`);
+          revalidatePath("/dashboard/appearance");
         } catch {
           // Path revalidation may be skipped in non-web request contexts
         }

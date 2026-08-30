@@ -9,7 +9,8 @@ import { appearanceRepository } from "@/lib/repositories/appearance-repository";
 import { productRepository } from "@/lib/repositories/product-repository";
 import { categoryRepository } from "@/lib/repositories/category-repository";
 import { collectionRepository } from "@/lib/repositories/collection-repository";
-import { publishStoreChangesAction, getStoreShippingSettingsAction } from "@/lib/actions/store";
+import { saveAppearanceAction, getStoreShippingSettingsAction } from "@/lib/actions/store";
+import { initialAppearanceSettings } from "@/lib/repositories/appearance-repository";
 import { Product } from "@/types/product";
 import { Category } from "@/types/category";
 import { Collection } from "@/types/collection";
@@ -89,8 +90,7 @@ export default function AppearancePage() {
     }
     saveTimeoutRef.current = setTimeout(async () => {
       try {
-        await appearanceRepository.updateSettings(activeStore.id, merged);
-        await publishStoreChangesAction(activeStore.id);
+        await saveAppearanceAction(activeStore.id, merged, true);
       } catch (err) {
         console.error("Failed to persist appearance draft / auto-publish:", err);
       }
@@ -105,6 +105,7 @@ export default function AppearancePage() {
     const res = await appearanceRepository.undo(activeStore.id);
     if (res) {
       setSettings(res);
+      await saveAppearanceAction(activeStore.id, res, true);
       toast.info("Undo Applied", "Reverted to previous customization state.");
     }
   };
@@ -117,6 +118,7 @@ export default function AppearancePage() {
     const res = await appearanceRepository.redo(activeStore.id);
     if (res) {
       setSettings(res);
+      await saveAppearanceAction(activeStore.id, res, true);
       toast.info("Redo Applied", "Restored customization state.");
     }
   };
@@ -126,9 +128,11 @@ export default function AppearancePage() {
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
     }
-    const reset = await appearanceRepository.resetDefaults(activeStore.id);
-    setSettings(reset);
-    toast.success("Reset Defaults", "Restored original theme settings.");
+    const res = await saveAppearanceAction(activeStore.id, initialAppearanceSettings, true);
+    if (res.success && res.data) {
+      setSettings(res.data);
+      toast.success("Reset Defaults", "Restored original theme settings.");
+    }
   };
 
   const handleSave = async () => {
@@ -139,10 +143,11 @@ export default function AppearancePage() {
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
       }
-      await appearanceRepository.updateSettings(activeStore.id, settings);
-
-      const res = await publishStoreChangesAction(activeStore.id);
+      const res = await saveAppearanceAction(activeStore.id, settings, true);
       if (res.success) {
+        if (res.data) {
+          setSettings(res.data);
+        }
         toast.success("Appearance Saved & Published!", "Storefront changes are now live.");
       } else {
         toast.error("Error", res.error || "Failed to publish storefront changes.");

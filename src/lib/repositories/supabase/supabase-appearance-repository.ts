@@ -100,19 +100,41 @@ export class SupabaseAppearanceRepository implements IAppearanceRepository {
     const supabase = client || this.getSupabase();
     const current = await this.getSettings(storeId, supabase);
     
-    const resolved = resolveThemeTokens({
-      paletteId: settings.paletteId !== undefined ? settings.paletteId : current.paletteId,
-      customOverrides: settings.customOverrides !== undefined ? { ...current.customOverrides, ...settings.customOverrides } : current.customOverrides,
-      colors: { ...current.colors, ...settings.colors },
-    });
+    // When settings specifies customOverrides, replace it directly (never merge old overrides that were cleared)
+    const effectiveOverrides = settings.customOverrides !== undefined
+      ? settings.customOverrides
+      : (current.customOverrides || {});
 
+    const effectivePaletteId = settings.paletteId !== undefined
+      ? settings.paletteId
+      : current.paletteId;
+
+    const effectiveTypography = settings.typography !== undefined
+      ? { ...current.typography, ...settings.typography }
+      : current.typography;
+
+    const effectiveColors = settings.colors !== undefined
+      ? { ...current.colors, ...settings.colors }
+      : current.colors;
+
+    const effectiveTokens = settings.tokens !== undefined
+      ? settings.tokens
+      : current.tokens;
+
+    const resolved = resolveThemeTokens({
+      paletteId: effectivePaletteId,
+      customOverrides: effectiveOverrides,
+      tokens: effectiveTokens,
+      colors: effectiveColors,
+      typography: effectiveTypography,
+    });
 
     const merged: AppearanceSettings = {
       ...current,
       ...settings,
       themeId: settings.themeId || current.themeId || "bloom",
       paletteId: resolved.paletteId,
-      customOverrides: settings.customOverrides !== undefined ? { ...current.customOverrides, ...settings.customOverrides } : current.customOverrides,
+      customOverrides: effectiveOverrides,
       tokens: resolved.tokens,
       colors: {
         primary: resolved.tokens.primary,
@@ -121,12 +143,11 @@ export class SupabaseAppearanceRepository implements IAppearanceRepository {
         background: resolved.tokens.background,
       },
       branding: { ...current.branding, ...settings.branding },
-      typography: { ...current.typography, ...settings.typography },
+      typography: effectiveTypography,
       homepageSections: settings.homepageSections || current.homepageSections,
       seo: { ...current.seo, ...settings.seo },
       updatedAt: new Date().toISOString(),
     };
-
 
     // Load existing settings
     const { data: settingsRow } = await (supabase.from("store_settings") as any)
@@ -134,11 +155,16 @@ export class SupabaseAppearanceRepository implements IAppearanceRepository {
       .eq("store_id", storeId)
       .maybeSingle();
 
-
     const existingMetadata = settingsRow?.metadata || {};
     const updatedMetadata = {
       ...existingMetadata,
-      appearance: merged
+      appearance: merged,
+      ...(existingMetadata.published_snapshot ? {
+        published_snapshot: {
+          ...existingMetadata.published_snapshot,
+          appearance: merged,
+        }
+      } : {}),
     };
 
     if (settingsRow) {
@@ -175,11 +201,6 @@ export class SupabaseAppearanceRepository implements IAppearanceRepository {
           .eq("id", storeId);
       }
     }
-
-    // Auto-publish appearance changes to live storefront
-    const { autoPublishStoreAction } = await import("@/lib/actions/store");
-    await autoPublishStoreAction(storeId);
-
 
     return merged;
   }

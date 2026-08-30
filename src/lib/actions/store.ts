@@ -7,10 +7,10 @@ import { revalidatePath } from "next/cache";
 import crypto from "crypto";
 import { PLANS } from "@/lib/feature-gating";
 import { normalizeSlug } from "@/lib/urls";
-import { supabaseAppearanceRepository } from "@/lib/repositories/supabase/supabase-appearance-repository";
 import { supabaseCategoryRepository } from "@/lib/repositories/supabase/supabase-category-repository";
 import { supabaseCollectionRepository } from "@/lib/repositories/supabase/supabase-collection-repository";
 import { supabaseProductRepository } from "@/lib/repositories/supabase/supabase-product-repository";
+import { AppearanceSettings, AppearanceSettingsUpdate } from "@/types/theme";
 
 export type CreateStorePayload = {
   name: string;
@@ -445,6 +445,63 @@ export async function autoPublishStoreAction(storeId: string): Promise<ActionRes
       return errorResponse(result.error || "Auto-publish failed.");
     }
     return successResponse(undefined, "Auto-published successfully.");
+  } catch (err) {
+    return errorResponse(getErrorMessage(err));
+  }
+}
+
+/**
+ * Server action to save and publish store appearance configuration atomically.
+ */
+export async function saveAppearanceAction(
+  storeId: string,
+  settings: AppearanceSettingsUpdate,
+  publish: boolean = true
+): Promise<ActionResponse<AppearanceSettings>> {
+  try {
+    const supabase = await createServerSupabaseClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return errorResponse("Unauthorized.");
+    }
+
+    // Verify ownership of the store
+    const { data: storeRow, error: storeErr } = await (supabase.from("stores") as any)
+      .select("id, name, slug")
+      .eq("id", storeId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (storeErr || !storeRow) {
+      return errorResponse("Store not found or access denied.");
+    }
+
+    const { supabaseAppearanceRepository } = await import(
+      "@/lib/repositories/supabase/supabase-appearance-repository"
+    );
+    const updated = await supabaseAppearanceRepository.updateSettings(storeId, settings, supabase);
+
+    if (publish) {
+      const { publishingEngine } = await import("@/lib/services/publishing-engine");
+      await publishingEngine.publishStore(storeId, { force: true, supabaseClient: supabase });
+    }
+
+    if (storeRow.slug) {
+      try {
+        revalidatePath(`/store/${storeRow.slug}`, "layout");
+        revalidatePath(`/store/${storeRow.slug}`);
+      } catch {
+        // Safe catch for non-web environments
+      }
+    }
+    try {
+      revalidatePath("/dashboard/appearance");
+    } catch {
+      // Safe catch
+    }
+
+    return successResponse(updated, "Appearance saved and published successfully.");
   } catch (err) {
     return errorResponse(getErrorMessage(err));
   }

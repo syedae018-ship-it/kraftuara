@@ -135,7 +135,7 @@ export type AppearanceSettings = {
   customOverrides?: Partial<ThemeTokens>;
   branding: StoreBranding;
   colors: ThemeColors;
-  tokens?: ThemeTokens;
+  tokens?: Partial<ThemeTokens> | ThemeTokens;
   typography: TypographyConfig;
   homepageSections: HomepageSectionConfig[];
   seo: HomepageSEOConfig;
