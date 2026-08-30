@@ -69,7 +69,7 @@ export default function Header({ store, isSubdomain = false }: { store: StoreDat
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-8 lg:space-x-12">
             <Link
-              className="text-xl sm:text-2xl tracking-tight text-bloom-foreground hover:opacity-80 transition-opacity font-bold font-heading flex items-center gap-2"
+              className="text-lg sm:text-2xl tracking-tight text-bloom-foreground hover:opacity-80 transition-opacity font-bold font-heading flex items-center gap-2 min-w-0"
               href={homeLink}
               aria-label={`${store.name} Home`}
             >
@@ -77,7 +77,7 @@ export default function Header({ store, isSubdomain = false }: { store: StoreDat
                 <img
                   src={resolveImageUrl(store.appearance.branding.logoUrl)}
                   alt={store.name}
-                  className="w-8 h-8 rounded-lg object-cover"
+                  className="w-8 h-8 rounded-lg object-cover shrink-0"
                   onError={() => setLogoError(true)}
                 />
               ) : (
@@ -88,7 +88,7 @@ export default function Header({ store, isSubdomain = false }: { store: StoreDat
                   {store.name.charAt(0)}
                 </div>
               )}
-              <span>
+              <span className="truncate max-w-[140px] xs:max-w-[200px] sm:max-w-none">
                 {store.name.toUpperCase()}
               </span>
             </Link>

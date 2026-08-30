@@ -6,6 +6,14 @@ import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Monitor, Tablet, Smartphone, Sparkles, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { DEMO_STORE_DATA } from "@/lib/demo-data";
+import { CartProvider } from "@/context/CartContext";
+import BloomStorefront from "@/components/storefront/templates/bloom/home/BloomStorefront";
+import {
+  ResponsiveViewportFrame,
+  DeviceType,
+} from "@/components/appearance/responsive-viewport-frame";
+import { StoreData } from "@/types/store";
 
 export interface ThemePreviewModalProps {
   theme: Theme | null;
@@ -15,9 +23,18 @@ export interface ThemePreviewModalProps {
 }
 
 export function ThemePreviewModal({ theme, isOpen, onClose, onApplyTheme }: ThemePreviewModalProps) {
-  const [device, setDevice] = useState<"desktop" | "tablet" | "mobile">("desktop");
+  const [device, setDevice] = useState<DeviceType>("desktop");
 
   if (!theme) return null;
+
+  // Build simulated theme store data
+  const themeStoreData: StoreData = {
+    ...DEMO_STORE_DATA,
+    appearance: {
+      ...DEMO_STORE_DATA.appearance,
+      themeId: theme.id,
+    },
+  };
 
   return (
     <Modal
@@ -79,17 +96,23 @@ export function ThemePreviewModal({ theme, isOpen, onClose, onApplyTheme }: Them
         </>
       }
     >
-      <div className="flex justify-center p-4 bg-[#050505] min-h-[500px]">
-        <div
+      <div className="h-[520px] sm:h-[600px] w-full bg-[#050505] rounded-xl overflow-hidden relative border border-white/5">
+        <ResponsiveViewportFrame
+          device={device}
+          zoom="auto"
           className={cn(
-            "transition-all duration-300 rounded-2xl overflow-hidden border border-white/10 bg-[#080808] shadow-2xl p-4 flex flex-col justify-between my-auto",
-            device === "mobile" && "w-[375px] h-[600px]",
-            device === "tablet" && "w-[768px] h-[650px]",
-            device === "desktop" && "w-full max-w-5xl h-[650px]"
+            "flex flex-col bg-black shadow-2xl transition-all duration-300",
+            device === "mobile" && "rounded-[36px] border-[6px] border-[#222222] overflow-hidden",
+            device === "tablet" && "rounded-[20px] border-[4px] border-[#222222] overflow-hidden",
+            device === "desktop" && "rounded-xl border border-white/10 overflow-hidden"
           )}
         >
-          <img src={theme.previewImages[0] || theme.thumbnail} alt={theme.name} className="w-full h-full object-cover rounded-xl" />
-        </div>
+          <CartProvider storeSlug={themeStoreData.slug}>
+            <div className="w-full h-full overflow-x-hidden">
+              <BloomStorefront store={themeStoreData} isSubdomain={false} />
+            </div>
+          </CartProvider>
+        </ResponsiveViewportFrame>
       </div>
     </Modal>
   );

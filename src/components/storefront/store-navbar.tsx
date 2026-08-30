@@ -128,6 +128,51 @@ export function StoreNavbar({ store, className, isSubdomain = false }: StoreNavb
         </div>
       </header>
 
+      {/* Mobile Navigation Drawer */}
+      {mobileMenuOpen && (
+        <nav
+          className="md:hidden bg-[#111111] border-b border-white/10 px-4 py-3 space-y-2 animate-in slide-in-from-top-2 duration-200 z-20"
+          role="navigation"
+          aria-label="Mobile Navigation"
+        >
+          <Link
+            href={storePrefix}
+            onClick={() => setMobileMenuOpen(false)}
+            className="block py-2 px-3 rounded-xl text-xs font-heading font-medium text-white hover:bg-white/5"
+          >
+            Home
+          </Link>
+          {store.categories.map((c) => (
+            <Link
+              key={c.id}
+              href={`${storePrefix}#category-${c.slug}`}
+              onClick={() => setMobileMenuOpen(false)}
+              className="block py-2 px-3 rounded-xl text-xs font-heading font-medium text-zinc-400 hover:text-white hover:bg-white/5"
+            >
+              {c.name}
+            </Link>
+          ))}
+          {store.collections.length > 0 && (
+            <Link
+              href={`${storePrefix}#collections`}
+              onClick={() => setMobileMenuOpen(false)}
+              className="block py-2 px-3 rounded-xl text-xs font-heading font-medium text-zinc-400 hover:text-white hover:bg-white/5"
+            >
+              Collections
+            </Link>
+          )}
+          {hasFeatureAccess(store.plan || "startup", "customer_order_tracking") && (
+            <Link
+              href={`${storePrefix}/track`}
+              onClick={() => setMobileMenuOpen(false)}
+              className="block py-2 px-3 rounded-xl text-xs font-heading font-medium text-zinc-400 hover:text-white hover:bg-white/5"
+            >
+              Track Order
+            </Link>
+          )}
+        </nav>
+      )}
+
       <StoreSearch
         isOpen={searchOpen}
         onClose={() => setSearchOpen(false)}
