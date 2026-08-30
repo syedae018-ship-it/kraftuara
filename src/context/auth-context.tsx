@@ -173,6 +173,9 @@ export function DummyAuthProvider({ children }: { children: React.ReactNode }) {
           setIsLoading(false);
           return { user: profile, stores: mappedStores, activeStore: currentStore };
         } else {
+          const { subscriptionEngine } = await import("@/lib/services/subscription-engine");
+          const authSub = await subscriptionEngine.getAuthoritativeSubscription("", u.id, supabase);
+          profile.plan = authSub.plan;
           setStores([]);
           setActiveStore(null as any);
           setUser(profile);

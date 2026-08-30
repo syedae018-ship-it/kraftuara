@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { User, Settings, LogOut, Check, Store, ChevronDown, Sparkles } from "lucide-react";
 import { useAuth, DummyStore } from "@/context/auth-context";
 import { Badge } from "@/components/ui/table";
+import { getPlanDisplayName } from "@/lib/feature-gating";
 
 export function UserMenu() {
   const [isOpen, setIsOpen] = useState(false);
@@ -28,7 +29,7 @@ export function UserMenu() {
             {user?.name || "User"}
           </span>
           <span className="text-[10px] text-maroon-400 font-body uppercase tracking-wider font-semibold">
-            {user?.plan === "startup" ? "Startup Pack" : user?.plan === "growth" ? "Growth Pack" : user?.plan === "pro" ? "Pro Plan" : (user?.plan || "Startup Pack")}
+            {getPlanDisplayName(user?.plan)}
           </span>
         </div>
         <ChevronDown className="w-3.5 h-3.5 text-zinc-500 group-hover:text-zinc-300 transition-transform hidden sm:block" />
@@ -51,7 +52,7 @@ export function UserMenu() {
                 <div className="flex items-center justify-between">
                   <p className="text-xs font-bold font-heading text-white">{user?.name || "User"}</p>
                   <Badge variant="maroon" className="text-[9px] py-0 px-1.5 font-mono uppercase">
-                    {user?.plan === "startup" ? "Startup Pack" : user?.plan === "growth" ? "Growth Pack" : user?.plan === "pro" ? "Pro Plan" : (user?.plan || "Startup Pack")}
+                    {getPlanDisplayName(user?.plan)}
                   </Badge>
                 </div>
                 <p className="text-[11px] text-zinc-400 font-body truncate">{user?.email || ""}</p>

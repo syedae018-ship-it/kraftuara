@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Modal } from "@/components/ui/modal";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { UserPlus, Sparkles, Store, Mail, Phone, Tag } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { AdminUser, AdminStore } from "@/types/admin";
+import { PLANS, PlanConfig } from "@/lib/feature-gating";
 
 export interface CreateUserModalProps {
   isOpen: boolean;
@@ -21,10 +22,24 @@ export function CreateUserModal({ isOpen, onClose, onUserCreated }: CreateUserMo
   const [businessName, setBusinessName] = useState("");
   const [storeName, setStoreName] = useState("");
   const [category, setCategory] = useState("Perfumes");
-  const [plan, setPlan] = useState("Pro Plan");
+  const [plan, setPlan] = useState("startup");
   const [theme, setTheme] = useState("Luxury Oud Dark");
   const [subdomain, setSubdomain] = useState("");
   const [status, setStatus] = useState<"active" | "suspended" | "pending">("active");
+  const [plans, setPlans] = useState<PlanConfig[]>([]);
+
+  useEffect(() => {
+    fetch("/api/plans")
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+          setPlans(json.data);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const effectivePlans = plans.length > 0 ? plans : Object.values(PLANS);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -130,9 +145,11 @@ export function CreateUserModal({ isOpen, onClose, onUserCreated }: CreateUserMo
               onChange={(e) => setPlan(e.target.value)}
               className="w-full h-10 bg-[#111111] border border-white/10 rounded-xl px-3 text-xs text-white outline-none"
             >
-              <option value="startup">Startup Pack (₹99/mo)</option>
-              <option value="growth">Growth Pack (₹299/mo)</option>
-              <option value="pro">Pro Plan (₹499/mo)</option>
+              {effectivePlans.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name} (₹{p.priceMonthly}/mo)
+                </option>
+              ))}
             </select>
           </div>
 

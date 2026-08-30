@@ -12,6 +12,7 @@ import { Plus, ArrowLeft } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/auth-context";
 import { PlanGate } from "@/components/dashboard/plan-gate";
+import { getPlanDisplayName } from "@/lib/feature-gating";
 // Use the server action — NOT the client-side repository.
 // The client repo uses the anon Supabase client which fails the RLS policy on the collections table.
 // The server action uses createServerSupabaseClient() which carries the authenticated session.
@@ -45,7 +46,7 @@ export default function NewCollectionPage() {
       <PlanGate
         requiredPlan="pro"
         featureName="Product Collections"
-        description="Upgrade to the Pro Plan (₹499/mo) to curate targeted collections, seasonal bundles, and special product groups."
+        description={`Upgrade to the ${getPlanDisplayName("pro")} to curate targeted collections, seasonal bundles, and special product groups.`}
       >
         <SectionTitle
           title="Create New Collection"

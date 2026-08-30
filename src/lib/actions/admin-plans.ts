@@ -75,8 +75,19 @@ export async function updateAdminPlanAction(
 
     // Invalidate caches everywhere plan data is shown
     revalidatePath("/");
+    revalidatePath("/pricing");
     revalidatePath("/choose-plan");
+    revalidatePath("/dashboard");
     revalidatePath("/dashboard/billing");
+    revalidatePath("/dashboard/products");
+    revalidatePath("/dashboard/products/new");
+    revalidatePath("/dashboard/categories");
+    revalidatePath("/dashboard/analytics");
+    revalidatePath("/dashboard/coupons");
+    revalidatePath("/dashboard/orders");
+    revalidatePath("/dashboard/themes");
+    revalidatePath("/dashboard/collections");
+    revalidatePath("/admin");
     revalidatePath("/admin/plans");
 
     return successResponse(result.data, `Plan "${result.data.name}" updated successfully.`);
@@ -111,8 +122,19 @@ export async function toggleAdminPlanStatusAction(
     }
 
     revalidatePath("/");
+    revalidatePath("/pricing");
     revalidatePath("/choose-plan");
+    revalidatePath("/dashboard");
     revalidatePath("/dashboard/billing");
+    revalidatePath("/dashboard/products");
+    revalidatePath("/dashboard/products/new");
+    revalidatePath("/dashboard/categories");
+    revalidatePath("/dashboard/analytics");
+    revalidatePath("/dashboard/coupons");
+    revalidatePath("/dashboard/orders");
+    revalidatePath("/dashboard/themes");
+    revalidatePath("/dashboard/collections");
+    revalidatePath("/admin");
     revalidatePath("/admin/plans");
 
     return successResponse({ planId, status }, `Plan status changed to ${status}.`);

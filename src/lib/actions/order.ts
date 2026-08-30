@@ -124,7 +124,7 @@ export async function updateOrderStatusAction(orderId: string, status: string) {
       .eq("store_id", storeId)
       .maybeSingle();
 
-    const { normalizePlanTier, hasFeatureAccess } = await import("@/lib/feature-gating");
+    const { normalizePlanTier, hasFeatureAccess, getPlanDisplayName } = await import("@/lib/feature-gating");
     let plan = "startup";
     let subStatus = subRow?.status || "active";
     if (subRow) {
@@ -138,7 +138,7 @@ export async function updateOrderStatusAction(orderId: string, status: string) {
     }
 
     if (!hasFeatureAccess(plan, "order_management")) {
-      return { success: false, error: "Order status management requires the Growth Pack (₹299/mo) or Pro Plan (₹499/mo)." };
+      return { success: false, error: `Order status management requires the ${getPlanDisplayName("growth")} or ${getPlanDisplayName("pro")}.` };
     }
 
     const { CANONICAL_ORDER_STATUSES } = await import("@/types/order");

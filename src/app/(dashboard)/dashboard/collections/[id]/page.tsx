@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Edit2, ArrowLeft, Trash2, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { PlanGate } from "@/components/dashboard/plan-gate";
+import { getPlanDisplayName } from "@/lib/feature-gating";
 import { useAuth } from "@/context/auth-context";
 
 export default function EditCollectionPage({ params }: { params: Promise<{ id: string }> }) {
@@ -89,7 +90,7 @@ export default function EditCollectionPage({ params }: { params: Promise<{ id: s
       <PlanGate
         requiredPlan="pro"
         featureName="Product Collections"
-        description="Upgrade to the Pro Plan (₹499/mo) to curate targeted collections, seasonal bundles, and special product groups."
+        description={`Upgrade to the ${getPlanDisplayName("pro")} to curate targeted collections, seasonal bundles, and special product groups.`}
       >
         <SectionTitle
           title={`Edit: ${collection.name}`}

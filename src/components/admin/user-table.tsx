@@ -10,6 +10,7 @@ import { useAuth } from "@/context/auth-context";
 import { LogIn, Eye, Trash2, ShieldAlert, AlertTriangle } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { deleteUserAccountAction } from "@/lib/actions/admin";
+import { getPlanDisplayName } from "@/lib/feature-gating";
 
 export interface UserTableProps {
   users: AdminUser[];
@@ -81,7 +82,7 @@ export function UserTable({ users, onToggleStatus, onUserDeleted }: UserTablePro
               <div>
                 <span className="text-zinc-500 block text-[9px] uppercase font-semibold">Plan</span>
                 <Badge variant="maroon" className="font-mono text-[9px] mt-0.5 px-1.5 py-0">
-                  {u.plan}
+                  {getPlanDisplayName(u.plan)}
                 </Badge>
               </div>
               <div>
@@ -159,7 +160,7 @@ export function UserTable({ users, onToggleStatus, onUserDeleted }: UserTablePro
                 </TableCell>
                 <TableCell>
                   <Badge variant="maroon" className="font-mono text-[10px]">
-                    {u.plan}
+                    {getPlanDisplayName(u.plan)}
                   </Badge>
                 </TableCell>
                 <TableCell>

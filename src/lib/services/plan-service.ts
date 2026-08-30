@@ -303,3 +303,16 @@ export async function getPlanAuditLogs(limit = 50): Promise<any[]> {
 
   return [];
 }
+
+/**
+ * Public Server Action to fetch active SaaS plans for client hydration
+ */
+export async function getPublicPlansAction(): Promise<PlanConfig[]> {
+  try {
+    const plans = await getAllPlans(false);
+    return plans;
+  } catch (err) {
+    console.error("Failed to load public plans:", err);
+    return Object.values(getDynamicPlansRegistry()).filter((p) => p.status !== "inactive");
+  }
+}

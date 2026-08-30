@@ -84,7 +84,7 @@ export default function MerchantAnalyticsPage() {
       <PlanGate
         requiredPlan="growth"
         featureName="Store Views & Traffic Analytics"
-        description="Upgrade to Growth Pack (₹299/mo) or Pro Plan (₹499/mo) to unlock visitor tracking, real-time store views, conversion metrics, and traffic sources."
+        description={`Upgrade to the ${getPlanDisplayName("growth")} or ${getPlanDisplayName("pro")} to unlock visitor tracking, real-time store views, conversion metrics, and traffic sources.`}
       >
         <div className="space-y-6 text-left">
           {/* Header Section */}

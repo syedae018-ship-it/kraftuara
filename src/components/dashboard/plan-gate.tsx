@@ -62,7 +62,7 @@ export function PlanGate({
             size="sm"
             className="px-4 h-8 text-[10px] uppercase tracking-wider font-bold shadow-glow"
           >
-            Upgrade Plan
+            Upgrade to {getPlanDisplayName(requiredPlan)}
           </Button>
         </Link>
       </div>

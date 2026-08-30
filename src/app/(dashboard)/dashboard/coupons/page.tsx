@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/auth-context";
 import { PlanGate } from "@/components/dashboard/plan-gate";
+import { getPlanDisplayName } from "@/lib/feature-gating";
 import {
   getCouponsAction,
   createCouponAction,
@@ -105,7 +106,7 @@ export default function MerchantCouponsPage() {
       <PlanGate
         requiredPlan="growth"
         featureName="Discount Coupons & Promo Codes"
-        description="Upgrade to the Growth Pack (₹299/mo) or Pro Plan (₹499/mo) to unlock coupon creation, flat discounts, and percentage promo codes."
+        description={`Upgrade to the ${getPlanDisplayName("growth")} or ${getPlanDisplayName("pro")} to unlock coupon creation, flat discounts, and percentage promo codes.`}
       >
         <SectionTitle
           title="Promo Codes & Coupons"

@@ -73,14 +73,20 @@ const jsonLd = {
   ],
 };
 
-export default function RootPage() {
+import { getAllPlans } from "@/lib/services/plan-service";
+
+export const dynamic = "force-dynamic";
+
+export default async function RootPage() {
+  const plans = await getAllPlans(false);
+
   return (
     <>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <LandingPage />
+      <LandingPage initialPlans={plans} />
     </>
   );
 }

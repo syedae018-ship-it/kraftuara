@@ -13,11 +13,13 @@ import { adminRepository } from "@/lib/repositories/admin-repository";
 import { Badge } from "@/components/ui/table";
 import { ShieldAlert, Users, Store } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { PLANS, PlanConfig } from "@/lib/feature-gating";
 
 export default function SuperAdminOverviewPage() {
   const [stats, setStats] = useState<PlatformStats | null>(null);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [stores, setStores] = useState<AdminStore[]>([]);
+  const [plans, setPlans] = useState<PlanConfig[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -32,6 +34,15 @@ export default function SuperAdminOverviewPage() {
         setStats(s);
         setUsers(u);
         setStores(str);
+
+        fetch("/api/plans")
+          .then((res) => res.json())
+          .then((json) => {
+            if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+              setPlans(json.data);
+            }
+          })
+          .catch(() => {});
       } finally {
         setLoading(false);
       }
@@ -146,15 +157,21 @@ export default function SuperAdminOverviewPage() {
               </h4>
               <div className="space-y-2.5 font-body text-xs flex-grow justify-center flex flex-col">
                 <div className="flex justify-between items-center">
-                  <span className="text-zinc-400">Startup Pack (₹99)</span>
+                  <span className="text-zinc-400">
+                    {plans.find((p) => p.id === "startup")?.name || "Startup Pack"} (₹{plans.find((p) => p.id === "startup")?.priceMonthly || 99})
+                  </span>
                   <span className="font-bold text-white">{stats.planStarterCount || 0} stores</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-zinc-400">Growth Pack (₹299)</span>
+                  <span className="text-zinc-400">
+                    {plans.find((p) => p.id === "growth")?.name || "Growth Pack"} (₹{plans.find((p) => p.id === "growth")?.priceMonthly || 299})
+                  </span>
                   <span className="font-bold text-white">{stats.planProCount || 0} stores</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-zinc-400">Pro Plan (₹499)</span>
+                  <span className="text-zinc-400">
+                    {plans.find((p) => p.id === "pro")?.name || "Pro Plan"} (₹{plans.find((p) => p.id === "pro")?.priceMonthly || 499})
+                  </span>
                   <span className="font-bold text-white">{stats.planBusinessCount || 0} stores</span>
                 </div>
               </div>

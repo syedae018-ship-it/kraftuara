@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -25,7 +25,7 @@ import {
   Store,
   Eye,
 } from "lucide-react";
-import { PLANS } from "@/lib/feature-gating";
+import { PLANS, PlanConfig, getDynamicPlansRegistry } from "@/lib/feature-gating";
 import { LandingNavbar } from "./landing-navbar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/table";
@@ -81,19 +81,6 @@ const featuresList = [
   },
 ];
 
-const pricingPlans = Object.values(PLANS).map((p) => ({
-  id: p.id,
-  name: p.name,
-  price: `₹${p.priceMonthly.toLocaleString("en-IN")}`,
-  period: "month",
-  description: p.description,
-  features: p.featuresDisplay,
-  cta: `Choose ${p.name}`,
-  href: `/signup?plan=${p.id}`,
-  popular: p.popular || false,
-  badge: p.badge,
-}));
-
 const faqs = [
   {
     q: "How does the online store builder work?",
@@ -117,11 +104,48 @@ const faqs = [
   },
 ];
 
+export interface LandingPageProps {
+  initialPlans?: PlanConfig[];
+}
 
-export function LandingPage() {
+export function LandingPage({ initialPlans }: LandingPageProps) {
   const [activeDevice, setActiveDevice] = useState<"desktop" | "mobile">("desktop");
   const [billingInterval, setBillingInterval] = useState<"monthly" | "annual">("monthly");
   const [openFaq, setOpenFaq] = useState<number | null>(0);
+  const [plans, setPlans] = useState<PlanConfig[]>(
+    initialPlans && initialPlans.length > 0
+      ? initialPlans
+      : Object.values(getDynamicPlansRegistry()).filter((p) => p.status !== "inactive")
+  );
+
+  useEffect(() => {
+    if (initialPlans && initialPlans.length > 0) {
+      setPlans(initialPlans);
+    } else {
+      fetch("/api/plans")
+        .then((res) => res.json())
+        .then((json) => {
+          if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+            setPlans(json.data);
+          }
+        })
+        .catch(() => {});
+    }
+
+    const handlePlansUpdated = () => {
+      fetch("/api/plans")
+        .then((res) => res.json())
+        .then((json) => {
+          if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+            setPlans(json.data);
+          }
+        })
+        .catch(() => {});
+    };
+
+    window.addEventListener("symar:plans-updated", handlePlansUpdated);
+    return () => window.removeEventListener("symar:plans-updated", handlePlansUpdated);
+  }, [initialPlans]);
 
   const currentTemplateObj = craftStoreClassicTemplate;
 
@@ -475,7 +499,7 @@ export function LandingPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 items-stretch max-w-7xl mx-auto">
-          {Object.values(PLANS).map((p) => {
+          {plans.map((p) => {
             const isAnnual = billingInterval === "annual";
             const displayPrice = isAnnual ? `₹${p.priceAnnual.toLocaleString("en-IN")}` : `₹${p.priceMonthly.toLocaleString("en-IN")}`;
             const periodLabel = isAnnual ? "year" : "month";

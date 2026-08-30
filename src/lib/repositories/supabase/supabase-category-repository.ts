@@ -38,7 +38,7 @@ export class SupabaseCategoryRepository implements ICategoryRepository {
     
     const check = canCreateCategory(sub.plan, count || 0);
     if (!check.allowed) {
-      throw new Error(check.message || `Category limit reached. Startup Pack allows ${check.limit} category. Upgrade your plan to create more categories.`);
+      throw new Error(check.message || `Category limit reached. Upgrade your plan to create more categories.`);
     }
   }
 

@@ -6,9 +6,11 @@ import { Store, Users, ShoppingBag, CreditCard } from "lucide-react";
 import { getAdminOverviewMetricsAction } from "@/lib/actions/admin";
 import { PlatformStats } from "@/types/admin";
 import { formatCurrency } from "@/lib/utils";
+import { PLANS, PlanConfig, getPlanDisplayName } from "@/lib/feature-gating";
 
 export function AnalyticsChart() {
   const [stats, setStats] = useState<PlatformStats | null>(null);
+  const [plans, setPlans] = useState<PlanConfig[]>([]);
 
   useEffect(() => {
     async function loadData() {
@@ -18,7 +20,24 @@ export function AnalyticsChart() {
       }
     }
     loadData();
+
+    fetch("/api/plans")
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+          setPlans(json.data);
+        }
+      })
+      .catch(() => {});
   }, []);
+
+  const getPlanPriceLabel = (tier: string) => {
+    const found = plans.find((p) => p.id === tier);
+    const fallback = PLANS[tier as keyof typeof PLANS] || PLANS.startup;
+    const name = found?.name || fallback.name;
+    const price = found ? found.priceMonthly : fallback.priceMonthly;
+    return `${name.toUpperCase()} (₹${price})`;
+  };
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 font-body text-left">
@@ -36,15 +55,15 @@ export function AnalyticsChart() {
 
         <div className="grid grid-cols-3 gap-3 pt-2">
           <div className="p-3 rounded-xl bg-[#111111] border border-white/5 space-y-1">
-            <span className="text-[10px] text-zinc-500 font-mono block">STARTUP (₹99)</span>
+            <span className="text-[10px] text-zinc-500 font-mono block">{getPlanPriceLabel("startup")}</span>
             <span className="text-lg font-bold font-heading text-white">{stats?.planStarterCount || 0}</span>
           </div>
           <div className="p-3 rounded-xl bg-[#111111] border border-white/5 space-y-1">
-            <span className="text-[10px] text-zinc-500 font-mono block">GROWTH (₹299)</span>
+            <span className="text-[10px] text-zinc-500 font-mono block">{getPlanPriceLabel("growth")}</span>
             <span className="text-lg font-bold font-heading text-white">{stats?.planProCount || 0}</span>
           </div>
           <div className="p-3 rounded-xl bg-[#111111] border border-white/5 space-y-1">
-            <span className="text-[10px] text-zinc-500 font-mono block">PRO (₹499)</span>
+            <span className="text-[10px] text-zinc-500 font-mono block">{getPlanPriceLabel("pro")}</span>
             <span className="text-lg font-bold font-heading text-white">{stats?.planBusinessCount || 0}</span>
           </div>
         </div>

@@ -15,6 +15,7 @@ import { Palette, Sparkles, SlidersHorizontal, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/auth-context";
 import { PlanGate } from "@/components/dashboard/plan-gate";
+import { getPlanDisplayName } from "@/lib/feature-gating";
 
 export default function ThemeGalleryPage() {
   const { activeStore } = useAuth();
@@ -79,7 +80,7 @@ export default function ThemeGalleryPage() {
       <PlanGate
         requiredPlan="pro"
         featureName="Advanced Themes & Layouts"
-        description="Upgrade to the Pro Plan (₹499/mo) to unlock Luxury, Modern, Creative, and bespoke catalog storefront layouts."
+        description={`Upgrade to the ${getPlanDisplayName("pro")} to unlock Luxury, Modern, Creative, and bespoke catalog storefront layouts.`}
       >
         <SectionTitle
           title="Theme Gallery & Layouts"

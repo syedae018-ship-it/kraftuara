@@ -12,22 +12,14 @@ import { cn } from "@/lib/utils";
 import { getStoreSubscriptionAction, updateStoreSubscriptionAction, StoreSubscription } from "@/lib/actions/subscription";
 import { isAdminUser } from "@/lib/services/admin-roles";
 import { createClient } from "@/lib/supabase/client";
-import { PLANS, PlanTier, getPlanDisplayName, getPlanHierarchyWeight } from "@/lib/feature-gating";
-
-const PLANS_CATALOG = Object.values(PLANS).map((p) => ({
-  id: p.id,
-  name: p.name,
-  price: `₹${p.priceMonthly.toLocaleString("en-IN")}/mo`,
-  desc: p.description + ` Up to ${p.productLimit} products.`,
-  limit: p.productLimit,
-  hierarchyWeight: p.hierarchyWeight,
-}));
+import { PLANS, PlanTier, PlanConfig, getPlanDisplayName, getPlanHierarchyWeight } from "@/lib/feature-gating";
 
 export default function MerchantBillingPage() {
   const { activeStore, user, refreshSession } = useAuth();
   const [subscription, setSubscription] = useState<StoreSubscription | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [billingInterval, setBillingInterval] = useState<"monthly" | "annual">("monthly");
+  const [plans, setPlans] = useState<PlanConfig[]>([]);
   
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminPlan, setAdminPlan] = useState<PlanTier>("startup");
@@ -35,6 +27,16 @@ export default function MerchantBillingPage() {
   const [isUpdatingAdmin, setIsUpdatingAdmin] = useState(false);
   const [payments, setPayments] = useState<any[]>([]);
   const [processingUpgrade, setProcessingUpgrade] = useState<string | null>(null);
+
+  const effectivePlans = plans.length > 0 ? plans : Object.values(PLANS);
+  const PLANS_CATALOG = effectivePlans.map((p) => ({
+    id: p.id,
+    name: p.name,
+    price: `₹${p.priceMonthly.toLocaleString("en-IN")}/mo`,
+    desc: p.description + ` Up to ${p.productLimit} products.`,
+    limit: p.productLimit,
+    hierarchyWeight: p.hierarchyWeight,
+  }));
 
   // Load Razorpay SDK checkout overlay script on billing mount
   useEffect(() => {
@@ -87,10 +89,35 @@ export default function MerchantBillingPage() {
   useEffect(() => {
     fetchSubscription();
     fetchPayments();
+
+    fetch("/api/plans")
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+          setPlans(json.data);
+        }
+      })
+      .catch(() => {});
+
+    const handlePlansUpdated = () => {
+      fetch("/api/plans")
+        .then((res) => res.json())
+        .then((json) => {
+          if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+            setPlans(json.data);
+          }
+        })
+        .catch(() => {});
+    };
+
+    window.addEventListener("symar:plans-updated", handlePlansUpdated);
+
     // Check if user is admin
     if (user?.email) {
       setIsAdmin(isAdminUser(user.email));
     }
+
+    return () => window.removeEventListener("symar:plans-updated", handlePlansUpdated);
   }, [activeStore, user]);
 
   const notifyStateChange = async () => {
@@ -326,10 +353,11 @@ export default function MerchantBillingPage() {
                   onChange={(e: any) => setAdminPlan(e.target.value as PlanTier)}
                   className="w-full h-9 bg-black border border-white/10 rounded-xl px-3 text-xs text-white"
                 >
-                  <option value="startup">Startup Pack (₹99)</option>
-                  <option value="growth">Growth Pack (₹299)</option>
-                  <option value="pro">Pro Plan (₹499)</option>
-                  <option value="premium_ai">Premium / AI Plan (₹1,499)</option>
+                  {effectivePlans.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name} (₹{p.priceMonthly})
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -395,7 +423,7 @@ export default function MerchantBillingPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {Object.values(PLANS).map((p) => {
+            {effectivePlans.map((p) => {
               const isCurrent = subscription?.plan === p.id && subscription.status === "active";
               const isDowngrade = p.hierarchyWeight < currentPlanWeight;
               const isAnnual = billingInterval === "annual";

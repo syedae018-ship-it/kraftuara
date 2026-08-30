@@ -11,6 +11,7 @@ import { Store, ExternalLink, Eye, Trash2, AlertTriangle, Globe } from "lucide-r
 import { toast } from "@/hooks/use-toast";
 import { getStoreUrl } from "@/lib/urls";
 import { deleteStoreAction } from "@/lib/actions/admin";
+import { getPlanDisplayName } from "@/lib/feature-gating";
 
 export interface StoreTableProps {
   stores: AdminStore[];
@@ -97,7 +98,7 @@ export function StoreTable({ stores, onToggleStatus, onStoreDeleted }: StoreTabl
                 <div>
                   <span className="text-zinc-500 block text-[9px] uppercase font-semibold">Plan</span>
                   <Badge variant="maroon" className="font-mono text-[9px] mt-0.5 px-1.5 py-0">
-                    {s.plan}
+                    {getPlanDisplayName(s.plan)}
                   </Badge>
                 </div>
                 <div>
@@ -181,7 +182,7 @@ export function StoreTable({ stores, onToggleStatus, onStoreDeleted }: StoreTabl
                   </TableCell>
                   <TableCell>
                     <Badge variant="maroon" className="font-mono text-[10px]">
-                      {s.plan}
+                      {getPlanDisplayName(s.plan)}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-zinc-400 font-heading text-xs">

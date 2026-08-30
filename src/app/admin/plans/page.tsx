@@ -53,6 +53,9 @@ export default function AdminPlansPage() {
       const res = await updateAdminPlanAction(planId, updates);
       if (res.success && res.data) {
         setPlans(plans.map((p) => (p.id === planId ? res.data! : p)));
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("symar:plans-updated"));
+        }
         await loadPlansAndAudit();
         return true;
       } else if (!res.success) {
@@ -71,6 +74,9 @@ export default function AdminPlansPage() {
       const res = await toggleAdminPlanStatusAction(planId, status);
       if (res.success) {
         setPlans(plans.map((p) => (p.id === planId ? { ...p, status } : p)));
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("symar:plans-updated"));
+        }
         toast.success("Status Updated", `Plan ${planId} marked as ${status}.`);
         await loadPlansAndAudit();
         return true;

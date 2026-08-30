@@ -6,6 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { errorResponse, successResponse } from "@/lib/api-response";
 import { ActionResponse } from "@/types";
 import { PLANS, PlanTier, normalizePlanTier } from "@/lib/feature-gating";
+import { getAuthoritativePlan } from "@/lib/services/plan-service";
 import { getOrCreateRazorpayPlan, resolvePlanFromRazorpay } from "@/config/razorpay";
 import { revalidatePath } from "next/cache";
 
@@ -190,7 +191,7 @@ export async function verifySubscriptionPaymentAction(payload: {
     const targetPlan = isSimulated
       ? (payload.planId || "startup")
       : resolvePlanFromRazorpay(subDetails, payload.planId || "startup");
-    const planConfig = PLANS[targetPlan] || PLANS.startup;
+    const planConfig = await getAuthoritativePlan(targetPlan);
 
     const adminSupabase = createAdminClient();
     const now = new Date();
@@ -381,7 +382,7 @@ export async function activatePlatformSubscriptionAction(
     const isSimulated = !subscriptionId || subscriptionId.startsWith("sub_mock_");
 
     if (isSimulated) {
-      const planConfig = PLANS[planName] || PLANS.startup;
+      const planConfig = await getAuthoritativePlan(planName);
 
       // Mock/Simulated subscription activation
       const { error: upsertError } = await (supabase.from("subscriptions") as any).upsert({
@@ -447,7 +448,7 @@ export async function activatePlatformSubscriptionAction(
 
     // Authoritatively resolve purchased plan from Razorpay subscription
     const authoritativePlan = resolvePlanFromRazorpay(subDetails, planName);
-    const planConfig = PLANS[authoritativePlan] || PLANS[planName] || PLANS.startup;
+    const planConfig = await getAuthoritativePlan(authoritativePlan);
 
     // Verify cryptographic signature if tokens present
     const keySecret = process.env.RAZORPAY_KEY_SECRET;

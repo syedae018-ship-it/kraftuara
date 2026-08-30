@@ -8,6 +8,7 @@ import { PlatformStats, AdminUser, AdminStore, AdminPayment, Coupon, Template } 
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { PLANS } from "@/lib/feature-gating";
+import { getAllPlans } from "@/lib/services/plan-service";
 
 const IMPERSONATION_COOKIE = "kraftaura_impersonation";
 
@@ -26,6 +27,7 @@ export async function getAdminOverviewMetricsAction(): Promise<ActionResponse<Pl
       ordersRes,
       paymentsRes,
       subscriptionsRes,
+      allPlans,
     ] = await Promise.all([
       supabase.from("profiles").select("*", { count: "exact", head: true }),
       supabase.from("stores").select("*", { count: "exact", head: true }),
@@ -34,6 +36,7 @@ export async function getAdminOverviewMetricsAction(): Promise<ActionResponse<Pl
       supabase.from("orders").select("*", { count: "exact", head: true }),
       supabase.from("payments").select("amount, status, created_at"),
       supabase.from("subscriptions").select("plan, status, current_period_end"),
+      getAllPlans(true),
     ]);
 
     const paymentsData = paymentsRes.data || [];
@@ -48,14 +51,14 @@ export async function getAdminOverviewMetricsAction(): Promise<ActionResponse<Pl
     const expiredSubs = subsData.filter((s: any) => s.status === "expired");
     const cancelledSubs = subsData.filter((s: any) => s.status === "cancelled");
 
-    // Dynamic calculation of MRR from active subscriptions using centralized pricing
-    const planPrices: Record<string, number> = {
-      startup: PLANS.startup.priceMonthly,
-      starter: PLANS.startup.priceMonthly,
-      growth: PLANS.growth.priceMonthly,
-      pro: PLANS.pro.priceMonthly,
-      business: PLANS.pro.priceMonthly,
-    };
+    // Dynamic calculation of MRR from active subscriptions using centralized single source of truth
+    const planPrices: Record<string, number> = {};
+    for (const p of allPlans) {
+      planPrices[p.id.toLowerCase()] = p.priceMonthly;
+    }
+    // Fallbacks
+    if (!planPrices.starter) planPrices.starter = planPrices.startup || 99;
+    if (!planPrices.business) planPrices.business = planPrices.pro || 499;
 
     const mrr = activeSubs.reduce((sum: number, s: any) => {
       const planKey = (s.plan || "").toLowerCase();

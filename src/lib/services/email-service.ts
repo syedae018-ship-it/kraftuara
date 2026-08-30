@@ -486,7 +486,8 @@ export async function dispatchPaymentNotifications(params: {
   sendAdminNotification?: boolean;
 }): Promise<{ customerEmailSent: boolean; adminEmailSent: boolean; error?: string }> {
   try {
-    const planConfig = PLANS[params.planTier] || PLANS.startup;
+    const { getAuthoritativePlan } = await import("@/lib/services/plan-service");
+    const planConfig = await getAuthoritativePlan(params.planTier);
     const planName = planConfig.name;
     const amount = params.amount || planConfig.priceMonthly;
     const currency = params.currency || "INR";

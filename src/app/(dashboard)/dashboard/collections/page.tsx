@@ -19,6 +19,7 @@ import { Plus, Sparkles, Search, List, LayoutGrid } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/auth-context";
 import { PlanGate } from "@/components/dashboard/plan-gate";
+import { getPlanDisplayName } from "@/lib/feature-gating";
 import { toast } from "@/hooks/use-toast";
 
 export default function CollectionListPage() {
@@ -126,7 +127,7 @@ export default function CollectionListPage() {
       <PlanGate
         requiredPlan="pro"
         featureName="Product Collections"
-        description="Upgrade to the Pro Plan (₹499/mo) to curate targeted collections, seasonal bundles, and special product groups."
+        description={`Upgrade to the ${getPlanDisplayName("pro")} to curate targeted collections, seasonal bundles, and special product groups.`}
       >
         <SectionTitle
           title="Featured Collections"

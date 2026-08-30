@@ -30,6 +30,7 @@ import { useAuth } from "@/context/auth-context";
 import { orderRepository } from "@/lib/repositories/order-repository";
 import { getOrderDetailsAction, updateOrderStatusAction } from "@/lib/actions/order";
 import { PlanGate } from "@/components/dashboard/plan-gate";
+import { getPlanDisplayName } from "@/lib/feature-gating";
 
 import { OrderStatus, CANONICAL_ORDER_STATUSES } from "@/types/order";
 
@@ -183,7 +184,7 @@ export default function MerchantOrdersPage() {
       <PlanGate
         requiredPlan="growth"
         featureName="Order Management & Status Controls"
-        description="Upgrade to the Growth Pack (₹299/mo) or Pro Plan (₹499/mo) to unlock your Order Console, fulfillment lifecycle controls, and customer order management."
+        description={`Upgrade to the ${getPlanDisplayName("growth")} or ${getPlanDisplayName("pro")} to unlock your Order Console, fulfillment lifecycle controls, and customer order management.`}
       >
         <div className="space-y-6 relative min-h-[calc(100vh-120px)]">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">

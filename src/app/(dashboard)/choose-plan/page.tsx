@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/table";
 import { useAuth } from "@/context/auth-context";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { PLANS, PlanTier, BillingInterval } from "@/lib/feature-gating";
+import { PLANS, PlanTier, BillingInterval, PlanConfig, getPlanDisplayName } from "@/lib/feature-gating";
 
 interface DisplayPlan {
   id: PlanTier;
@@ -32,13 +32,25 @@ interface DisplayPlan {
 export default function ChoosePlanPage() {
   const router = useRouter();
   const [billingInterval, setBillingInterval] = useState<BillingInterval>("monthly");
+  const [plans, setPlans] = useState<PlanConfig[]>([]);
 
-  // Dynamically load Razorpay SDK checkout script
+  // Dynamically load Razorpay SDK checkout script and fetch latest plans
   useEffect(() => {
     const script = document.createElement("script");
     script.src = "https://checkout.razorpay.com/v1/checkout.js";
     script.async = true;
     document.body.appendChild(script);
+
+    // Fetch canonical plans
+    fetch("/api/plans")
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+          setPlans(json.data);
+        }
+      })
+      .catch(() => {});
+
     return () => {
       if (document.body.contains(script)) {
         document.body.removeChild(script);
@@ -50,8 +62,9 @@ export default function ChoosePlanPage() {
   const [selectedPlan, setSelectedPlan] = useState<DisplayPlan | null>(null);
   const [processingPayment, setProcessingPayment] = useState(false);
 
-  // Map PLANS configurations dynamically from single source of truth
-  const displayPlans: DisplayPlan[] = Object.values(PLANS).map((p) => ({
+  // Map active configurations dynamically from single source of truth
+  const effectivePlans = plans.length > 0 ? plans : Object.values(PLANS);
+  const displayPlans: DisplayPlan[] = effectivePlans.map((p) => ({
     id: p.id,
     name: p.name,
     planName: p.id,
@@ -138,7 +151,7 @@ export default function ChoosePlanPage() {
             localStorage.setItem("symar_checkout_signature", response.razorpay_signature);
 
             toast.success(
-              `${PLANS[activePlan as PlanTier]?.name || plan.name} Activated!`,
+              `${getPlanDisplayName(activePlan)} Activated!`,
               `Payment verified. Continuing to template selection...`
             );
             router.push("/choose-template");

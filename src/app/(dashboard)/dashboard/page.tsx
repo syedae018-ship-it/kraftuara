@@ -260,7 +260,7 @@ export default function DashboardOverview() {
           <PlanGate
             requiredPlan="growth"
             featureName="Store Views Analytics"
-            description="Upgrade to the Growth Plan (₹299/mo) to track storefront visits and unique visitors."
+            description={`Upgrade to the ${getPlanDisplayName("growth")} to track storefront visits and unique visitors.`}
           >
             <StatCard
               title="Store Views"
@@ -283,7 +283,7 @@ export default function DashboardOverview() {
           <PlanGate
             requiredPlan="pro"
             featureName="Direct Razorpay Revenue Analytics"
-            description="Upgrade to the Pro Plan (₹499/mo) to process direct payments and track revenue metrics."
+            description={`Upgrade to the ${getPlanDisplayName("pro")} to process direct payments and track revenue metrics.`}
           >
             <StatCard
               title="Gross Revenue"
@@ -433,7 +433,7 @@ export default function DashboardOverview() {
         <PlanGate
           requiredPlan="growth"
           featureName="Store Traffic Analytics"
-          description="Upgrade to Growth (₹299/mo) or Pro (₹499/mo) to unlock live visitor charts, conversion tracking, and traffic sources."
+          description={`Upgrade to the ${getPlanDisplayName("growth")} or ${getPlanDisplayName("pro")} to unlock live visitor charts, conversion tracking, and traffic sources.`}
         >
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2">
