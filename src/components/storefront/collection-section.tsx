@@ -4,7 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Collection } from "@/types/collection";
-import { Sparkles, Layers } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getStoreBasePath } from "@/lib/urls";
 
@@ -27,8 +27,18 @@ export function CollectionSection({ collections, storeSlug, className, isSubdoma
     <section id="collections" className={cn("py-8 px-4 lg:px-8 space-y-4 max-w-7xl mx-auto", className)}>
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-bold font-heading text-white tracking-tight">Curated Collections</h2>
-          <p className="text-xs text-zinc-400 font-body">Special themes, festive gift sets & bundles</p>
+          <h2
+            style={{ color: "var(--color-text-primary)" }}
+            className="text-lg font-bold font-heading tracking-tight"
+          >
+            Curated Collections
+          </h2>
+          <p
+            style={{ color: "var(--color-text-secondary)" }}
+            className="text-xs font-body"
+          >
+            Special themes, festive gift sets & bundles
+          </p>
         </div>
       </div>
 
@@ -37,7 +47,11 @@ export function CollectionSection({ collections, storeSlug, className, isSubdoma
           <Link
             key={col.id}
             href={`${storePrefix}?collection=${col.id}#products`}
-            className="group relative h-44 rounded-2xl bg-[#151515] border border-white/10 overflow-hidden p-5 flex flex-col justify-end transition-all hover:border-maroon-600/50 shadow-card"
+            style={{
+              backgroundColor: "var(--color-surface)",
+              borderColor: "var(--color-border)",
+            }}
+            className="group relative h-44 rounded-2xl border overflow-hidden p-5 flex flex-col justify-end transition-all hover:shadow-lg shadow-sm"
           >
             {col.coverImage && (
               <img
@@ -49,14 +63,25 @@ export function CollectionSection({ collections, storeSlug, className, isSubdoma
             <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent" />
 
             <div className="relative z-10 space-y-1">
-              <span className="text-[10px] font-mono text-maroon-400 font-bold uppercase tracking-widest flex items-center gap-1">
+              <span
+                style={{ color: "var(--color-accent)" }}
+                className="text-[10px] font-mono font-bold uppercase tracking-widest flex items-center gap-1"
+              >
                 <Sparkles className="w-3 h-3" /> {col.productCount} Items
               </span>
-              <h3 className="text-base font-bold font-heading text-white group-hover:text-maroon-300 transition-colors">
+              <h3
+                style={{ color: "var(--color-text-primary)" }}
+                className="text-base font-bold font-heading transition-colors"
+              >
                 {col.name}
               </h3>
               {col.description && (
-                <p className="text-xs text-zinc-400 font-body line-clamp-1 leading-relaxed">{col.description}</p>
+                <p
+                  style={{ color: "var(--color-text-secondary)" }}
+                  className="text-xs font-body line-clamp-1 leading-relaxed"
+                >
+                  {col.description}
+                </p>
               )}
             </div>
           </Link>

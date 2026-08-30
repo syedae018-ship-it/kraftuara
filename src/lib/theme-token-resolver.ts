@@ -6,11 +6,10 @@
  * CURATED PALETTE -> SEMANTIC TOKENS -> OPTIONAL CUSTOM OVERRIDES -> CONTRAST VALIDATION -> FINAL THEME -> STOREFRONT COMPONENTS
  */
 
-import { AppearanceSettings, CuratedPaletteId, ThemeTokens } from "@/types/theme";
+import { AppearanceSettings, CuratedPaletteId, ThemeTokens, ThemeColors } from "@/types/theme";
 import {
   CURATED_PALETTES,
   DEFAULT_PALETTE_ID,
-  CURATED_PALETTES_LIST,
 } from "./theme-palettes";
 import {
   normalizeHex,
@@ -19,7 +18,6 @@ import {
   validateTokenContrast,
 } from "./color-utils";
 import { getFontStack } from "./typography-utils";
-
 
 export interface ResolvedTheme {
   paletteId: CuratedPaletteId;
@@ -30,14 +28,13 @@ export interface ResolvedTheme {
 }
 
 /**
- * Identifies the best-matching curated palette ID from legacy 4-hex colors or stored paletteId.
+ * Identifies the best-matching curated palette ID from paletteId or legacy colors.
  */
 export function identifyPaletteId(appearance?: Partial<AppearanceSettings> | null): CuratedPaletteId {
   if (appearance?.paletteId && appearance.paletteId in CURATED_PALETTES) {
     return appearance.paletteId as CuratedPaletteId;
   }
 
-  // Check if legacy theme colors match any curated palette
   const primary = normalizeHex(appearance?.colors?.primary || "");
   const bg = normalizeHex(appearance?.colors?.background || "");
 
@@ -63,92 +60,101 @@ export function resolveThemeTokens(appearance?: Partial<AppearanceSettings> | nu
   const basePalette = CURATED_PALETTES[paletteId] || CURATED_PALETTES[DEFAULT_PALETTE_ID];
   const baseTokens = { ...basePalette.tokens };
 
-  // Apply custom overrides
-  const customOverrides = appearance?.customOverrides || {};
+  // Explicit persisted tokens and custom single-token overrides
+  const persistedTokens: Partial<ThemeTokens> = appearance?.tokens || {};
+  const customOverrides: Partial<ThemeTokens> = appearance?.customOverrides || {};
 
-  // Also support legacy colors as overrides if explicitly different from base
-  const legacyColors = appearance?.colors;
-  const legacyOverrides: Partial<ThemeTokens> = {};
-  if (legacyColors) {
-    if (legacyColors.background && legacyColors.background !== basePalette.previewSwatches.background) {
-      legacyOverrides.background = normalizeHex(legacyColors.background);
-      legacyOverrides.surface = normalizeHex(legacyColors.background);
-    }
-    if (legacyColors.primary && legacyColors.primary !== basePalette.previewSwatches.primary) {
-      legacyOverrides.primary = normalizeHex(legacyColors.primary);
-      legacyOverrides.textPrimary = normalizeHex(legacyColors.primary);
-    }
-    if (legacyColors.accent && legacyColors.accent !== basePalette.previewSwatches.accent) {
-      legacyOverrides.accent = normalizeHex(legacyColors.accent);
-      legacyOverrides.cta = normalizeHex(legacyColors.accent);
-      legacyOverrides.addToCart = normalizeHex(legacyColors.accent);
-      legacyOverrides.price = normalizeHex(legacyColors.accent);
-    }
-    if (legacyColors.secondary && legacyColors.secondary !== baseTokens.secondary) {
-      legacyOverrides.secondary = normalizeHex(legacyColors.secondary);
-    }
-  }
+  // Support legacy colors only as fallback if neither customOverrides nor tokens provided for that key
+  const legacyColors: Partial<ThemeColors> = appearance?.colors || {};
 
-  // Merge: Base Palette -> Legacy Overrides -> Explicit Custom Overrides
-  const rawMerged: ThemeTokens = {
-    ...baseTokens,
-    ...legacyOverrides,
-    ...customOverrides,
-  };
+  const rawPrimary = customOverrides.primary || persistedTokens.primary || legacyColors.primary || baseTokens.primary;
+  const rawSecondary = customOverrides.secondary || persistedTokens.secondary || legacyColors.secondary || baseTokens.secondary;
+  const rawAccent = customOverrides.accent || persistedTokens.accent || legacyColors.accent || baseTokens.accent;
+  const rawBackground = customOverrides.background || persistedTokens.background || legacyColors.background || baseTokens.background;
+
+  const rawSurface = customOverrides.surface || persistedTokens.surface || baseTokens.surface;
+  const rawTextPrimary = customOverrides.textPrimary || persistedTokens.textPrimary || baseTokens.textPrimary;
+  const rawTextSecondary = customOverrides.textSecondary || persistedTokens.textSecondary || baseTokens.textSecondary;
+  const rawCta = customOverrides.cta || persistedTokens.cta || baseTokens.cta;
+  const rawAddToCart = customOverrides.addToCart || persistedTokens.addToCart || baseTokens.addToCart;
+  const rawPrice = customOverrides.price || persistedTokens.price || baseTokens.price;
 
   // Normalize all hex values
+  const normalizedPrimary = normalizeHex(rawPrimary, baseTokens.primary);
+  const normalizedSecondary = normalizeHex(rawSecondary, baseTokens.secondary);
+  const normalizedAccent = normalizeHex(rawAccent, baseTokens.accent);
+  const normalizedBackground = normalizeHex(rawBackground, baseTokens.background);
+
+  const normalizedSurface = normalizeHex(rawSurface, baseTokens.surface);
+  const normalizedTextPrimary = normalizeHex(rawTextPrimary, baseTokens.textPrimary);
+  const normalizedTextSecondary = normalizeHex(rawTextSecondary, baseTokens.textSecondary);
+  const normalizedCta = normalizeHex(rawCta, baseTokens.cta);
+  const normalizedAddToCart = normalizeHex(rawAddToCart, baseTokens.addToCart);
+  const normalizedPrice = normalizeHex(rawPrice, baseTokens.price);
+
   const normalized: ThemeTokens = {
-    background: normalizeHex(rawMerged.background, baseTokens.background),
-    backgroundSecondary: normalizeHex(rawMerged.backgroundSecondary, baseTokens.backgroundSecondary),
-    surface: normalizeHex(rawMerged.surface, baseTokens.surface),
-    surfaceElevated: normalizeHex(rawMerged.surfaceElevated, baseTokens.surfaceElevated),
+    // 1. Backgrounds & Surfaces
+    background: normalizedBackground,
+    backgroundSecondary: normalizeHex(customOverrides.backgroundSecondary || persistedTokens.backgroundSecondary, adjustLightness(normalizedBackground, 0.04)),
+    surface: normalizedSurface,
+    surfaceElevated: normalizeHex(customOverrides.surfaceElevated || persistedTokens.surfaceElevated, adjustLightness(normalizedSurface, 0.05)),
 
-    textPrimary: normalizeHex(rawMerged.textPrimary, baseTokens.textPrimary),
-    textSecondary: normalizeHex(rawMerged.textSecondary, baseTokens.textSecondary),
-    textMuted: normalizeHex(rawMerged.textMuted, baseTokens.textMuted),
-    textOnPrimary: normalizeHex(rawMerged.textOnPrimary, getOptimalForeground(rawMerged.primary)),
-    textOnAccent: normalizeHex(rawMerged.textOnAccent, getOptimalForeground(rawMerged.accent)),
+    // 2. Typography
+    textPrimary: normalizedTextPrimary,
+    textSecondary: normalizedTextSecondary,
+    textMuted: normalizeHex(customOverrides.textMuted || persistedTokens.textMuted, adjustLightness(normalizedTextSecondary, -0.15)),
+    textOnPrimary: getOptimalForeground(normalizedPrimary),
+    textOnAccent: getOptimalForeground(normalizedAccent),
 
-    primary: normalizeHex(rawMerged.primary, baseTokens.primary),
-    primaryHover: normalizeHex(rawMerged.primaryHover, adjustLightness(rawMerged.primary, -0.1)),
-    primaryActive: normalizeHex(rawMerged.primaryActive, adjustLightness(rawMerged.primary, -0.18)),
-    primaryForeground: normalizeHex(rawMerged.primaryForeground, getOptimalForeground(rawMerged.primary)),
+    // 3. Primary Accent (Brand & Active Navigation)
+    primary: normalizedPrimary,
+    primaryHover: normalizeHex(customOverrides.primaryHover || persistedTokens.primaryHover, adjustLightness(normalizedPrimary, -0.1)),
+    primaryActive: normalizeHex(customOverrides.primaryActive || persistedTokens.primaryActive, adjustLightness(normalizedPrimary, -0.18)),
+    primaryForeground: getOptimalForeground(normalizedPrimary),
 
-    secondary: normalizeHex(rawMerged.secondary, baseTokens.secondary),
-    secondaryHover: normalizeHex(rawMerged.secondaryHover, adjustLightness(rawMerged.secondary, -0.05)),
-    secondaryActive: normalizeHex(rawMerged.secondaryActive, adjustLightness(rawMerged.secondary, -0.1)),
-    secondaryForeground: normalizeHex(rawMerged.secondaryForeground, getOptimalForeground(rawMerged.secondary)),
+    // 4. Secondary Accent (Secondary Buttons & Subtle Surfaces)
+    secondary: normalizedSecondary,
+    secondaryHover: normalizeHex(customOverrides.secondaryHover || persistedTokens.secondaryHover, adjustLightness(normalizedSecondary, -0.06)),
+    secondaryActive: normalizeHex(customOverrides.secondaryActive || persistedTokens.secondaryActive, adjustLightness(normalizedSecondary, -0.12)),
+    secondaryForeground: getOptimalForeground(normalizedSecondary),
 
-    cta: normalizeHex(rawMerged.cta, baseTokens.cta),
-    ctaHover: normalizeHex(rawMerged.ctaHover, adjustLightness(rawMerged.cta, -0.1)),
-    ctaActive: normalizeHex(rawMerged.ctaActive, adjustLightness(rawMerged.cta, -0.18)),
-    ctaForeground: normalizeHex(rawMerged.ctaForeground, getOptimalForeground(rawMerged.cta)),
+    // 5. Highlight / Accent (Promotional Badges & Emphasis)
+    accent: normalizedAccent,
+    accentHover: normalizeHex(customOverrides.accentHover || persistedTokens.accentHover, adjustLightness(normalizedAccent, -0.1)),
+    accentForeground: getOptimalForeground(normalizedAccent),
 
-    accent: normalizeHex(rawMerged.accent, baseTokens.accent),
-    accentHover: normalizeHex(rawMerged.accentHover, adjustLightness(rawMerged.accent, -0.1)),
-    accentForeground: normalizeHex(rawMerged.accentForeground, getOptimalForeground(rawMerged.accent)),
+    // 6. Commerce Actions (CTA & Add to Cart)
+    cta: normalizedCta,
+    ctaHover: normalizeHex(customOverrides.ctaHover || persistedTokens.ctaHover, adjustLightness(normalizedCta, -0.1)),
+    ctaActive: normalizeHex(customOverrides.ctaActive || persistedTokens.ctaActive, adjustLightness(normalizedCta, -0.18)),
+    ctaForeground: getOptimalForeground(normalizedCta),
 
-    price: normalizeHex(rawMerged.price, baseTokens.price),
-    priceDiscount: normalizeHex(rawMerged.priceDiscount, baseTokens.priceDiscount),
-    priceOriginal: normalizeHex(rawMerged.priceOriginal, baseTokens.priceOriginal),
-    addToCart: normalizeHex(rawMerged.addToCart, baseTokens.addToCart),
-    addToCartHover: normalizeHex(rawMerged.addToCartHover, adjustLightness(rawMerged.addToCart, -0.1)),
-    addToCartForeground: normalizeHex(rawMerged.addToCartForeground, getOptimalForeground(rawMerged.addToCart)),
-    buyNow: normalizeHex(rawMerged.buyNow, baseTokens.buyNow),
-    buyNowForeground: normalizeHex(rawMerged.buyNowForeground, getOptimalForeground(rawMerged.buyNow)),
+    addToCart: normalizedAddToCart,
+    addToCartHover: normalizeHex(customOverrides.addToCartHover || persistedTokens.addToCartHover, adjustLightness(normalizedAddToCart, -0.1)),
+    addToCartForeground: getOptimalForeground(normalizedAddToCart),
 
-    border: normalizeHex(rawMerged.border, baseTokens.border),
-    borderStrong: normalizeHex(rawMerged.borderStrong, baseTokens.borderStrong),
-    divider: normalizeHex(rawMerged.divider, baseTokens.divider),
+    buyNow: normalizedCta,
+    buyNowForeground: getOptimalForeground(normalizedCta),
 
-    success: normalizeHex(rawMerged.success, baseTokens.success),
-    successForeground: normalizeHex(rawMerged.successForeground, "#FFFFFF"),
-    warning: normalizeHex(rawMerged.warning, baseTokens.warning),
-    warningForeground: normalizeHex(rawMerged.warningForeground, getOptimalForeground(rawMerged.warning)),
-    error: normalizeHex(rawMerged.error, baseTokens.error),
-    errorForeground: normalizeHex(rawMerged.errorForeground, "#FFFFFF"),
-    info: normalizeHex(rawMerged.info, baseTokens.info),
-    infoForeground: normalizeHex(rawMerged.infoForeground, "#FFFFFF"),
+    // 7. Pricing
+    price: normalizedPrice,
+    priceDiscount: normalizedPrice,
+    priceOriginal: normalizeHex(customOverrides.priceOriginal || persistedTokens.priceOriginal, adjustLightness(normalizedTextSecondary, -0.1)),
+
+    // 8. Borders & Dividers
+    border: normalizeHex(customOverrides.border || persistedTokens.border, baseTokens.border),
+    borderStrong: normalizeHex(customOverrides.borderStrong || persistedTokens.borderStrong, baseTokens.borderStrong),
+    divider: normalizeHex(customOverrides.divider || persistedTokens.divider, baseTokens.divider),
+
+    // 9. Status Indicators
+    success: normalizeHex(customOverrides.success || persistedTokens.success, baseTokens.success),
+    successForeground: "#FFFFFF",
+    warning: normalizeHex(customOverrides.warning || persistedTokens.warning, baseTokens.warning),
+    warningForeground: getOptimalForeground(baseTokens.warning),
+    error: normalizeHex(customOverrides.error || persistedTokens.error, baseTokens.error),
+    errorForeground: "#FFFFFF",
+    info: normalizeHex(customOverrides.info || persistedTokens.info, baseTokens.info),
+    infoForeground: "#FFFFFF",
   };
 
   // Typography font stacks
@@ -157,50 +163,71 @@ export function resolveThemeTokens(appearance?: Partial<AppearanceSettings> | nu
 
   // Generate CSS custom properties
   const cssVariables: Record<string, string> = {
-    // Semantic Tokens
+    // 1. Storefront Background
     "--color-background": normalized.background,
     "--color-background-secondary": normalized.backgroundSecondary,
+    "--bloom-background": normalized.background,
+
+    // 2. Surface & Cards
     "--color-surface": normalized.surface,
     "--color-surface-elevated": normalized.surfaceElevated,
+    "--bloom-card": normalized.surface,
 
+    // 3. Text Primary (Headings)
     "--color-text-primary": normalized.textPrimary,
+    "--bloom-foreground": normalized.textPrimary,
+
+    // 4. Text Secondary (Body)
     "--color-text-secondary": normalized.textSecondary,
     "--color-text-muted": normalized.textMuted,
-    "--color-text-on-primary": normalized.textOnPrimary,
-    "--color-text-on-accent": normalized.textOnAccent,
+    "--bloom-muted": normalized.textSecondary,
 
+    // 5. Primary Accent
     "--color-primary": normalized.primary,
     "--color-primary-hover": normalized.primaryHover,
     "--color-primary-active": normalized.primaryActive,
     "--color-primary-foreground": normalized.primaryForeground,
+    "--bloom-primary": normalized.primary,
+    "--bloom-primary-foreground": normalized.primaryForeground,
 
+    // 6. Secondary Accent
     "--color-secondary": normalized.secondary,
     "--color-secondary-hover": normalized.secondaryHover,
     "--color-secondary-active": normalized.secondaryActive,
     "--color-secondary-foreground": normalized.secondaryForeground,
+    "--bloom-secondary": normalized.secondary,
 
+    // 7. Highlight / Accent
+    "--color-accent": normalized.accent,
+    "--color-accent-hover": normalized.accentHover,
+    "--color-accent-foreground": normalized.accentForeground,
+    "--bloom-accent": `${normalized.accent}18`,
+
+    // 8. CTA Color (Buy / Action)
     "--color-cta": normalized.cta,
     "--color-cta-hover": normalized.ctaHover,
     "--color-cta-active": normalized.ctaActive,
     "--color-cta-foreground": normalized.ctaForeground,
+    "--color-buy-now": normalized.cta,
+    "--color-buy-now-foreground": normalized.ctaForeground,
 
-    "--color-accent": normalized.accent,
-    "--color-accent-hover": normalized.accentHover,
-    "--color-accent-foreground": normalized.accentForeground,
-
-    "--color-price": normalized.price,
-    "--color-price-discount": normalized.priceDiscount,
-    "--color-price-original": normalized.priceOriginal,
+    // 9. Add to Cart Color
     "--color-add-to-cart": normalized.addToCart,
     "--color-add-to-cart-hover": normalized.addToCartHover,
     "--color-add-to-cart-foreground": normalized.addToCartForeground,
-    "--color-buy-now": normalized.buyNow,
-    "--color-buy-now-foreground": normalized.buyNowForeground,
 
+    // 10. Price Color
+    "--color-price": normalized.price,
+    "--color-price-discount": normalized.priceDiscount,
+    "--color-price-original": normalized.priceOriginal,
+
+    // Borders & UI
     "--color-border": normalized.border,
     "--color-border-strong": normalized.borderStrong,
     "--color-divider": normalized.divider,
+    "--bloom-border": normalized.border,
 
+    // Status
     "--color-success": normalized.success,
     "--color-success-foreground": normalized.successForeground,
     "--color-warning": normalized.warning,
@@ -213,17 +240,6 @@ export function resolveThemeTokens(appearance?: Partial<AppearanceSettings> | nu
     // Typography
     "--font-heading": getFontStack(headingFont),
     "--font-body": getFontStack(bodyFont),
-
-    // Backward-compatibility Bloom aliases
-    "--bloom-background": normalized.background,
-    "--bloom-card": normalized.surface,
-    "--bloom-foreground": normalized.textPrimary,
-    "--bloom-muted": normalized.textSecondary,
-    "--bloom-primary": normalized.addToCart,
-    "--bloom-primary-foreground": normalized.addToCartForeground,
-    "--bloom-secondary": normalized.secondary,
-    "--bloom-border": normalized.border,
-    "--bloom-accent": `${normalized.accent}18`,
   };
 
   const contrastIssues = validateTokenContrast(normalized);

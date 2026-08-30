@@ -14,7 +14,7 @@ export interface RGB {
  * Normalizes any hex string into standard 6-character uppercase format (e.g. #FFF -> #FFFFFF).
  * Returns safe fallback (#000000) if string is invalid.
  */
-export function normalizeHex(hex: string, fallback = "#000000"): string {
+export function normalizeHex(hex?: string | null, fallback = "#000000"): string {
   if (!hex || typeof hex !== "string") return fallback;
   let clean = hex.trim().replace(/^#/, "");
 

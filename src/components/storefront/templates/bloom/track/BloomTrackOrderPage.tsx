@@ -45,10 +45,7 @@ export default function BloomTrackOrderPage({
   const [trackingData, setTrackingData] = useState<any | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const themeStyles = getBloomThemeStyles(
-    store.appearance.colors,
-    store.appearance.typography
-  );
+  const themeStyles = getBloomThemeStyles(store.appearance);
   const fontsLink = getBloomFontsLink(store.appearance.typography);
 
   const handleTrack = async (e: React.FormEvent) => {

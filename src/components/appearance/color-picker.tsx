@@ -158,26 +158,24 @@ export function ColorPicker({ settings, colors, onChange, className }: ColorPick
       [key]: cleanHex,
     };
 
-    if (settings) {
-      const updatedColors = {
-        ...settings.colors,
-        ...(legacyKey ? { [legacyKey]: cleanHex } : {}),
-      };
+    const updatedTokens: ThemeTokens = {
+      ...resolved.tokens,
+      [key]: cleanHex,
+    };
 
-      onChange({
-        customOverrides: updatedOverrides,
-        colors: updatedColors,
-      });
-    } else if (legacyKey) {
-      onChange({
-        colors: {
-          primary: legacyKey === "primary" ? cleanHex : (colors?.primary || resolved.tokens.primary),
-          secondary: legacyKey === "secondary" ? cleanHex : (colors?.secondary || resolved.tokens.secondary),
-          accent: legacyKey === "accent" ? cleanHex : (colors?.accent || resolved.tokens.accent),
-          background: legacyKey === "background" ? cleanHex : (colors?.background || resolved.tokens.background),
-        },
-      });
-    }
+    const updatedColors: ThemeColors = {
+      primary: key === "primary" ? cleanHex : (settings?.colors?.primary || resolved.tokens.primary),
+      secondary: key === "secondary" ? cleanHex : (settings?.colors?.secondary || resolved.tokens.secondary),
+      accent: key === "accent" ? cleanHex : (settings?.colors?.accent || resolved.tokens.accent),
+      background: key === "background" ? cleanHex : (settings?.colors?.background || resolved.tokens.background),
+    };
+
+    onChange({
+      paletteId: activePaletteId,
+      customOverrides: updatedOverrides,
+      tokens: updatedTokens,
+      colors: updatedColors,
+    });
   };
 
 

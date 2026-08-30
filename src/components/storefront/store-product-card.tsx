@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
-import { Eye, MessageSquare, Sparkles, Package, ShoppingCart, Check } from "lucide-react";
+import { Eye, Sparkles, Package, ShoppingCart, Check } from "lucide-react";
 import { Product } from "@/types/product";
 import { StatusBadge } from "@/components/products/status-badge";
 import { WhatsAppButton } from "./whatsapp-button";
@@ -12,7 +12,7 @@ import { formatCurrency } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { getStoreBasePath } from "@/lib/urls";
-import { resolveImageUrl, resolveProductImageUrl, FALLBACK_PRODUCT_IMAGE } from "@/lib/image-resolver";
+import { resolveProductImageUrl } from "@/lib/image-resolver";
 import ProductImage from "./product-image";
 import { useCart } from "@/context/CartContext";
 
@@ -70,13 +70,20 @@ export function StoreProductCard({
   return (
     <motion.div
       whileHover={{ y: -3 }}
+      style={{
+        backgroundColor: "var(--color-surface)",
+        borderColor: "var(--color-border)",
+      }}
       className={cn(
-        "group relative bg-[#151515] border border-white/10 rounded-2xl overflow-hidden shadow-card transition-all duration-200 hover:border-white/20 flex flex-col justify-between",
+        "group relative border rounded-2xl overflow-hidden shadow-sm transition-all duration-200 hover:shadow-lg flex flex-col justify-between",
         className
       )}
     >
       {/* Cover Image */}
-      <div className="relative aspect-square w-full bg-[#111111] border-b border-white/5 overflow-hidden flex items-center justify-center">
+      <div
+        style={{ backgroundColor: "var(--color-background-secondary)", borderColor: "var(--color-border)" }}
+        className="relative aspect-square w-full border-b overflow-hidden flex items-center justify-center"
+      >
         {coverImage ? (
           <ProductImage
             src={coverImage.url}
@@ -90,8 +97,15 @@ export function StoreProductCard({
         {/* Status / Featured Badge */}
         <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5">
           {product.featured && (
-            <span className="px-2 py-0.5 rounded-md bg-maroon-900/90 border border-maroon-600/50 text-[10px] font-bold font-heading text-maroon-300 flex items-center gap-1">
-              <Sparkles className="w-3 h-3 text-maroon-400" /> Featured
+            <span
+              style={{
+                backgroundColor: "var(--color-surface)",
+                borderColor: "var(--color-accent)",
+                color: "var(--color-accent)",
+              }}
+              className="px-2 py-0.5 rounded-md border text-[10px] font-bold font-heading flex items-center gap-1 shadow-sm"
+            >
+              <Sparkles className="w-3 h-3" /> Featured
             </span>
           )}
           <StatusBadge status={product.status} className="text-[10px] py-0.5 px-2" />
@@ -102,11 +116,15 @@ export function StoreProductCard({
           <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center p-4 z-10">
             <button
               type="button"
+              style={{
+                backgroundColor: "var(--color-cta)",
+                color: "var(--color-cta-foreground)",
+              }}
               onClick={(e) => {
                 e.preventDefault();
                 onQuickView(product);
               }}
-              className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white font-heading text-xs font-bold border border-white/20 backdrop-blur-md flex items-center gap-1.5 transition-all shadow-glow"
+              className="px-4 py-2 rounded-xl font-heading text-xs font-bold flex items-center gap-1.5 transition-all shadow-md hover:opacity-90"
             >
               <Eye className="w-3.5 h-3.5" /> Quick View
             </button>
@@ -117,25 +135,45 @@ export function StoreProductCard({
       {/* Card Content Body */}
       <div className="p-4 space-y-3 flex-1 flex flex-col justify-between">
         <div className="space-y-1">
-          <span className="text-[10px] uppercase font-bold tracking-widest text-maroon-400 font-heading">
+          <span
+            style={{ color: "var(--color-accent)" }}
+            className="text-[10px] uppercase font-bold tracking-widest font-heading"
+          >
             {product.categoryName}
           </span>
-          <Link href={`${storePrefix}/product/${product.slug}`}>
-            <h3 className="text-sm font-bold font-heading text-white hover:text-maroon-300 transition-colors line-clamp-1">
+          <Link href={productUrl}>
+            <h3
+              style={{ color: "var(--color-text-primary)" }}
+              className="text-sm font-bold font-heading hover:opacity-80 transition-opacity line-clamp-1"
+            >
               {product.name}
             </h3>
           </Link>
-          <p className="text-xs text-zinc-400 font-body line-clamp-2 leading-relaxed">
+          <p
+            style={{ color: "var(--color-text-secondary)" }}
+            className="text-xs font-body line-clamp-2 leading-relaxed"
+          >
             {product.shortDescription}
           </p>
         </div>
 
         {/* Card Footer: Price & Cart Action */}
-        <div className="pt-3 border-t border-white/5 space-y-2">
+        <div
+          style={{ borderColor: "var(--color-border)" }}
+          className="pt-3 border-t space-y-2"
+        >
           <div className="flex items-baseline justify-between">
-            <span className="text-base font-bold font-heading text-white">{formatCurrency(product.price)}</span>
+            <span
+              style={{ color: "var(--color-price)" }}
+              className="text-base font-bold font-heading"
+            >
+              {formatCurrency(product.price)}
+            </span>
             {product.compareAtPrice && (
-              <span className="text-xs text-zinc-500 line-through font-body">
+              <span
+                style={{ color: "var(--color-price-original)" }}
+                className="text-xs line-through font-body"
+              >
                 {formatCurrency(product.compareAtPrice)}
               </span>
             )}
@@ -146,12 +184,11 @@ export function StoreProductCard({
               type="button"
               onClick={handleAddToCart}
               disabled={isAdding}
-              className={cn(
-                "flex-1 h-9 rounded-xl flex items-center justify-center gap-2 text-xs font-bold font-heading transition-all shadow-glow",
-                justAdded
-                  ? "bg-emerald-600 text-white"
-                  : "bg-maroon-800 hover:bg-maroon-700 text-white"
-              )}
+              style={{
+                backgroundColor: justAdded ? "#16a34a" : "var(--color-add-to-cart)",
+                color: justAdded ? "#ffffff" : "var(--color-add-to-cart-foreground)",
+              }}
+              className="flex-1 h-9 rounded-xl flex items-center justify-center gap-2 text-xs font-bold font-heading transition-all shadow-sm hover:opacity-90"
             >
               {justAdded ? (
                 <>

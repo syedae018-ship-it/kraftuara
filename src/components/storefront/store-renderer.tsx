@@ -11,6 +11,7 @@ import { CollectionSection } from "./collection-section";
 import { ProductGrid } from "./product-grid";
 import { TestimonialsSection, AboutSection } from "./testimonials-section";
 import { StoreFooter } from "./store-footer";
+import { getBloomThemeStyles } from "./templates/bloom/home/BloomStorefront";
 
 export interface StoreRendererProps {
   store: StoreData;
@@ -30,7 +31,13 @@ export function StoreRenderer({ store, initialCategory, initialCollection, isSub
     .sort((a, b) => (a?.order || 0) - (b?.order || 0));
 
   return (
-    <div className="min-h-screen bg-[#080808] text-white selection:bg-maroon-800 selection:text-white flex flex-col justify-between">
+    <div
+      style={{
+        ...getBloomThemeStyles(store.appearance),
+        backgroundColor: "var(--color-background)",
+      }}
+      className="min-h-screen text-white selection:bg-maroon-800 selection:text-white flex flex-col justify-between"
+    >
       <div className="space-y-0">
         <AnnouncementBar />
         <StoreNavbar store={store} isSubdomain={isSubdomain} />

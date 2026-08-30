@@ -113,7 +113,7 @@ export default function BloomProductDetail({
   return (
     <div
       className="bloom-theme min-h-screen flex flex-col justify-between antialiased bg-bloom-background text-bloom-foreground"
-      style={getBloomThemeStyles(store.appearance.colors, store.appearance.typography)}
+      style={getBloomThemeStyles(store.appearance)}
     >
       {fontsLink && (
         <link rel="stylesheet" href={fontsLink} />
