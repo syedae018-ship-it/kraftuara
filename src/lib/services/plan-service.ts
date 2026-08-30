@@ -11,6 +11,7 @@ import {
   BillingInterval,
   normalizePlanTier,
   setDynamicPlansRegistry,
+  getDynamicPlansRegistry,
 } from "@/lib/feature-gating";
 
 function getSupabaseAdminSafe() {
@@ -22,30 +23,34 @@ function getSupabaseAdminSafe() {
 }
 
 /**
- * Maps database row to standard PlanConfig.
+ * Maps database row / JSON payload to standard PlanConfig.
  */
 function mapRowToPlanConfig(row: any): PlanConfig {
-  const tier = normalizePlanTier(row.id);
+  const tier = normalizePlanTier(row.id || row.plan_id);
   const fallback = PLANS[tier] || PLANS.startup;
 
   return {
     id: tier,
     name: row.name || fallback.name,
-    priceMonthly: Number(row.price_monthly ?? fallback.priceMonthly),
-    priceAnnual: Number(row.price_annual ?? fallback.priceAnnual),
+    priceMonthly: Number(row.price_monthly ?? row.priceMonthly ?? fallback.priceMonthly),
+    priceAnnual: Number(row.price_annual ?? row.priceAnnual ?? fallback.priceAnnual),
     description: row.description || fallback.description,
-    productLimit: Number(row.product_limit ?? fallback.productLimit),
-    categoryLimit: Number(row.category_limit ?? fallback.categoryLimit),
-    allowedFeatures: Array.isArray(row.allowed_features) ? row.allowed_features : fallback.allowedFeatures,
-    featuresDisplay: Array.isArray(row.features_display) ? row.features_display : fallback.featuresDisplay,
+    productLimit: Number(row.product_limit ?? row.productLimit ?? fallback.productLimit),
+    categoryLimit: Number(row.category_limit ?? row.categoryLimit ?? fallback.categoryLimit),
+    allowedFeatures: Array.isArray(row.allowed_features || row.allowedFeatures)
+      ? (row.allowed_features || row.allowedFeatures)
+      : fallback.allowedFeatures,
+    featuresDisplay: Array.isArray(row.features_display || row.featuresDisplay)
+      ? (row.features_display || row.featuresDisplay)
+      : fallback.featuresDisplay,
     hierarchyWeight: fallback.hierarchyWeight,
-    displayOrder: Number(row.display_order ?? fallback.displayOrder ?? 1),
-    popular: Boolean(row.is_popular ?? fallback.popular),
+    displayOrder: Number(row.display_order ?? row.displayOrder ?? fallback.displayOrder ?? 1),
+    popular: Boolean(row.is_popular ?? row.popular ?? fallback.popular),
     badge: row.badge || fallback.badge,
     status: (row.status as "active" | "inactive" | "archived") || "active",
-    isTrialEligible: Boolean(row.is_trial_eligible ?? fallback.isTrialEligible),
-    trialDays: Number(row.trial_days ?? fallback.trialDays ?? 3),
-    updatedAt: row.updated_at,
+    isTrialEligible: Boolean(row.is_trial_eligible ?? row.isTrialEligible ?? fallback.isTrialEligible),
+    trialDays: Number(row.trial_days ?? row.trialDays ?? fallback.trialDays ?? 3),
+    updatedAt: row.updated_at || row.updatedAt || new Date().toISOString(),
   };
 }
 
@@ -56,6 +61,7 @@ export async function getAllPlans(includeInactive = false): Promise<PlanConfig[]
   const supabase = getSupabaseAdminSafe();
 
   if (supabase) {
+    // 1. Attempt primary saas_plans table
     try {
       let query = (supabase as any)
         .from("saas_plans")
@@ -81,12 +87,46 @@ export async function getAllPlans(includeInactive = false): Promise<PlanConfig[]
         return mapped;
       }
     } catch (err) {
-      console.warn("Could not query saas_plans table, falling back to static config:", err);
+      // Fall through to activity_logs persistent store
+    }
+
+    // 2. Query persistent activity_logs store for custom plan configs
+    try {
+      const { data: logsData, error: logsError } = await (supabase as any)
+        .from("activity_logs")
+        .select("*")
+        .like("action", "saas_plan_config_%")
+        .order("created_at", { ascending: false });
+
+      if (!logsError && logsData && logsData.length > 0) {
+        // Group by tier and take most recent config
+        const latestByTier: Record<string, PlanConfig> = {};
+        for (const log of logsData) {
+          const tier = log.action.replace("saas_plan_config_", "") as PlanTier;
+          if (!latestByTier[tier] && log.details) {
+            latestByTier[tier] = mapRowToPlanConfig({ ...log.details, id: tier });
+          }
+        }
+
+        // Merge with defaults
+        const mergedRegistry: Record<PlanTier, PlanConfig> = { ...PLANS };
+        for (const [tier, cfg] of Object.entries(latestByTier)) {
+          mergedRegistry[tier as PlanTier] = cfg;
+        }
+        setDynamicPlansRegistry(mergedRegistry);
+
+        const list = Object.values(mergedRegistry)
+          .filter((p) => includeInactive || p.status !== "inactive")
+          .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
+
+        return list;
+      }
+    } catch (err) {
+      console.warn("Could not query activity_logs for plan config:", err);
     }
   }
 
   // Fallback to in-memory dynamic plans registry
-  const { getDynamicPlansRegistry } = await import("@/lib/feature-gating");
   const fallbackList = Object.values(getDynamicPlansRegistry())
     .filter((p) => includeInactive || p.status !== "inactive")
     .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
@@ -146,7 +186,17 @@ export async function updatePlan(params: {
   if (params.updates.isTrialEligible !== undefined) payload.is_trial_eligible = Boolean(params.updates.isTrialEligible);
   if (params.updates.trialDays !== undefined) payload.trial_days = Number(params.updates.trialDays);
 
+  const updatedConfig: PlanConfig = {
+    ...existing,
+    ...params.updates,
+    id: tier,
+    updatedAt: payload.updated_at,
+  };
+
   if (supabase) {
+    let savedToSaasPlans = false;
+
+    // 1. Try upserting to saas_plans
     try {
       const { error: upsertError } = await (supabase as any)
         .from("saas_plans")
@@ -155,30 +205,51 @@ export async function updatePlan(params: {
           ...payload,
         });
 
-      if (upsertError) {
-        return { success: false, error: upsertError.message };
+      if (!upsertError) {
+        savedToSaasPlans = true;
+        // Record Audit Log in plan_audit_logs
+        try {
+          await (supabase as any).from("plan_audit_logs").insert({
+            plan_id: tier,
+            admin_email: params.adminEmail,
+            action: "update_plan",
+            old_values: existing,
+            new_values: updatedConfig,
+          });
+        } catch {
+          // ignore audit log failure
+        }
       }
+    } catch {
+      savedToSaasPlans = false;
+    }
 
-      // Record Audit Log
-      await (supabase as any).from("plan_audit_logs").insert({
-        plan_id: tier,
-        admin_email: params.adminEmail,
-        action: "update_plan",
-        old_values: existing,
-        new_values: { ...existing, ...payload },
+    // 2. Persist to activity_logs as resilient database store
+    try {
+      await (supabase as any).from("activity_logs").insert({
+        action: `saas_plan_config_${tier}`,
+        details: {
+          ...updatedConfig,
+          modified_by: params.adminEmail,
+        },
       });
-    } catch (err: any) {
-      console.warn("Database plan write error:", err);
+
+      // Also record audit log in activity_logs
+      await (supabase as any).from("activity_logs").insert({
+        action: `saas_plan_audit_${tier}`,
+        details: {
+          admin_email: params.adminEmail,
+          action: "update_plan",
+          old_values: existing,
+          new_values: updatedConfig,
+        },
+      });
+    } catch (logErr) {
+      console.warn("Failed to write plan backup to activity_logs:", logErr);
     }
   }
 
   // Update in-memory registry immediately
-  const updatedConfig: PlanConfig = {
-    ...existing,
-    ...params.updates,
-    id: tier,
-  };
-
   setDynamicPlansRegistry({ [tier]: updatedConfig } as any);
 
   return { success: true, data: updatedConfig };
@@ -191,6 +262,7 @@ export async function getPlanAuditLogs(limit = 50): Promise<any[]> {
   const supabase = getSupabaseAdminSafe();
   if (!supabase) return [];
 
+  // 1. Try plan_audit_logs
   try {
     const { data, error } = await (supabase as any)
       .from("plan_audit_logs")
@@ -198,8 +270,32 @@ export async function getPlanAuditLogs(limit = 50): Promise<any[]> {
       .order("created_at", { ascending: false })
       .limit(limit);
 
-    if (!error && data) {
+    if (!error && data && data.length > 0) {
       return data;
+    }
+  } catch {
+    // Fall back to activity_logs
+  }
+
+  // 2. Query activity_logs
+  try {
+    const { data: logsData, error: logsErr } = await (supabase as any)
+      .from("activity_logs")
+      .select("*")
+      .like("action", "saas_plan_audit_%")
+      .order("created_at", { ascending: false })
+      .limit(limit);
+
+    if (!logsErr && logsData) {
+      return logsData.map((l: any) => ({
+        id: l.id,
+        plan_id: l.action.replace("saas_plan_audit_", ""),
+        admin_email: l.details?.admin_email || "admin@kraftaura.in",
+        action: l.details?.action || "update_plan",
+        old_values: l.details?.old_values,
+        new_values: l.details?.new_values,
+        created_at: l.created_at,
+      }));
     }
   } catch (err) {
     console.warn("Could not fetch plan audit logs:", err);
