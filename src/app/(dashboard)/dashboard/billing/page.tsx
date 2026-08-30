@@ -12,31 +12,16 @@ import { cn } from "@/lib/utils";
 import { getStoreSubscriptionAction, updateStoreSubscriptionAction, StoreSubscription } from "@/lib/actions/subscription";
 import { isAdminUser } from "@/lib/services/admin-roles";
 import { createClient } from "@/lib/supabase/client";
-import { PLANS } from "@/lib/feature-gating";
+import { PLANS, PlanTier, getPlanDisplayName, getPlanHierarchyWeight } from "@/lib/feature-gating";
 
-const PLANS_CATALOG = [
-  {
-    id: "startup",
-    name: PLANS.startup.name,
-    price: `₹${PLANS.startup.priceMonthly}/mo`,
-    desc: PLANS.startup.description + ` Up to ${PLANS.startup.productLimit} products.`,
-    limit: PLANS.startup.productLimit,
-  },
-  {
-    id: "growth",
-    name: PLANS.growth.name,
-    price: `₹${PLANS.growth.priceMonthly}/mo`,
-    desc: PLANS.growth.description + ` Up to ${PLANS.growth.productLimit} products.`,
-    limit: PLANS.growth.productLimit,
-  },
-  {
-    id: "pro",
-    name: PLANS.pro.name,
-    price: `₹${PLANS.pro.priceMonthly}/mo`,
-    desc: PLANS.pro.description + ` Up to ${PLANS.pro.productLimit} products.`,
-    limit: PLANS.pro.productLimit,
-  },
-];
+const PLANS_CATALOG = Object.values(PLANS).map((p) => ({
+  id: p.id,
+  name: p.name,
+  price: `₹${p.priceMonthly.toLocaleString("en-IN")}/mo`,
+  desc: p.description + ` Up to ${p.productLimit} products.`,
+  limit: p.productLimit,
+  hierarchyWeight: p.hierarchyWeight,
+}));
 
 export default function MerchantBillingPage() {
   const { activeStore, user, refreshSession } = useAuth();
@@ -44,7 +29,7 @@ export default function MerchantBillingPage() {
   const [isLoading, setIsLoading] = useState(true);
   
   const [isAdmin, setIsAdmin] = useState(false);
-  const [adminPlan, setAdminPlan] = useState<"startup" | "growth" | "pro">("startup");
+  const [adminPlan, setAdminPlan] = useState<PlanTier>("startup");
   const [adminExpiryDays, setAdminExpiryDays] = useState(30);
   const [isUpdatingAdmin, setIsUpdatingAdmin] = useState(false);
   const [payments, setPayments] = useState<any[]>([]);
@@ -116,7 +101,7 @@ export default function MerchantBillingPage() {
     }
   };
 
-  const handleRequestUpgrade = async (planId: "startup" | "growth" | "pro") => {
+  const handleRequestUpgrade = async (planId: PlanTier) => {
     if (!activeStore?.id) return;
     setProcessingUpgrade(planId);
 
@@ -217,7 +202,6 @@ export default function MerchantBillingPage() {
     }
   };
 
-
   const handleAdminOverride = async () => {
     if (!activeStore?.id) return;
     setIsUpdatingAdmin(true);
@@ -229,7 +213,7 @@ export default function MerchantBillingPage() {
         adminExpiryDays
       );
       if (response.success) {
-        toast.success("Success", `Override applied: store is now on ${adminPlan}.`);
+        toast.success("Success", `Override applied: store is now on ${getPlanDisplayName(adminPlan)}.`);
         await fetchSubscription();
         await notifyStateChange();
       } else {
@@ -252,8 +236,9 @@ export default function MerchantBillingPage() {
     );
   }
 
-  const displayPlanName = PLANS_CATALOG.find((p) => p.id === subscription?.plan)?.name || subscription?.plan;
-  const activePlanConfig = PLANS_CATALOG.find((p) => p.id === subscription?.plan) || PLANS_CATALOG[0];
+  const currentActivePlan = subscription?.plan || "startup";
+  const displayPlanName = getPlanDisplayName(currentActivePlan);
+  const currentPlanWeight = subscription?.status === "active" ? getPlanHierarchyWeight(currentActivePlan) : 0;
 
   return (
     <DashboardLayout breadcrumbs={[{ label: "Overview", href: "/dashboard" }, { label: "Billing & Plans" }]}>
@@ -282,6 +267,7 @@ export default function MerchantBillingPage() {
                   className={cn(
                     "text-[10px] py-0.5 uppercase tracking-wider font-mono",
                     subscription.status === "active" && "bg-emerald-950/80 border border-emerald-700/50 text-emerald-400",
+                    subscription.status === "trialing" && "bg-blue-950/80 border border-blue-700/50 text-blue-400",
                     subscription.status === "expired" && "bg-rose-950/80 border border-rose-700/50 text-rose-400",
                     subscription.status === "cancelled" && "bg-zinc-800/80 border border-zinc-700 text-zinc-400",
                     (subscription.status === "pending" || subscription.status === "payment_pending") && "bg-amber-950/80 border border-amber-700/50 text-amber-400"
@@ -336,12 +322,13 @@ export default function MerchantBillingPage() {
                 <label className="text-[10px] text-zinc-400 block font-heading uppercase">Plan Tier</label>
                 <select
                   value={adminPlan}
-                  onChange={(e: any) => setAdminPlan(e.target.value as any)}
+                  onChange={(e: any) => setAdminPlan(e.target.value as PlanTier)}
                   className="w-full h-9 bg-black border border-white/10 rounded-xl px-3 text-xs text-white"
                 >
-                  <option value="startup">Startup Pack</option>
-                  <option value="growth">Growth Pack</option>
-                  <option value="pro">Pro Plan</option>
+                  <option value="startup">Startup Pack (₹99)</option>
+                  <option value="growth">Growth Pack (₹299)</option>
+                  <option value="pro">Pro Plan (₹499)</option>
+                  <option value="premium_ai">Premium / AI Plan (₹1,499)</option>
                 </select>
               </div>
 
@@ -369,57 +356,67 @@ export default function MerchantBillingPage() {
           </Card>
         )}
 
-        {/* Upgrade/Change Plans Grid */}
+        {/* Upgrade/Change Plans Grid (All 4 Plans) */}
         <div className="space-y-3.5">
           <h3 className="text-xs font-bold font-heading uppercase tracking-wider text-zinc-500">
             Available Platform Plans
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {(() => {
-              const planWeights = { startup: 0, growth: 1, pro: 2 };
-              const currentWeight = subscription?.status === "active" ? (planWeights[subscription.plan as keyof typeof planWeights] ?? 0) : 0;
-              const visiblePlans = PLANS_CATALOG.filter(p => (planWeights[p.id as keyof typeof planWeights] ?? 0) >= currentWeight);
-              return visiblePlans.map((p) => {
-                const isCurrent = subscription?.plan === p.id && subscription.status === "active";
-                const buttonLabel = isCurrent 
-                  ? "Current Plan" 
-                  : p.id === "growth" 
-                    ? "Upgrade to Growth" 
-                    : "Upgrade to Pro";
-                return (
-                  <Card
-                    key={p.id}
-                    className={`p-6 bg-[#111111] border-white/10 flex flex-col justify-between space-y-4 rounded-2xl ${
-                      isCurrent && "border-maroon-700/80 shadow-glow"
-                    }`}
-                  >
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-start">
-                        <h4 className="text-sm font-bold font-heading text-white">{p.name}</h4>
-                        {isCurrent && <CheckCircle2 className="w-4 h-4 text-maroon-400 shrink-0" />}
-                      </div>
-                      <div className="text-lg font-bold font-mono text-white">{p.price}</div>
-                      <p className="text-xs text-zinc-400 font-body leading-relaxed">{p.desc}</p>
-                      <span className="text-[10px] font-mono text-zinc-500 block pt-1">
-                        Max Products limit: {p.limit}
-                      </span>
-                    </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {PLANS_CATALOG.map((p) => {
+              const isCurrent = subscription?.plan === p.id && subscription.status === "active";
+              const isDowngrade = p.hierarchyWeight < currentPlanWeight;
+              const isUpgrade = p.hierarchyWeight > currentPlanWeight;
 
-                    <div className="pt-4 border-t border-white/5">
-                      <Button
-                        onClick={() => handleRequestUpgrade(p.id as any)}
-                        variant={isCurrent ? "outline" : "primary"}
-                        disabled={isCurrent || processingUpgrade !== null}
-                        isLoading={processingUpgrade === p.id}
-                        className="w-full justify-center text-xs h-9 font-semibold"
-                      >
-                        {buttonLabel}
-                      </Button>
+              let buttonLabel = `Upgrade to ${p.name}`;
+              let buttonDisabled = false;
+
+              if (isCurrent) {
+                buttonLabel = "Current Plan";
+                buttonDisabled = true;
+              } else if (isDowngrade) {
+                buttonLabel = "Included in Active Plan";
+                buttonDisabled = true;
+              } else {
+                buttonDisabled = processingUpgrade !== null;
+              }
+
+              return (
+                <Card
+                  key={p.id}
+                  className={cn(
+                    "p-6 bg-[#111111] border-white/10 flex flex-col justify-between space-y-4 rounded-2xl transition-all",
+                    isCurrent && "border-maroon-700/80 shadow-glow"
+                  )}
+                >
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-start">
+                      <h4 className="text-sm font-bold font-heading text-white">{p.name}</h4>
+                      {isCurrent && <CheckCircle2 className="w-4 h-4 text-maroon-400 shrink-0" />}
                     </div>
-                  </Card>
-                );
-              });
-            })()}
+                    <div className="text-lg font-bold font-mono text-white">{p.price}</div>
+                    <p className="text-xs text-zinc-400 font-body leading-relaxed">{p.desc}</p>
+                    <span className="text-[10px] font-mono text-zinc-500 block pt-1">
+                      Max Products limit: {p.limit}
+                    </span>
+                  </div>
+
+                  <div className="pt-4 border-t border-white/5">
+                    <Button
+                      onClick={() => handleRequestUpgrade(p.id)}
+                      variant={isCurrent ? "outline" : isDowngrade ? "ghost" : "primary"}
+                      disabled={buttonDisabled}
+                      isLoading={processingUpgrade === p.id}
+                      className={cn(
+                        "w-full justify-center text-xs h-9 font-semibold",
+                        isDowngrade && "opacity-40 cursor-not-allowed"
+                      )}
+                    >
+                      {buttonLabel}
+                    </Button>
+                  </div>
+                </Card>
+              );
+            })}
           </div>
         </div>
 
@@ -455,7 +452,7 @@ export default function MerchantBillingPage() {
                             year: "numeric",
                           })}
                         </td>
-                        <td className="px-4 py-3 font-semibold text-white uppercase">{pay.plan}</td>
+                        <td className="px-4 py-3 font-semibold text-white uppercase">{getPlanDisplayName(pay.plan)}</td>
                         <td className="px-4 py-3 text-zinc-500 truncate max-w-[150px]">{pay.razorpay_payment_id || "N/A"}</td>
                         <td className="px-4 py-3 text-white">₹{pay.amount}</td>
                         <td className="px-4 py-3">

@@ -81,62 +81,18 @@ const featuresList = [
   },
 ];
 
-const pricingPlans = [
-  {
-    name: "Startup Pack",
-    price: `₹${PLANS.startup.priceMonthly}`,
-    period: "month",
-    description: PLANS.startup.description,
-    features: [
-      "WhatsApp Catalog Order Buttons",
-      "Basic Dashboard Overview",
-      "Product Management (up to 12 products)",
-      "Dedicated Storefront URL Link",
-      "Kraftaura Classic template access",
-      "Custom Logo Upload",
-    ],
-    cta: "Choose Startup Pack",
-    href: "/signup?plan=startup",
-    popular: false,
-  },
-  {
-    name: "Growth Pack",
-    price: `₹${PLANS.growth.priceMonthly}`,
-    period: "month",
-    description: PLANS.growth.description,
-    features: [
-      "Everything in Startup Pack",
-      "Product Management (up to 24 products)",
-      "Store Analytics & Traffic Insights (Store Views)",
-      "Curated Collections & Taxonomies",
-      "Advanced Customization & Branding",
-      "Creative discounts & promo codes",
-    ],
-    cta: "Choose Growth Pack",
-    href: "/signup?plan=growth",
-    popular: true,
-  },
-  {
-    name: "Pro Plan",
-    price: `₹${PLANS.pro.priceMonthly}`,
-    period: "month",
-    description: PLANS.pro.description,
-    features: [
-      "Everything in Growth Pack",
-      "Product Management (up to 100 products)",
-      "Direct Razorpay Payment Gateway & Checkout",
-      "Order Management & Customer Invoicing",
-      "Shipping Integration & Tracking Labels",
-      "Revenue Analytics & Sales Graphs",
-      "Discount Coupons & Promotional Banners",
-      "Real-time Inventory & Stock Alerts",
-      "Custom Domain Mapping",
-    ],
-    cta: "Choose Pro Plan",
-    href: "/signup?plan=pro",
-    popular: false,
-  },
-];
+const pricingPlans = Object.values(PLANS).map((p) => ({
+  id: p.id,
+  name: p.name,
+  price: `₹${p.priceMonthly.toLocaleString("en-IN")}`,
+  period: "month",
+  description: p.description,
+  features: p.featuresDisplay,
+  cta: `Choose ${p.name}`,
+  href: `/signup?plan=${p.id}`,
+  popular: p.popular || false,
+  badge: p.badge,
+}));
 
 const faqs = [
   {
@@ -486,20 +442,23 @@ export function LandingPage() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch max-w-5xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 items-stretch max-w-7xl mx-auto">
           {pricingPlans.map((plan: any) => (
             <div
               key={plan.name}
               className={cn(
                 "relative rounded-3xl p-6 flex flex-col justify-between transition-all duration-300 border text-left",
                 plan.popular
-                  ? "bg-[#151515] border-maroon-600 shadow-glow-lg maroon-gradient-border scale-[1.02]"
+                  ? "bg-[#151515] border-maroon-600 shadow-glow-lg maroon-gradient-border"
                   : "bg-[#111111] border-white/10 hover:border-white/20"
               )}
             >
-              {plan.popular && (
-                <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full bg-maroon-800 border border-maroon-500 text-[10px] uppercase font-mono font-bold tracking-widest text-white shadow-glow">
-                  Most Popular
+              {plan.badge && (
+                <div className={cn(
+                  "absolute -top-3.5 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full text-[10px] uppercase font-mono font-bold tracking-widest text-white shadow-glow border",
+                  plan.popular ? "bg-maroon-800 border-maroon-500" : "bg-white/10 border-white/20 text-zinc-300"
+                )}>
+                  {plan.badge}
                 </div>
               )}
 
@@ -509,7 +468,7 @@ export function LandingPage() {
                     {plan.name}
                   </h3>
                   <div className="flex items-baseline gap-1 mt-2">
-                    <span className="text-3xl font-extrabold font-heading text-white">{plan.price}</span>
+                    <span className="text-2xl sm:text-3xl font-extrabold font-heading text-white">{plan.price}</span>
                     <span className="text-xs text-zinc-500 font-body">/{plan.period}</span>
                   </div>
                   {plan.setupFee && (

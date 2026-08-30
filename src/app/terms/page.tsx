@@ -302,7 +302,7 @@ export default function TermsPage() {
               </h2>
               <p>
                 Access to advanced features, theme customizations, product capacity tiers, and custom
-                domains is provided under subscription plans (e.g., Startup, Growth, Enterprise).
+                domains is provided under subscription plans (e.g., Startup, Growth, Pro, Premium / AI).
               </p>
               <ul className="list-disc pl-5 space-y-1.5 text-zinc-400">
                 <li>Subscription fees are billed in advance on a recurring monthly or annual basis as designated upon plan selection.</li>

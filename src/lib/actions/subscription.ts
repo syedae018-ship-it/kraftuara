@@ -2,16 +2,15 @@
 
 import { createServerInstance } from "@/lib/supabase/server";
 import { isAdminUser } from "@/lib/services/admin-roles";
-
-
+import { PlanTier } from "@/lib/feature-gating";
 
 // Types
 export interface StoreSubscription {
   id?: string;
   storeId: string;
-  plan: "startup" | "growth" | "pro";
-  selectedPlan?: "startup" | "growth" | "pro";
-  status: "active" | "expired" | "cancelled" | "pending" | "payment_pending";
+  plan: PlanTier;
+  selectedPlan?: PlanTier;
+  status: "active" | "trialing" | "expired" | "cancelled" | "pending" | "payment_pending";
   expiresAt: string | null;
   startsAt: string | null;
   daysRemaining: number | null;
@@ -57,7 +56,6 @@ export async function getStoreSubscriptionAction(storeId: string) {
     console.error("Get Subscription Error:", err);
     return { success: false, error: err.message || "Failed to load subscription details." };
   }
-
 }
 
 /**
@@ -65,7 +63,7 @@ export async function getStoreSubscriptionAction(storeId: string) {
  */
 export async function updateStoreSubscriptionAction(
   storeId: string,
-  plan: "startup" | "growth" | "pro",
+  plan: PlanTier,
   status: "active" | "expired" | "cancelled" | "pending",
   expiryDays?: number
 ) {

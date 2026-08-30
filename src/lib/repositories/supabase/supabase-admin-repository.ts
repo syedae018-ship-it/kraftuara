@@ -124,36 +124,21 @@ export class SupabaseAdminRepository implements IAdminRepository {
 
 
   async getPlans(): Promise<Plan[]> {
-    return [
-      {
-        id: "startup",
-        name: "Startup Pack",
-        price: 99,
-        interval: "monthly",
-        limits: { products: 30, storageGb: 5, customDomain: false },
-        features: ["Standard Support", "Bloom Theme System", "WhatsApp Checkout", "Subdomain"],
-        status: "active",
+    const { PLANS } = await import("@/lib/feature-gating");
+    return Object.values(PLANS).map((p) => ({
+      id: p.id,
+      name: p.name,
+      price: p.priceMonthly,
+      interval: "monthly",
+      limits: {
+        products: p.productLimit,
+        storageGb: p.id === "premium_ai" ? 100 : p.id === "pro" ? 50 : p.id === "growth" ? 20 : 5,
+        customDomain: p.allowedFeatures.includes("custom_domain"),
       },
-      {
-        id: "growth",
-        name: "Growth Pack",
-        price: 299,
-        interval: "monthly",
-        limits: { products: 150, storageGb: 20, customDomain: true },
-        features: ["Priority Support", "Custom Domain", "Creative Hub", "Advanced Analytics"],
-        isPopular: true,
-        status: "active",
-      },
-      {
-        id: "pro",
-        name: "Pro Plan",
-        price: 499,
-        interval: "monthly",
-        limits: { products: 500, storageGb: 100, customDomain: true },
-        features: ["Dedicated Support", "Unlimited Products", "Custom CSS", "VIP Creative Services"],
-        status: "active",
-      },
-    ];
+      features: p.featuresDisplay,
+      isPopular: p.popular,
+      status: "active",
+    }));
   }
 
   async createPlan(input: Omit<Plan, "id">): Promise<Plan> {

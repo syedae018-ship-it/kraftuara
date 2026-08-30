@@ -5,7 +5,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { errorResponse, successResponse } from "@/lib/api-response";
 import { ActionResponse } from "@/types";
-import { PLANS } from "@/lib/feature-gating";
+import { PLANS, PlanTier, normalizePlanTier } from "@/lib/feature-gating";
 import { getOrCreateRazorpayPlan, resolvePlanFromRazorpay } from "@/config/razorpay";
 import { revalidatePath } from "next/cache";
 
@@ -30,7 +30,7 @@ const getRazorpayInstance = () => {
  */
 export async function createStoreSubscriptionAction(
   storeId: string | null | undefined,
-  planName: "startup" | "growth" | "pro"
+  planName: PlanTier
 ): Promise<ActionResponse<{ subscriptionId: string; keyId: string; isSimulated: boolean }>> {
   try {
     const supabase = await createServerSupabaseClient();
@@ -129,8 +129,8 @@ export async function verifySubscriptionPaymentAction(payload: {
   paymentId: string;
   subscriptionId: string;
   signature: string;
-  planId?: "startup" | "growth" | "pro";
-}): Promise<ActionResponse<{ success: boolean; verifiedPlan?: "startup" | "growth" | "pro" }>> {
+  planId?: PlanTier;
+}): Promise<ActionResponse<{ success: boolean; verifiedPlan?: PlanTier }>> {
   try {
     const supabase = await createServerSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -315,13 +315,13 @@ export async function verifySubscriptionPaymentAction(payload: {
  */
 export async function activatePlatformSubscriptionAction(
   storeId: string,
-  planName: "startup" | "growth" | "pro",
+  planName: PlanTier,
   paymentDetails?: {
     subscriptionId?: string | null;
     paymentId?: string | null;
     signature?: string | null;
   }
-): Promise<ActionResponse<{ success: boolean; plan: "startup" | "growth" | "pro" }>> {
+): Promise<ActionResponse<{ success: boolean; plan: PlanTier }>> {
   try {
     const supabase = createAdminClient();
     

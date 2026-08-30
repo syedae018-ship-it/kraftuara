@@ -29,21 +29,16 @@ export class SupabaseCategoryRepository implements ICategoryRepository {
     const { subscriptionEngine } = await import("@/lib/services/subscription-engine");
     const sub = await subscriptionEngine.getAuthoritativeSubscription(storeId, null, supabase);
 
-    const { getCategoryLimit, isUnlimitedCategories } = await import("@/lib/feature-gating");
-    if (isUnlimitedCategories(sub.plan)) {
-      return; // Unlimited categories allowed for Growth & Pro
-    }
-
-    const limit = getCategoryLimit(sub.plan);
-
+    const { canCreateCategory } = await import("@/lib/feature-gating");
 
     const { count } = await supabase
       .from("categories")
       .select("id", { count: "exact", head: true })
       .eq("store_id", storeId);
     
-    if ((count || 0) >= limit) {
-      throw new Error(`Category limit reached. Startup Pack allows ${limit} category. Upgrade your plan to create more categories.`);
+    const check = canCreateCategory(sub.plan, count || 0);
+    if (!check.allowed) {
+      throw new Error(check.message || `Category limit reached. Startup Pack allows ${check.limit} category. Upgrade your plan to create more categories.`);
     }
   }
 

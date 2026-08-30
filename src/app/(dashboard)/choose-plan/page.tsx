@@ -17,47 +17,16 @@ import { cn } from "@/lib/utils";
 import { PLANS, PlanTier } from "@/lib/feature-gating";
 
 interface DisplayPlan {
-  id: "startup" | "growth" | "pro";
+  id: PlanTier;
   name: string;
-  planName: string;
+  planName: PlanTier;
   price: string;
   amount: number;
   description: string;
   badge?: string;
   popular?: boolean;
-  setupFee?: string;
   features: string[];
 }
-
-const planFeaturesDisplay = {
-  startup: [
-    "WhatsApp Catalog Order Buttons",
-    "Basic Dashboard Overview",
-    "Product Management (up to 10 products)",
-    "Dedicated Storefront URL Link",
-    "Kraftaura Classic template access",
-    "Custom Logo Upload",
-  ],
-  growth: [
-    "Everything in Startup Pack",
-    "Product Management (up to 24 products)",
-    "Store Analytics & Traffic Insights (Store Views)",
-    "Curated Collections & Taxonomies",
-    "Advanced Customization & Branding",
-    "Creative discounts & promo codes",
-  ],
-  pro: [
-    "Everything in Growth Pack",
-    "Product Management (up to 100 products)",
-    "Direct Razorpay Payment Gateway & Checkout",
-    "Order Management & Customer Invoicing",
-    "Shipping Integration & Tracking Labels",
-    "Revenue Analytics & Sales Graphs",
-    "Discount Coupons & Promotional Banners",
-    "Real-time Inventory & Stock Alerts",
-    "Custom Domain Mapping",
-  ],
-};
 
 export default function ChoosePlanPage() {
   const router = useRouter();
@@ -79,39 +48,18 @@ export default function ChoosePlanPage() {
   const [selectedPlan, setSelectedPlan] = useState<DisplayPlan | null>(null);
   const [processingPayment, setProcessingPayment] = useState(false);
 
-  // Map PLANS configurations dynamically to match UI items
-  const displayPlans: DisplayPlan[] = [
-    {
-      id: "startup",
-      name: PLANS.startup.name,
-      planName: "startup",
-      price: `₹${PLANS.startup.priceMonthly}`,
-      amount: PLANS.startup.priceMonthly,
-      description: PLANS.startup.description,
-      features: planFeaturesDisplay.startup,
-    },
-    {
-      id: "growth",
-      name: PLANS.growth.name,
-      planName: "growth",
-      price: `₹${PLANS.growth.priceMonthly}`,
-      amount: PLANS.growth.priceMonthly,
-      description: PLANS.growth.description,
-      badge: "MOST POPULAR",
-      popular: true,
-      features: planFeaturesDisplay.growth,
-    },
-    {
-      id: "pro",
-      name: PLANS.pro.name,
-      planName: "pro",
-      price: `₹${PLANS.pro.priceMonthly}`,
-      amount: PLANS.pro.priceMonthly,
-      description: PLANS.pro.description,
-      badge: "FULL E-COMMERCE",
-      features: planFeaturesDisplay.pro,
-    },
-  ];
+  // Map PLANS configurations dynamically from single source of truth
+  const displayPlans: DisplayPlan[] = Object.values(PLANS).map((p) => ({
+    id: p.id,
+    name: p.name,
+    planName: p.id,
+    price: `₹${p.priceMonthly.toLocaleString("en-IN")}`,
+    amount: p.priceMonthly,
+    description: p.description,
+    badge: p.badge,
+    popular: p.popular,
+    features: p.featuresDisplay,
+  }));
 
   const handleChoosePlan = async (plan: DisplayPlan) => {
     setSelectedPlan(plan);
@@ -119,7 +67,7 @@ export default function ChoosePlanPage() {
 
     try {
       const { createStoreSubscriptionAction } = await import("@/lib/actions/payment");
-      const res = await createStoreSubscriptionAction(null, plan.planName as any);
+      const res = await createStoreSubscriptionAction(null, plan.planName);
 
       if (!res.success) {
         toast.error("Checkout Error", res.error || "Failed to initialize subscription checkout.");
@@ -141,6 +89,7 @@ export default function ChoosePlanPage() {
           const mockSig = `sig_mock_${Date.now()}`;
           
           selectPlan(plan.planName, "active");
+          localStorage.setItem("symar_selected_plan", plan.planName);
           localStorage.setItem("symar_checkout_subscription_id", mockSubId);
           localStorage.setItem("symar_checkout_payment_id", mockPayId);
           localStorage.setItem("symar_checkout_signature", mockSig);
@@ -168,7 +117,7 @@ export default function ChoosePlanPage() {
             paymentId: response.razorpay_payment_id,
             subscriptionId: response.razorpay_subscription_id,
             signature: response.razorpay_signature,
-            planId: plan.planName as any,
+            planId: plan.planName,
           });
 
           if (verRes.success) {
@@ -214,7 +163,7 @@ export default function ChoosePlanPage() {
       {/* Subtle Ambient Red Glow */}
       <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[400px] bg-maroon-900/15 blur-[160px] pointer-events-none rounded-full" />
 
-      <div className="relative z-10 w-full max-w-5xl space-y-8 my-8 text-center">
+      <div className="relative z-10 w-full max-w-6xl space-y-8 my-8 text-center">
         {/* Header Section */}
         <div className="space-y-3">
           <Badge variant="maroon" className="gap-1 text-[11px] uppercase tracking-wider">
@@ -228,8 +177,8 @@ export default function ChoosePlanPage() {
           </p>
         </div>
 
-        {/* Plans Selection Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left items-stretch">
+        {/* Plans Selection Grid (4 Plans) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 text-left items-stretch">
           {displayPlans.map((plan) => {
             const isPopular = plan.popular;
 
@@ -258,27 +207,22 @@ export default function ChoosePlanPage() {
 
                 <div className="space-y-4">
                   <div>
-                    <h3 className="text-lg font-bold font-heading text-white">{plan.name}</h3>
+                    <h3 className="text-base font-bold font-heading text-white">{plan.name}</h3>
                     <p className="text-[11px] text-zinc-400 font-body mt-1 leading-relaxed">
                       {plan.description}
                     </p>
                     <div className="flex items-baseline gap-1 mt-4">
-                      <span className="text-3xl font-extrabold font-heading text-white">
+                      <span className="text-2xl sm:text-3xl font-extrabold font-heading text-white">
                         {plan.price}
                       </span>
                       <span className="text-xs text-zinc-500 font-mono">/ month</span>
                     </div>
-                    {plan.setupFee && (
-                      <p className="text-[10px] text-amber-500 font-mono mt-1 font-semibold">
-                        + {plan.setupFee}
-                      </p>
-                    )}
                   </div>
 
-                  <ul className="space-y-3 pt-4 border-t border-white/5 text-[11px] text-zinc-300 font-body">
+                  <ul className="space-y-2.5 pt-4 border-t border-white/5 text-[11px] text-zinc-300 font-body">
                     {plan.features.map((feat, idx) => (
                       <li key={idx} className="flex items-start gap-2.5">
-                        <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
                         <span className="leading-tight">{feat}</span>
                       </li>
                     ))}
@@ -294,11 +238,12 @@ export default function ChoosePlanPage() {
                 <Button
                   onClick={() => handleChoosePlan(plan)}
                   variant={isPopular ? "primary" : "outline"}
+                  disabled={processingPayment}
                   className={cn(
-                    "w-full h-11 text-xs uppercase tracking-wider font-bold shadow-md mt-4",
+                    "w-full h-10 text-xs uppercase tracking-wider font-bold shadow-md mt-4",
                     isPopular ? "shadow-glow" : "border-white/10 hover:bg-white/5"
                   )}
-                  rightIcon={<ArrowRight className="w-4 h-4" />}
+                  rightIcon={<ArrowRight className="w-3.5 h-3.5" />}
                 >
                   Choose {plan.name}
                 </Button>

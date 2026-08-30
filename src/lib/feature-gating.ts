@@ -1,9 +1,10 @@
 /**
  * Plan Tiers & Feature Gating Engine
- * Master Source of Truth for Kraftaura Subscriptions & Entitlements
+ * Master Single Source of Truth for Kraftaura Subscriptions, Limits & Entitlements
  */
 
-export type PlanTier = "startup" | "growth" | "pro";
+export type PlanTier = "startup" | "growth" | "pro" | "premium_ai";
+export type PlanId = PlanTier;
 
 export type FeatureKey =
   | "dashboard"
@@ -28,7 +29,10 @@ export type FeatureKey =
   | "payments"
   | "revenue_dashboard"
   | "inventory"
-  | "custom_domain";
+  | "custom_domain"
+  | "ai_commercial_reel"
+  | "product_mockups"
+  | "vip_support_24_7";
 
 export interface PlanConfig {
   id: PlanTier;
@@ -39,7 +43,9 @@ export interface PlanConfig {
   productLimit: number;
   categoryLimit: number; // 999999 denotes unlimited categories
   popular?: boolean;
+  badge?: string;
   hierarchyWeight: number;
+  featuresDisplay: string[];
 }
 
 export const UNLIMITED_CATEGORY_LIMIT = 999999;
@@ -49,7 +55,7 @@ export const PLANS: Record<PlanTier, PlanConfig> = {
     id: "startup",
     name: "Startup Pack",
     priceMonthly: 99,
-    description: "Perfect for new merchants & WhatsApp ordering stores.",
+    description: "Perfect for new merchants & WhatsApp catalog storefronts.",
     allowedFeatures: [
       "dashboard",
       "products",
@@ -62,12 +68,21 @@ export const PLANS: Record<PlanTier, PlanConfig> = {
     productLimit: 12,
     categoryLimit: 1,
     hierarchyWeight: 1,
+    featuresDisplay: [
+      "WhatsApp Catalog Order Routing",
+      "Basic Merchant Dashboard",
+      "Product Management (up to 12 products)",
+      "Single Category Catalog Setup",
+      "Dedicated Storefront URL Link",
+      "Kraftaura Classic Theme Template",
+      "Custom Store Logo & Branding",
+    ],
   },
   growth: {
     id: "growth",
     name: "Growth Pack",
     priceMonthly: 299,
-    description: "Enhanced growth with Analytics, Coupons, Orders & Unlimited Categories.",
+    description: "Enhanced growth with Traffic Analytics, Coupons & Multiple Categories.",
     allowedFeatures: [
       // Inherits all Startup features
       "dashboard",
@@ -91,13 +106,23 @@ export const PLANS: Record<PlanTier, PlanConfig> = {
     productLimit: 24,
     categoryLimit: UNLIMITED_CATEGORY_LIMIT,
     popular: true,
+    badge: "MOST POPULAR",
     hierarchyWeight: 2,
+    featuresDisplay: [
+      "Everything in Startup Pack",
+      "Product Management (up to 24 products)",
+      "Unlimited Category Classifications",
+      "Store Views & Traffic Source Analytics",
+      "Merchant Coupons & Promo Discount Codes",
+      "Customer Order Status Tracking",
+      "Advanced Appearance Customization",
+    ],
   },
   pro: {
     id: "pro",
     name: "Pro Plan",
     priceMonthly: 499,
-    description: "Complete E-commerce platform with Order Management, Tracking, Collections & Advanced Themes.",
+    description: "Complete E-commerce with Direct Payments, Invoicing & Custom Domains.",
     allowedFeatures: [
       // Inherits all Startup & Growth features
       "dashboard",
@@ -127,7 +152,67 @@ export const PLANS: Record<PlanTier, PlanConfig> = {
     ],
     productLimit: 100,
     categoryLimit: UNLIMITED_CATEGORY_LIMIT,
+    badge: "FULL E-COMMERCE",
     hierarchyWeight: 3,
+    featuresDisplay: [
+      "Everything in Growth Pack",
+      "Product Management (up to 100 products)",
+      "Direct Razorpay Online Payments & Checkout",
+      "Order Management & Customer Invoicing",
+      "Custom Domain Mapping & SSL",
+      "Revenue Analytics & Sales Graphs",
+      "Real-time Inventory & Stock Alerts",
+      "Curated Store Collections",
+      "Premium Designer Store Themes",
+    ],
+  },
+  premium_ai: {
+    id: "premium_ai",
+    name: "Premium / AI Plan",
+    priceMonthly: 1499,
+    description: "VIP growth suite with Pro E-commerce, AI Commercials & 24/7 Dedicated Support.",
+    allowedFeatures: [
+      // Inherits all Pro features
+      "dashboard",
+      "products",
+      "categories",
+      "store_settings",
+      "appearance",
+      "whatsapp_orders",
+      "shipping",
+      "analytics",
+      "store_views_analytics",
+      "store_traffic_analytics",
+      "traffic_insights",
+      "creative_discounts",
+      "coupons",
+      "collections",
+      "orders",
+      "order_management",
+      "customer_order_tracking",
+      "premium_themes",
+      "advanced_themes",
+      "payments",
+      "revenue_dashboard",
+      "inventory",
+      "custom_domain",
+      // Premium / AI additions
+      "ai_commercial_reel",
+      "product_mockups",
+      "vip_support_24_7",
+    ],
+    productLimit: 100,
+    categoryLimit: UNLIMITED_CATEGORY_LIMIT,
+    badge: "AI SUITE & VIP",
+    hierarchyWeight: 4,
+    featuresDisplay: [
+      "Everything in Pro Plan",
+      "1 AI Ad Commercial Video Reel",
+      "10 High-Resolution Product Mockups",
+      "24/7 Dedicated Merchant Support",
+      "Custom Domain & Razorpay Payments",
+      "All Pro E-commerce Functionality",
+    ],
   },
 };
 
@@ -136,8 +221,17 @@ export const PLANS: Record<PlanTier, PlanConfig> = {
  */
 export function normalizePlanTier(planName?: string | null): PlanTier {
   if (!planName) return "startup";
-  const normalized = planName.toLowerCase().replace(/[^a-z]/g, "");
-  
+  const normalized = planName.toLowerCase().trim().replace(/[^a-z0-9_]/g, "");
+
+  if (
+    normalized.includes("premium") ||
+    normalized.includes("ai") ||
+    normalized === "premium_ai" ||
+    normalized === "premiumai"
+  ) {
+    return "premium_ai";
+  }
+
   if (normalized.includes("pro") && !normalized.includes("growth")) return "pro";
   if (normalized.includes("growth")) return "growth";
   return "startup";
@@ -180,7 +274,7 @@ export function getPlanDisplayName(planName?: string | null): string {
 }
 
 /**
- * Returns hierarchy weight (1 for Startup, 2 for Growth, 3 for Pro)
+ * Returns hierarchy weight (1 for Startup, 2 for Growth, 3 for Pro, 4 for Premium/AI)
  */
 export function getPlanHierarchyWeight(planName?: string | null): number {
   return getPlanConfig(planName).hierarchyWeight;
@@ -196,19 +290,84 @@ export function isPlanAtLeast(currentPlan?: string | null, requiredPlan: PlanTie
 }
 
 /**
- * Utility to check if a plan tier has access to a specific feature key.
+ * Checks if a plan tier has access to a specific feature key.
  */
-export function hasFeatureAccess(planName: string, feature: FeatureKey): boolean {
+export function hasFeature(planName?: string | null, feature?: FeatureKey): boolean {
+  if (!feature) return true;
   const config = getPlanConfig(planName);
-  if (!config) return true;
   return config.allowedFeatures.includes(feature);
 }
 
 /**
- * Returns required plan for a given feature key.
+ * Alias for hasFeature for compatibility across components.
+ */
+export function hasFeatureAccess(planName?: string | null, feature?: FeatureKey): boolean {
+  return hasFeature(planName, feature);
+}
+
+/**
+ * Returns the minimum required plan for a given feature key.
  */
 export function getRequiredPlanForFeature(feature: FeatureKey): PlanTier {
   if (PLANS.startup.allowedFeatures.includes(feature)) return "startup";
   if (PLANS.growth.allowedFeatures.includes(feature)) return "growth";
-  return "pro";
+  if (PLANS.pro.allowedFeatures.includes(feature)) return "pro";
+  return "premium_ai";
+}
+
+/**
+ * Returns a specific limit (e.g. products, categories) for a plan.
+ */
+export function getPlanLimit(planName?: string | null, limitType: "products" | "categories" = "products"): number {
+  return limitType === "products" ? getProductLimit(planName) : getCategoryLimit(planName);
+}
+
+/**
+ * Centralized entitlement validation for creating a product.
+ */
+export function canCreateProduct(
+  planName: string | null | undefined,
+  currentCount: number
+): { allowed: boolean; limit: number; current: number; message?: string } {
+  const tier = normalizePlanTier(planName);
+  const limit = getProductLimit(tier);
+  const allowed = currentCount < limit;
+
+  if (!allowed) {
+    let message = `You've reached your ${limit}-product limit. Upgrade your plan to add more products.`;
+    if (tier === "startup") {
+      message = "You've reached your 12-product limit. Upgrade your plan to add more products.";
+    } else if (tier === "growth") {
+      message = "You've reached your 24-product limit. Upgrade to Pro to add more products.";
+    } else {
+      message = `You've reached your ${limit}-product limit.`;
+    }
+    return { allowed: false, limit, current: currentCount, message };
+  }
+
+  return { allowed: true, limit, current: currentCount };
+}
+
+/**
+ * Centralized entitlement validation for creating a category.
+ */
+export function canCreateCategory(
+  planName: string | null | undefined,
+  currentCount: number
+): { allowed: boolean; limit: number; current: number; isUnlimited: boolean; message?: string } {
+  const tier = normalizePlanTier(planName);
+  const isUnlimited = isUnlimitedCategories(tier);
+  const limit = getCategoryLimit(tier);
+
+  if (isUnlimited) {
+    return { allowed: true, limit, current: currentCount, isUnlimited: true };
+  }
+
+  const allowed = currentCount < limit;
+  if (!allowed) {
+    const message = "Startup Pack allows 1 category maximum. Upgrade your plan to create more categories.";
+    return { allowed: false, limit, current: currentCount, isUnlimited: false, message };
+  }
+
+  return { allowed: true, limit, current: currentCount, isUnlimited: false };
 }

@@ -1,7 +1,7 @@
 import { Product, ProductFilterState, ProductImage } from "@/types/product";
 import { createClient } from "@/lib/supabase/client";
 import { IProductRepository } from "../product-repository";
-import { PLANS, PlanTier, normalizePlanTier, getProductLimit } from "@/lib/feature-gating";
+import { PLANS, PlanTier, normalizePlanTier, getProductLimit, canCreateProduct } from "@/lib/feature-gating";
 
 export class SupabaseProductRepository implements IProductRepository {
   private getSupabase() {
@@ -28,21 +28,15 @@ export class SupabaseProductRepository implements IProductRepository {
     
     const { subscriptionEngine } = await import("@/lib/services/subscription-engine");
     const sub = await subscriptionEngine.getAuthoritativeSubscription(storeId, null, supabase);
-    const limit = getProductLimit(sub.plan);
 
     const { count } = await supabase
       .from("products")
       .select("id", { count: "exact", head: true })
       .eq("store_id", storeId);
     
-    if ((count || 0) >= limit) {
-      if (sub.plan === "startup") {
-        throw new Error("You've reached your 12-product limit. Upgrade your plan to add more products.");
-      } else if (sub.plan === "growth") {
-        throw new Error("You've reached your 24-product limit. Upgrade to Pro to add more products.");
-      } else {
-        throw new Error("You've reached your 100-product limit.");
-      }
+    const check = canCreateProduct(sub.plan, count || 0);
+    if (!check.allowed) {
+      throw new Error(check.message || `You've reached your ${check.limit}-product limit. Upgrade your plan to add more products.`);
     }
   }
 

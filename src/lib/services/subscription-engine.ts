@@ -99,7 +99,7 @@ class SubscriptionEngine {
 
         if (latestPayment?.plan) {
           recoveredPaymentPlan = normalizePlanTier(latestPayment.plan);
-          recoveredAmount = latestPayment.amount || (recoveredPaymentPlan === "pro" ? 499 : recoveredPaymentPlan === "growth" ? 299 : 99);
+          recoveredAmount = latestPayment.amount || (PLANS[recoveredPaymentPlan]?.priceMonthly ?? 99);
           recoveredRzpSubId = latestPayment.razorpay_subscription_id || null;
         }
       } catch (err) {

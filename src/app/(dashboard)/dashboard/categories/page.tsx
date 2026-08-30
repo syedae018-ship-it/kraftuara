@@ -18,7 +18,7 @@ import { Plus, Folder, Search, List, LayoutGrid, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/auth-context";
-import { PLANS, PlanTier, getCategoryLimit, isUnlimitedCategories, normalizePlanTier } from "@/lib/feature-gating";
+import { PLANS, PlanTier, getCategoryLimit, isUnlimitedCategories, normalizePlanTier, canCreateCategory } from "@/lib/feature-gating";
 
 export default function CategoryListPage() {
   const { activeStore, user } = useAuth();
@@ -63,12 +63,11 @@ export default function CategoryListPage() {
   // Actions
   const handleDuplicate = async (id: string) => {
     if (!activeStore?.id) return;
-    const planTier = normalizePlanTier(activeStore?.plan || user?.plan);
-    const categoryLimit = getCategoryLimit(planTier);
-    if (!isUnlimitedCategories(planTier) && categories.length >= categoryLimit) {
+    const check = canCreateCategory(activeStore?.plan || user?.plan, categories.length);
+    if (!check.allowed) {
       toast.error(
         "Category Limit Reached",
-        "Startup Pack allows 1 category maximum. Upgrade to Growth or Pro for unlimited categories."
+        check.message || "Startup Pack allows 1 category maximum. Upgrade to Growth or Pro for unlimited categories."
       );
       return;
     }

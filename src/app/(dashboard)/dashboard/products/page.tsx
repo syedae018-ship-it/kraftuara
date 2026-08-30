@@ -18,7 +18,7 @@ import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/auth-context";
 import { productRepository } from "@/lib/repositories/product-repository";
 import { categoryRepository } from "@/lib/repositories/category-repository";
-import { PLANS, PlanTier, getProductLimit, getPlanConfig, normalizePlanTier } from "@/lib/feature-gating";
+import { PLANS, PlanTier, getProductLimit, getPlanConfig, normalizePlanTier, canCreateProduct } from "@/lib/feature-gating";
 
 export default function ProductListPage() {
   const { activeStore, user } = useAuth();
@@ -98,7 +98,7 @@ export default function ProductListPage() {
   // Selection Handlers
   const handleSelectToggle = (id: string) => {
     setSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
     );
   };
 
@@ -116,26 +116,12 @@ export default function ProductListPage() {
     const target = products.find((p) => p.id === id);
     if (!target) return;
 
-    const planTier = normalizePlanTier(activeStore?.plan || user?.plan);
-    const planConfig = getPlanConfig(planTier);
-    const limit = getProductLimit(planTier);
-    if (products.length >= limit) {
-      if (planTier === "startup") {
-        toast.error(
-          "Limit Reached",
-          "You've reached your 12-product limit. Upgrade your plan to add more products."
-        );
-      } else if (planTier === "growth") {
-        toast.error(
-          "Limit Reached",
-          "You've reached your 24-product limit. Upgrade to Pro to add more products."
-        );
-      } else {
-        toast.error(
-          "Limit Reached",
-          "You've reached your 100-product limit."
-        );
-      }
+    const check = canCreateProduct(activeStore?.plan || user?.plan, products.length);
+    if (!check.allowed) {
+      toast.error(
+        "Product Limit Reached",
+        check.message || "You've reached your plan's product limit. Upgrade your plan to add more products."
+      );
       return;
     }
 

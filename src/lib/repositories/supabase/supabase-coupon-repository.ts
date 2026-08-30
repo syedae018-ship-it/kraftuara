@@ -262,8 +262,9 @@ export class SupabaseCouponRepository implements ICouponRepository {
       .maybeSingle();
 
     const { normalizePlanTier, hasFeatureAccess } = await import("@/lib/feature-gating");
+    type PlanTier = import("@/lib/feature-gating").PlanTier;
 
-    let plan: "startup" | "growth" | "pro" = "startup";
+    let plan: PlanTier = "startup";
     let status = subRow?.status || "active";
     const expiresAt = subRow?.current_period_end;
 
