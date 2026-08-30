@@ -9,11 +9,14 @@ import { useAuth } from "@/context/auth-context";
 import { toast } from "@/hooks/use-toast";
 import { Mail, Lock, User, Store, ArrowRight } from "lucide-react";
 
+import { CURRENT_TERMS_VERSION } from "@/lib/constants/legal";
+
 function SignupFormContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { signUp } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
   useEffect(() => {
@@ -56,21 +59,21 @@ function SignupFormContent() {
       newErrors.confirmPassword = "Passwords do not match";
     }
 
-    if (!terms) {
-      newErrors.terms = "You must accept the Terms of Service & Privacy Policy";
+    if (!acceptedTerms || !terms) {
+      newErrors.terms = "Please accept the Terms & Conditions to create your account.";
     }
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       setLoading(false);
-      toast.error("Form Validation Failed", "Please fix the errors in the form.");
+      toast.error("Form Validation Failed", newErrors.terms || "Please fix the errors in the form.");
       return;
     }
 
     try {
-      await signUp(name, email, password, businessName);
+      await signUp(name, email, password, businessName, true, CURRENT_TERMS_VERSION);
       
-      toast.success("Account Created", "Welcome to Catalog Platform!");
+      toast.success("Account Created", "Welcome to Kraftaura Platform!");
 
       router.push("/choose-plan");
     } catch (err: any) {
@@ -156,33 +159,62 @@ function SignupFormContent() {
         </div>
 
         <div className="pt-1">
-          <label className="flex items-start gap-2.5 cursor-pointer text-xs text-zinc-300 font-body">
+          <div className="flex items-start gap-2.5">
             <input
+              id="terms-checkbox"
               type="checkbox"
               name="terms"
-              required
-              className="mt-0.5 rounded border-white/10 bg-black/40 text-maroon-600 focus:ring-maroon-500"
+              checked={acceptedTerms}
+              onChange={(e) => {
+                setAcceptedTerms(e.target.checked);
+                if (e.target.checked && errors.terms) {
+                  setErrors((prev) => {
+                    const next = { ...prev };
+                    delete next.terms;
+                    return next;
+                  });
+                }
+              }}
+              className="mt-0.5 h-4 w-4 rounded border-white/20 bg-[#111111] text-maroon-600 focus:ring-2 focus:ring-maroon-500 focus:ring-offset-1 focus:ring-offset-[#151515] cursor-pointer accent-maroon-600 transition-colors"
+              aria-required="true"
             />
-            <span>
+            <label
+              htmlFor="terms-checkbox"
+              className="text-xs text-zinc-300 font-body cursor-pointer select-none leading-relaxed"
+            >
               I agree to the{" "}
-              <a href="#" className="text-maroon-400 hover:underline">
-                Terms of Service
-              </a>{" "}
+              <Link
+                href="/terms"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-maroon-400 hover:text-maroon-300 font-semibold underline underline-offset-2 transition-colors inline-flex items-center gap-0.5"
+                onClick={(e) => e.stopPropagation()}
+              >
+                Terms &amp; Conditions
+              </Link>{" "}
               and{" "}
-              <a href="#" className="text-maroon-400 hover:underline">
+              <Link
+                href="/privacy"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-maroon-400 hover:text-maroon-300 font-semibold underline underline-offset-2 transition-colors inline-flex items-center gap-0.5"
+                onClick={(e) => e.stopPropagation()}
+              >
                 Privacy Policy
-              </a>
-            </span>
-          </label>
+              </Link>
+            </label>
+          </div>
           {errors.terms && <p className="text-[10px] text-red-500 mt-1 font-body">{errors.terms}</p>}
         </div>
 
         <Button
           type="submit"
           variant="primary"
-          className="w-full h-11 mt-2 font-semibold text-xs tracking-wider uppercase shadow-glow"
+          disabled={!acceptedTerms || loading}
+          className="w-full h-11 mt-2 font-semibold text-xs tracking-wider uppercase shadow-glow disabled:opacity-40 disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-500 disabled:border-zinc-800 disabled:shadow-none transition-all"
           isLoading={loading}
           rightIcon={<ArrowRight className="w-4 h-4" />}
+          title={!acceptedTerms ? "Please accept the Terms & Conditions to create your account." : undefined}
         >
           Create Account
         </Button>

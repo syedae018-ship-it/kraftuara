@@ -6,6 +6,7 @@ import { isAdminUser } from "@/lib/services/admin-roles";
 import { createClient } from "@/lib/supabase/client";
 import { normalizeSlug } from "@/lib/urls";
 import { appearanceRepository } from "@/lib/repositories/appearance-repository";
+import { CURRENT_TERMS_VERSION } from "@/lib/constants/legal";
 
 export type DummyUser = {
   id: string;
@@ -45,7 +46,14 @@ type AuthContextType = {
   stores: DummyStore[];
   switchStore: (storeId: string) => void;
   refreshSession: () => Promise<any>;
-  signUp: (name: string, email: string, password: string, businessName: string) => Promise<{ user: any; hasSession: boolean }>;
+  signUp: (
+    name: string,
+    email: string,
+    password: string,
+    businessName: string,
+    termsAccepted?: boolean,
+    termsVersion?: string
+  ) => Promise<{ user: any; hasSession: boolean }>;
   login: (email: string, password: string) => Promise<LoginResult>;
   createStore: (
     storeName: string,
@@ -267,7 +275,17 @@ export function DummyAuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user, stores, pathname, isLoading, router]);
 
-  const signUp = async (name: string, email: string, password: string, businessName: string) => {
+  const signUp = async (
+    name: string,
+    email: string,
+    password: string,
+    businessName: string,
+    termsAccepted: boolean = true,
+    termsVersion: string = CURRENT_TERMS_VERSION
+  ) => {
+    if (!termsAccepted) {
+      throw new Error("Please accept the Terms & Conditions to create your account.");
+    }
     setIsLoading(true);
     try {
       const { data, error } = await supabase.auth.signUp({
@@ -277,6 +295,9 @@ export function DummyAuthProvider({ children }: { children: React.ReactNode }) {
           data: {
             full_name: name,
             name: name,
+            terms_accepted: true,
+            terms_version: termsVersion || CURRENT_TERMS_VERSION,
+            terms_accepted_at: new Date().toISOString(),
           },
         },
       });

@@ -7,6 +7,10 @@ import { errorResponse, successResponse, getErrorMessage } from "@/lib/api-respo
 import { ActionResponse, UserProfile } from "@/types";
 
 import { isAdminUser } from "@/lib/services/admin-roles";
+import {
+  CURRENT_TERMS_VERSION,
+  validateTermsAcceptance,
+} from "@/lib/constants/legal";
 
 /**
  * Sign in user with email and password
@@ -54,6 +58,13 @@ export async function signUpWithEmailAction(formData: FormData): Promise<ActionR
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
   const fullName = formData.get("fullName") as string;
+  const terms = formData.get("terms") ?? formData.get("termsAccepted");
+  const termsVersion = (formData.get("termsVersion") as string) || CURRENT_TERMS_VERSION;
+
+  const termsValidation = validateTermsAcceptance(terms as any, termsVersion);
+  if (!termsValidation.isValid) {
+    return errorResponse(termsValidation.error || "Please accept the Terms & Conditions to create your account.");
+  }
 
   if (!email || !password || !fullName) {
     return errorResponse("All fields are required.");
@@ -75,6 +86,9 @@ export async function signUpWithEmailAction(formData: FormData): Promise<ActionR
       options: {
         data: {
           full_name: fullName,
+          terms_accepted: true,
+          terms_version: CURRENT_TERMS_VERSION,
+          terms_accepted_at: new Date().toISOString(),
         },
       },
     });

@@ -659,6 +659,8 @@ export function LandingPage() {
             <a href="#templates" className="hover:text-white transition-colors">Templates</a>
             <a href="#features" className="hover:text-white transition-colors">Features</a>
             <a href="#pricing" className="hover:text-white transition-colors">Pricing</a>
+            <Link href="/terms" className="hover:text-white transition-colors">Terms</Link>
+            <Link href="/privacy" className="hover:text-white transition-colors">Privacy</Link>
             <a href="https://www.instagram.com/kraftaura.ai/" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">Instagram</a>
             <Link href="/login" className="hover:text-white transition-colors">My Store Login</Link>
           </div>
