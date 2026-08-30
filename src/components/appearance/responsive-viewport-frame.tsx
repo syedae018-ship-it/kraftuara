@@ -81,6 +81,20 @@ export function ResponsiveViewportFrame({
         overflow-x: hidden !important;
       }
       
+      .bloom-theme {
+        font-family: var(--font-body, Inter, sans-serif) !important;
+      }
+
+      .bloom-theme h1,
+      .bloom-theme h2,
+      .bloom-theme h3,
+      .bloom-theme h4,
+      .bloom-theme h5,
+      .bloom-theme h6,
+      .bloom-theme .font-heading {
+        font-family: var(--font-heading, "Plus Jakarta Sans", sans-serif) !important;
+      }
+
       ::-webkit-scrollbar {
         width: 6px;
         height: 6px;

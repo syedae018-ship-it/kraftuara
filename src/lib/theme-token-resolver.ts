@@ -240,6 +240,7 @@ export function resolveThemeTokens(appearance?: Partial<AppearanceSettings> | nu
     // Typography
     "--font-heading": getFontStack(headingFont),
     "--font-body": getFontStack(bodyFont),
+    "fontFamily": "var(--font-body)",
   };
 
   const contrastIssues = validateTokenContrast(normalized);

@@ -17,6 +17,7 @@ import { toast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/auth-context";
+import { getBloomFontsLink } from "@/components/storefront/templates/bloom/home/BloomStorefront";
 
 export default function AppearancePage() {
   const { activeStore } = useAuth();
@@ -167,6 +168,9 @@ export default function AppearancePage() {
 
   return (
     <DashboardLayout breadcrumbs={[{ label: "Store Dashboard", href: "/dashboard" }, { label: "Appearance Customizer" }]}>
+      {settings?.typography && (
+        <link rel="stylesheet" href={getBloomFontsLink(settings.typography) || ""} />
+      )}
       {/* Mobile Tab Switcher for Screens < lg */}
       <div className="lg:hidden flex items-center p-1 bg-[#151515] border border-white/10 rounded-xl mb-4">
         <button

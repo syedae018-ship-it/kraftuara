@@ -96,6 +96,17 @@
   
   background-color: var(--bloom-background) !important;
   color: var(--bloom-foreground) !important;
+  font-family: var(--font-body), sans-serif !important;
+}
+
+.bloom-theme h1,
+.bloom-theme h2,
+.bloom-theme h3,
+.bloom-theme h4,
+.bloom-theme h5,
+.bloom-theme h6,
+.bloom-theme .font-heading {
+  font-family: var(--font-heading), sans-serif !important;
 }
 
 .bloom-theme input, 
@@ -104,5 +115,6 @@
   background-color: var(--bloom-background);
   color: var(--bloom-foreground);
   border-color: var(--bloom-border);
+  font-family: var(--font-body), sans-serif;
 }
 

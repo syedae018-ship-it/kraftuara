@@ -89,8 +89,12 @@ export default function BloomTrackOrderPage({
 
   return (
     <div
-      style={themeStyles}
-      className="min-h-screen flex flex-col bg-bloom-background text-bloom-foreground font-body antialiased selection:bg-bloom-primary/20"
+      style={{
+        ...themeStyles,
+        backgroundColor: "var(--color-background)",
+        fontFamily: "var(--font-body)",
+      }}
+      className="bloom-theme min-h-screen flex flex-col bg-bloom-background text-bloom-foreground antialiased selection:bg-bloom-primary/20"
     >
       {fontsLink && <link rel="stylesheet" href={fontsLink} />}
 

@@ -117,7 +117,11 @@ export default function BloomContactPage({ store, isSubdomain = false }: { store
   return (
     <div
       className="bloom-theme min-h-screen flex flex-col justify-between antialiased bg-bloom-background text-bloom-foreground"
-      style={getBloomThemeStyles(store.appearance)}
+      style={{
+        ...getBloomThemeStyles(store.appearance),
+        backgroundColor: "var(--color-background)",
+        fontFamily: "var(--font-body)",
+      }}
     >
       {fontsLink && (
         <link rel="stylesheet" href={fontsLink} />

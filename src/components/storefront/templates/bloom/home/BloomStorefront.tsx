@@ -10,6 +10,7 @@ import { getFontStack } from "@/lib/typography-utils";
 import { resolveImageUrl } from "@/lib/image-resolver";
 import { CollectionSection } from "@/components/storefront/collection-section";
 import { resolveThemeTokens } from "@/lib/theme-token-resolver";
+import { getGoogleFontsUrl } from "@/lib/typography-utils";
 
 export function getBloomThemeStyles(appearanceOrColors: any, typography?: any) {
   const settingsObj =
@@ -26,22 +27,7 @@ export function getBloomThemeStyles(appearanceOrColors: any, typography?: any) {
 }
 
 export function getBloomFontsLink(typography: any) {
-  const headingFont = typography?.headingFont || "Plus Jakarta Sans";
-  const bodyFont = typography?.bodyFont || "Inter";
-
-  const SYSTEM_FONTS = ["Helvetica Neue", "Helvetica", "Arial", "Impact", "Georgia", "Times New Roman"];
-  const googleFontsToLoad: string[] = [];
-  if (!SYSTEM_FONTS.includes(headingFont)) {
-    googleFontsToLoad.push(`${headingFont}:wght@400;500;600;700`);
-  }
-  if (!SYSTEM_FONTS.includes(bodyFont)) {
-    googleFontsToLoad.push(`${bodyFont}:wght@400;500;600;700`);
-  }
-
-  if (googleFontsToLoad.length > 0) {
-    return `https://fonts.googleapis.com/css2?family=${googleFontsToLoad.join("&family=")}&display=swap`;
-  }
-  return null;
+  return getGoogleFontsUrl(typography?.headingFont, typography?.bodyFont);
 }
 
 export default function BloomStorefront({
@@ -75,6 +61,7 @@ export default function BloomStorefront({
       style={{
         ...getBloomThemeStyles(store.appearance),
         backgroundColor: "var(--color-background)",
+        fontFamily: "var(--font-body)",
       }}
     >
       {fontsLink && (

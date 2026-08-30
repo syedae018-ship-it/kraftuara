@@ -11,7 +11,7 @@ import { CollectionSection } from "./collection-section";
 import { ProductGrid } from "./product-grid";
 import { TestimonialsSection, AboutSection } from "./testimonials-section";
 import { StoreFooter } from "./store-footer";
-import { getBloomThemeStyles } from "./templates/bloom/home/BloomStorefront";
+import { getBloomThemeStyles, getBloomFontsLink } from "./templates/bloom/home/BloomStorefront";
 
 export interface StoreRendererProps {
   store: StoreData;
@@ -30,14 +30,18 @@ export function StoreRenderer({ store, initialCategory, initialCollection, isSub
     .filter((s) => s?.enabled)
     .sort((a, b) => (a?.order || 0) - (b?.order || 0));
 
+  const fontsLink = getBloomFontsLink(store.appearance?.typography);
+
   return (
     <div
       style={{
         ...getBloomThemeStyles(store.appearance),
         backgroundColor: "var(--color-background)",
+        fontFamily: "var(--font-body)",
       }}
       className="min-h-screen text-white selection:bg-maroon-800 selection:text-white flex flex-col justify-between"
     >
+      {fontsLink && <link rel="stylesheet" href={fontsLink} />}
       <div className="space-y-0">
         <AnnouncementBar />
         <StoreNavbar store={store} isSubdomain={isSubdomain} />
