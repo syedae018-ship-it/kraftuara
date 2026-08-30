@@ -14,7 +14,7 @@ export interface ResponsiveViewportFrameProps {
 export const DEVICE_VIEWPORTS = {
   mobile: { width: 390, height: 844 },
   tablet: { width: 768, height: 1024 },
-  desktop: { width: 1440, height: 900 },
+  desktop: { width: "100%", height: "100%" },
 } as const;
 
 export function ResponsiveViewportFrame({
@@ -25,52 +25,6 @@ export function ResponsiveViewportFrame({
   const containerRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [mountNode, setMountNode] = useState<HTMLElement | null>(null);
-  const [scale, setScale] = useState(1);
-
-  const targetWidth = DEVICE_VIEWPORTS[device].width;
-  const targetHeight = DEVICE_VIEWPORTS[device].height;
-
-  // Auto-calculate presentation-level scale to fit available container seamlessly
-  const updateScale = useCallback(() => {
-    if (!containerRef.current) return;
-    const { clientWidth, clientHeight } = containerRef.current;
-
-    // Available space with comfortable edge margins
-    const paddingX = device === "desktop" ? 32 : 40;
-    const paddingY = device === "desktop" ? 32 : 40;
-    const availableWidth = Math.max(100, clientWidth - paddingX);
-    const availableHeight = Math.max(100, clientHeight - paddingY);
-
-    let calculatedScale = 1;
-    if (device === "desktop") {
-      // Desktop adapts to fill width if smaller than 1440px
-      calculatedScale = Math.min(1, availableWidth / targetWidth);
-    } else if (device === "tablet") {
-      const scaleX = availableWidth / targetWidth;
-      const scaleY = availableHeight / targetHeight;
-      calculatedScale = Math.min(1, scaleX, scaleY);
-    } else {
-      // Mobile fits both dimensions smoothly
-      const scaleX = availableWidth / targetWidth;
-      const scaleY = availableHeight / targetHeight;
-      calculatedScale = Math.min(1, scaleX, scaleY);
-    }
-
-    const finalScale = Math.max(0.3, Math.min(1, calculatedScale));
-    setScale(finalScale);
-  }, [device, targetWidth, targetHeight]);
-
-  useEffect(() => {
-    updateScale();
-    if (!containerRef.current) return;
-
-    const ro = new ResizeObserver(() => {
-      updateScale();
-    });
-    ro.observe(containerRef.current);
-
-    return () => ro.disconnect();
-  }, [updateScale]);
 
   // Synchronize document head, stylesheets, and custom fonts into iframe
   const syncIframeStyles = useCallback((iframeDoc: Document) => {
@@ -199,25 +153,23 @@ export function ResponsiveViewportFrame({
   return (
     <div
       ref={containerRef}
-      className="w-full h-full flex items-center justify-center overflow-auto p-3 sm:p-6 bg-[#050505] relative select-none"
+      className="w-full h-full flex items-center justify-center overflow-hidden p-2 sm:p-4 md:p-6 bg-[#050505] relative select-none"
     >
-      {/* Outer Scaled Presentation Wrapper */}
       <div
-        style={{
-          width: targetWidth,
-          height: device === "desktop" ? `calc(100% / ${scale})` : targetHeight,
-          transform: `scale(${scale})`,
-          transformOrigin: "center center",
-          transition: "transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), width 0.3s ease",
-          maxHeight: device === "desktop" ? `calc(100% / ${scale})` : undefined,
-        }}
         className={className}
+        style={{
+          width: device === "desktop" ? "100%" : device === "tablet" ? "768px" : "390px",
+          maxWidth: "100%",
+          height: "100%",
+          maxHeight: device === "desktop" ? "100%" : device === "tablet" ? "920px" : "844px",
+          transition: "width 0.3s cubic-bezier(0.16, 1, 0.3, 1), max-height 0.3s ease",
+        }}
       >
         <iframe
           ref={iframeRef}
           title={`Storefront ${device} Viewport Preview`}
           style={{
-            width: `${targetWidth}px`,
+            width: "100%",
             height: "100%",
             border: "none",
             display: "block",

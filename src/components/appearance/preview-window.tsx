@@ -2,8 +2,9 @@
 
 import React, { useState } from "react";
 import { AppearanceSettings } from "@/types/theme";
-import { Product, initialProducts, initialCategories } from "@/types/product";
+import { Product } from "@/types/product";
 import { Category } from "@/types/category";
+import { Collection } from "@/types/collection";
 import { StoreData } from "@/types/store";
 import { CartProvider } from "@/context/CartContext";
 import BloomStorefront from "@/components/storefront/templates/bloom/home/BloomStorefront";
@@ -28,17 +29,6 @@ import {
   DeviceType,
 } from "./responsive-viewport-frame";
 
-const sampleFallbackCategories: Category[] = initialCategories.map((c, idx) => ({
-  id: c.id,
-  name: c.name,
-  slug: c.slug,
-  displayOrder: idx,
-  status: "published" as const,
-  productCount: c.itemCount,
-  createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString(),
-}));
-
 export interface PreviewWindowProps {
   settings: AppearanceSettings;
   onUndo: () => void;
@@ -51,6 +41,12 @@ export interface PreviewWindowProps {
   className?: string;
   categories?: Category[];
   products?: Product[];
+  collections?: Collection[];
+  shipping?: {
+    freeShippingEnabled: boolean;
+    freeShippingThreshold: number;
+    shippingFee: number;
+  };
 }
 
 export function PreviewWindow({
@@ -65,24 +61,27 @@ export function PreviewWindow({
   className,
   categories = [],
   products = [],
+  collections = [],
+  shipping = {
+    freeShippingEnabled: true,
+    freeShippingThreshold: 0,
+    shippingFee: 50,
+  },
 }: PreviewWindowProps) {
   const { activeStore } = useAuth();
   const [device, setDevice] = useState<DeviceType>("desktop");
 
-  // Construct authoritative StoreData for the real storefront renderer
+  // Construct authoritative StoreData for the real storefront renderer using ONLY real store data
   const previewStoreData: StoreData = {
     id: activeStore?.id || "preview-store",
     name: settings.branding?.name || activeStore?.name || "My Store",
     slug: activeStore?.slug || "my-store",
     plan: activeStore?.plan || "startup",
     appearance: settings,
-    categories: categories.length > 0 ? categories : sampleFallbackCategories,
-    collections: [],
-    products: products.length > 0 ? products : initialProducts,
-    shipping: {
-      freeShippingEnabled: true,
-      freeShippingThreshold: 500,
-    },
+    categories: categories,
+    collections: collections,
+    products: products,
+    shipping: shipping,
   };
 
   const themeId = settings.themeId || "bloom";

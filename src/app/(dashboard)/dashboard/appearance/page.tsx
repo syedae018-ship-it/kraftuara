@@ -8,9 +8,11 @@ import { AppearanceSettings } from "@/types/theme";
 import { appearanceRepository } from "@/lib/repositories/appearance-repository";
 import { productRepository } from "@/lib/repositories/product-repository";
 import { categoryRepository } from "@/lib/repositories/category-repository";
-import { publishStoreChangesAction } from "@/lib/actions/store";
+import { collectionRepository } from "@/lib/repositories/collection-repository";
+import { publishStoreChangesAction, getStoreShippingSettingsAction } from "@/lib/actions/store";
 import { Product } from "@/types/product";
 import { Category } from "@/types/category";
+import { Collection } from "@/types/collection";
 import { toast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -21,6 +23,12 @@ export default function AppearancePage() {
   const [settings, setSettings] = useState<AppearanceSettings | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [collections, setCollections] = useState<Collection[]>([]);
+  const [shipping, setShipping] = useState<{ freeShippingEnabled: boolean; freeShippingThreshold: number; shippingFee: number }>({
+    freeShippingEnabled: true,
+    freeShippingThreshold: 0,
+    shippingFee: 50,
+  });
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -28,14 +36,20 @@ export default function AppearancePage() {
     if (!activeStore?.id) return;
     setIsLoading(true);
     try {
-      const [appearanceData, productsData, categoriesData] = await Promise.all([
+      const [appearanceData, productsData, categoriesData, collectionsData, shippingData] = await Promise.all([
         appearanceRepository.getSettings(activeStore.id),
         productRepository.getAll(activeStore.id),
         categoryRepository.getAll(activeStore.id),
+        collectionRepository.getAll(activeStore.id),
+        getStoreShippingSettingsAction(activeStore.id),
       ]);
       setSettings(appearanceData);
-      setProducts(productsData.products);
-      setCategories(categoriesData);
+      setProducts(productsData.products || []);
+      setCategories(categoriesData || []);
+      setCollections(collectionsData || []);
+      if (shippingData.success && shippingData.data) {
+        setShipping(shippingData.data);
+      }
     } catch (err) {
       toast.error("Error", "Could not load appearance settings.");
     } finally {
@@ -193,6 +207,8 @@ export default function AppearancePage() {
             settings={settings}
             products={products}
             categories={categories}
+            collections={collections}
+            shipping={shipping}
             onUndo={handleUndo}
             onRedo={handleRedo}
             onReset={handleReset}
