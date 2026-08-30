@@ -20,15 +20,12 @@ import {
   Lock,
   Wifi,
   BatteryMedium,
-  ZoomIn,
-  Check,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/auth-context";
 import {
   ResponsiveViewportFrame,
   DeviceType,
-  DEVICE_VIEWPORTS,
 } from "./responsive-viewport-frame";
 
 const sampleFallbackCategories: Category[] = initialCategories.map((c, idx) => ({
@@ -71,8 +68,6 @@ export function PreviewWindow({
 }: PreviewWindowProps) {
   const { activeStore } = useAuth();
   const [device, setDevice] = useState<DeviceType>("desktop");
-  const [zoom, setZoom] = useState<"auto" | number>("auto");
-  const [currentScale, setCurrentScale] = useState(1);
 
   // Construct authoritative StoreData for the real storefront renderer
   const previewStoreData: StoreData = {
@@ -103,7 +98,7 @@ export function PreviewWindow({
             onClick={onUndo}
             disabled={!canUndo}
             className="p-1.5 sm:p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-white/5 transition-colors disabled:opacity-30 border border-transparent hover:border-white/10"
-            title="Undo (Cmd+Z)"
+            title="Undo"
           >
             <Undo2 className="w-4 h-4" />
           </button>
@@ -112,7 +107,7 @@ export function PreviewWindow({
             onClick={onRedo}
             disabled={!canRedo}
             className="p-1.5 sm:p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-white/5 transition-colors disabled:opacity-30 border border-transparent hover:border-white/10"
-            title="Redo (Cmd+Shift+Z)"
+            title="Redo"
           >
             <Redo2 className="w-4 h-4" />
           </button>
@@ -130,80 +125,50 @@ export function PreviewWindow({
           </span>
         </div>
 
-        {/* Center: Device Viewport Switcher & Dimension Indicator */}
-        <div className="flex items-center gap-2">
-          <div className="flex items-center bg-[#151515] border border-white/10 rounded-xl p-1 shrink-0">
-            <button
-              type="button"
-              onClick={() => setDevice("desktop")}
-              className={cn(
-                "px-2.5 py-1.5 rounded-lg text-xs transition-colors flex items-center gap-1.5 font-heading font-medium",
-                device === "desktop"
-                  ? "bg-maroon-800 text-white shadow-glow"
-                  : "text-zinc-400 hover:text-white hover:bg-white/5"
-              )}
-              title="Desktop Viewport (1440px)"
-            >
-              <Monitor className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Desktop</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setDevice("tablet")}
-              className={cn(
-                "px-2.5 py-1.5 rounded-lg text-xs transition-colors flex items-center gap-1.5 font-heading font-medium",
-                device === "tablet"
-                  ? "bg-maroon-800 text-white shadow-glow"
-                  : "text-zinc-400 hover:text-white hover:bg-white/5"
-              )}
-              title="Tablet Viewport (768px)"
-            >
-              <Tablet className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Tablet</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setDevice("mobile")}
-              className={cn(
-                "px-2.5 py-1.5 rounded-lg text-xs transition-colors flex items-center gap-1.5 font-heading font-medium",
-                device === "mobile"
-                  ? "bg-maroon-800 text-white shadow-glow"
-                  : "text-zinc-400 hover:text-white hover:bg-white/5"
-              )}
-              title="Mobile Viewport (390px)"
-            >
-              <Smartphone className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Mobile</span>
-            </button>
-          </div>
-
-          {/* Viewport Dimension Tag & Zoom Selector */}
-          <div className="hidden lg:flex items-center gap-1.5 bg-[#151515] border border-white/10 rounded-xl px-2.5 py-1 text-[11px] font-mono text-zinc-400">
-            <span className="text-zinc-300 font-semibold">{DEVICE_VIEWPORTS[device].width}px</span>
-            <span className="text-zinc-600">|</span>
-            <select
-              value={zoom === "auto" ? "auto" : zoom.toString()}
-              onChange={(e) => {
-                const val = e.target.value;
-                setZoom(val === "auto" ? "auto" : parseFloat(val));
-              }}
-              className="bg-transparent text-zinc-400 hover:text-white outline-none cursor-pointer text-[10px]"
-              aria-label="Preview Zoom"
-            >
-              <option value="auto" className="bg-[#151515] text-white">
-                Auto-Fit ({Math.round(currentScale * 100)}%)
-              </option>
-              <option value="1" className="bg-[#151515] text-white">
-                100% Actual
-              </option>
-              <option value="0.75" className="bg-[#151515] text-white">
-                75%
-              </option>
-              <option value="0.5" className="bg-[#151515] text-white">
-                50%
-              </option>
-            </select>
-          </div>
+        {/* Center: Device Viewport Switcher (Desktop | Tablet | Mobile) */}
+        <div className="flex items-center bg-[#151515] border border-white/10 rounded-xl p-1 shrink-0">
+          <button
+            type="button"
+            onClick={() => setDevice("desktop")}
+            className={cn(
+              "px-3 py-1.5 rounded-lg text-xs transition-colors flex items-center gap-1.5 font-heading font-medium",
+              device === "desktop"
+                ? "bg-maroon-800 text-white shadow-glow"
+                : "text-zinc-400 hover:text-white hover:bg-white/5"
+            )}
+            title="Desktop Preview"
+          >
+            <Monitor className="w-3.5 h-3.5" />
+            <span>Desktop</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setDevice("tablet")}
+            className={cn(
+              "px-3 py-1.5 rounded-lg text-xs transition-colors flex items-center gap-1.5 font-heading font-medium",
+              device === "tablet"
+                ? "bg-maroon-800 text-white shadow-glow"
+                : "text-zinc-400 hover:text-white hover:bg-white/5"
+            )}
+            title="Tablet Preview"
+          >
+            <Tablet className="w-3.5 h-3.5" />
+            <span>Tablet</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setDevice("mobile")}
+            className={cn(
+              "px-3 py-1.5 rounded-lg text-xs transition-colors flex items-center gap-1.5 font-heading font-medium",
+              device === "mobile"
+                ? "bg-maroon-800 text-white shadow-glow"
+                : "text-zinc-400 hover:text-white hover:bg-white/5"
+            )}
+            title="Mobile Preview"
+          >
+            <Smartphone className="w-3.5 h-3.5" />
+            <span>Mobile</span>
+          </button>
         </div>
 
         {/* Publish Changes Button */}
@@ -224,8 +189,6 @@ export function PreviewWindow({
       <div className="flex-1 overflow-hidden relative">
         <ResponsiveViewportFrame
           device={device}
-          zoom={zoom}
-          onDimensionsChange={(_, __, s) => setCurrentScale(s)}
           className={cn(
             "flex flex-col bg-black shadow-2xl transition-all duration-300",
             device === "mobile" &&

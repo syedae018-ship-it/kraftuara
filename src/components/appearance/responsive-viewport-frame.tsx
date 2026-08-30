@@ -8,74 +8,58 @@ export type DeviceType = "desktop" | "tablet" | "mobile";
 export interface ResponsiveViewportFrameProps {
   device: DeviceType;
   children: React.ReactNode;
-  zoom?: "auto" | number; // "auto" or scaling factor (0.5, 0.75, 1.0)
   className?: string;
-  onDimensionsChange?: (width: number, height: number, scale: number) => void;
 }
 
 export const DEVICE_VIEWPORTS = {
-  mobile: { width: 390, height: 844, label: "Mobile (390 × 844)" },
-  tablet: { width: 768, height: 1024, label: "Tablet (768 × 1024)" },
-  desktop: { width: 1440, height: 900, label: "Desktop (1440 × 900)" },
+  mobile: { width: 390, height: 844 },
+  tablet: { width: 768, height: 1024 },
+  desktop: { width: 1440, height: 900 },
 } as const;
 
 export function ResponsiveViewportFrame({
   device,
   children,
-  zoom = "auto",
   className,
-  onDimensionsChange,
 }: ResponsiveViewportFrameProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [mountNode, setMountNode] = useState<HTMLElement | null>(null);
   const [scale, setScale] = useState(1);
-  const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
 
   const targetWidth = DEVICE_VIEWPORTS[device].width;
   const targetHeight = DEVICE_VIEWPORTS[device].height;
 
-  // Calculate presentation-level scale to fit available container when needed
+  // Auto-calculate presentation-level scale to fit available container seamlessly
   const updateScale = useCallback(() => {
     if (!containerRef.current) return;
     const { clientWidth, clientHeight } = containerRef.current;
-    setContainerSize({ width: clientWidth, height: clientHeight });
 
-    if (typeof zoom === "number") {
-      setScale(zoom);
-      onDimensionsChange?.(targetWidth, targetHeight, zoom);
-      return;
-    }
-
-    // Auto-fit calculation
-    const paddingX = device === "desktop" ? 32 : 48;
-    const paddingY = 48;
+    // Available space with comfortable edge margins
+    const paddingX = device === "desktop" ? 32 : 40;
+    const paddingY = device === "desktop" ? 32 : 40;
     const availableWidth = Math.max(100, clientWidth - paddingX);
     const availableHeight = Math.max(100, clientHeight - paddingY);
 
     let calculatedScale = 1;
     if (device === "desktop") {
-      // Desktop fits horizontally
+      // Desktop adapts to fill width if smaller than 1440px
       calculatedScale = Math.min(1, availableWidth / targetWidth);
     } else if (device === "tablet") {
-      // Tablet fits both horizontally and vertically
       const scaleX = availableWidth / targetWidth;
       const scaleY = availableHeight / targetHeight;
       calculatedScale = Math.min(1, scaleX, scaleY);
     } else {
-      // Mobile fits both horizontally and vertically
+      // Mobile fits both dimensions smoothly
       const scaleX = availableWidth / targetWidth;
       const scaleY = availableHeight / targetHeight;
       calculatedScale = Math.min(1, scaleX, scaleY);
     }
 
-    // Never scale down past 0.35 or up past 1.0 in auto mode
-    const finalScale = Math.max(0.35, Math.min(1, calculatedScale));
+    const finalScale = Math.max(0.3, Math.min(1, calculatedScale));
     setScale(finalScale);
-    onDimensionsChange?.(targetWidth, targetHeight, finalScale);
-  }, [device, zoom, targetWidth, targetHeight, onDimensionsChange]);
+  }, [device, targetWidth, targetHeight]);
 
-  // Resize observer on container
   useEffect(() => {
     updateScale();
     if (!containerRef.current) return;
@@ -93,11 +77,9 @@ export function ResponsiveViewportFrame({
     const iframeHead = iframeDoc.head;
     if (!iframeHead) return;
 
-    // Clear previous synced style tags if needed, keeping basic head tags
     const existingSynced = iframeHead.querySelectorAll("[data-synced-style]");
     existingSynced.forEach((el) => el.remove());
 
-    // 1. Base meta tags
     if (!iframeHead.querySelector("meta[charset]")) {
       const metaCharset = iframeDoc.createElement("meta");
       metaCharset.setAttribute("charset", "utf-8");
@@ -111,7 +93,6 @@ export function ResponsiveViewportFrame({
       iframeHead.appendChild(metaViewport);
     }
 
-    // 2. Clone all stylesheet links and styles from parent document
     const parentHead = document.head;
     const parentStyles = parentHead.querySelectorAll("link[rel='stylesheet'], style");
 
@@ -125,7 +106,6 @@ export function ResponsiveViewportFrame({
       }
     });
 
-    // 3. Inject baseline styling reset for iframe document
     let customReset = iframeHead.querySelector("#preview-base-reset") as HTMLStyleElement;
     if (!customReset) {
       customReset = iframeDoc.createElement("style");
@@ -147,7 +127,6 @@ export function ResponsiveViewportFrame({
         overflow-x: hidden !important;
       }
       
-      /* Scrollbar polish */
       ::-webkit-scrollbar {
         width: 6px;
         height: 6px;
@@ -163,14 +142,12 @@ export function ResponsiveViewportFrame({
         background: #333333;
       }
 
-      /* Disable page unload on accidental drag/drop */
       * {
         -webkit-user-drag: none;
       }
     `;
   }, []);
 
-  // Setup iframe and mount node
   useEffect(() => {
     const iframe = iframeRef.current;
     if (!iframe) return;
@@ -181,13 +158,11 @@ export function ResponsiveViewportFrame({
 
       syncIframeStyles(iframeDoc);
 
-      // Setup body mount node
       const body = iframeDoc.body;
       body.className = "antialiased selection:bg-maroon-800 selection:text-white";
       body.id = "storefront-preview-root";
       setMountNode(body);
 
-      // Handle internal anchor links inside preview (e.g. #products)
       const handleAnchorClick = (e: MouseEvent) => {
         const target = (e.target as HTMLElement)?.closest("a");
         if (!target) return;
@@ -203,7 +178,6 @@ export function ResponsiveViewportFrame({
 
       iframeDoc.addEventListener("click", handleAnchorClick);
 
-      // Watch parent head for dynamic style updates (Fast Refresh / Next.js font loader)
       const observer = new MutationObserver(() => {
         syncIframeStyles(iframeDoc);
       });
@@ -225,17 +199,17 @@ export function ResponsiveViewportFrame({
   return (
     <div
       ref={containerRef}
-      className="w-full h-full flex items-center justify-center overflow-auto p-2 sm:p-4 bg-[#050505] relative"
+      className="w-full h-full flex items-center justify-center overflow-auto p-3 sm:p-6 bg-[#050505] relative select-none"
     >
       {/* Outer Scaled Presentation Wrapper */}
       <div
         style={{
           width: targetWidth,
-          height: device === "desktop" ? "100%" : targetHeight,
+          height: device === "desktop" ? `calc(100% / ${scale})` : targetHeight,
           transform: `scale(${scale})`,
-          transformOrigin: "top center",
-          transition: "transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), width 0.3s ease",
-          maxHeight: device === "desktop" ? "100%" : undefined,
+          transformOrigin: "center center",
+          transition: "transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), width 0.3s ease",
+          maxHeight: device === "desktop" ? `calc(100% / ${scale})` : undefined,
         }}
         className={className}
       >
@@ -244,7 +218,7 @@ export function ResponsiveViewportFrame({
           title={`Storefront ${device} Viewport Preview`}
           style={{
             width: `${targetWidth}px`,
-            height: device === "desktop" ? "100%" : `${targetHeight}px`,
+            height: "100%",
             border: "none",
             display: "block",
             backgroundColor: "#080808",
@@ -253,7 +227,7 @@ export function ResponsiveViewportFrame({
         />
       </div>
 
-      {/* Render children into iframe document body via Portal */}
+      {/* Render storefront inside iframe via Portal */}
       {mountNode && ReactDOM.createPortal(children, mountNode)}
     </div>
   );

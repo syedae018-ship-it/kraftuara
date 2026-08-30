@@ -99,7 +99,6 @@ export function ThemePreviewModal({ theme, isOpen, onClose, onApplyTheme }: Them
       <div className="h-[520px] sm:h-[600px] w-full bg-[#050505] rounded-xl overflow-hidden relative border border-white/5">
         <ResponsiveViewportFrame
           device={device}
-          zoom="auto"
           className={cn(
             "flex flex-col bg-black shadow-2xl transition-all duration-300",
             device === "mobile" && "rounded-[36px] border-[6px] border-[#222222] overflow-hidden",
