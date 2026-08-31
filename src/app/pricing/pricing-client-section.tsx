@@ -33,16 +33,13 @@ export function PricingClientSection({ plans }: PricingClientSectionProps) {
           <button
             onClick={() => setBillingInterval("annual")}
             className={cn(
-              "px-6 py-2.5 rounded-xl text-xs sm:text-sm font-heading font-semibold transition-all flex items-center gap-2",
+              "px-6 py-2.5 rounded-xl text-xs sm:text-sm font-heading font-semibold transition-all",
               billingInterval === "annual"
                 ? "bg-maroon-800 text-white shadow-glow"
                 : "text-zinc-400 hover:text-white"
             )}
           >
-            <span>Annual Billing</span>
-            <span className="text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-700/50 px-2 py-0.5 rounded-md font-mono font-bold">
-              Save ~17%
-            </span>
+            Annual Billing
           </button>
         </div>
       </div>

@@ -215,16 +215,13 @@ export default function ChoosePlanPage() {
               <button
                 onClick={() => setBillingInterval("annual")}
                 className={cn(
-                  "px-5 py-2 rounded-xl text-xs font-heading font-semibold transition-all flex items-center gap-1.5",
+                  "px-5 py-2 rounded-xl text-xs font-heading font-semibold transition-all",
                   billingInterval === "annual"
                     ? "bg-maroon-800 text-white shadow-glow"
                     : "text-zinc-400 hover:text-white"
                 )}
               >
-                <span>Annual Billing</span>
-                <span className="text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-700/50 px-1.5 py-0.5 rounded-md font-mono">
-                  Save ~17%
-                </span>
+                Annual Billing
               </button>
             </div>
           </div>

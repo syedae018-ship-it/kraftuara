@@ -467,7 +467,7 @@ export function LandingPage({ initialPlans }: LandingPageProps) {
           </p>
 
           {/* Prominent Monthly / Annual Billing Toggle Switch */}
-          <div className="pt-6 flex flex-col items-center justify-center gap-2">
+          <div className="pt-6 flex items-center justify-center">
             <div className="bg-[#111111] p-1.5 rounded-2xl border border-white/15 flex items-center gap-1.5 shadow-2xl backdrop-blur-xl ring-1 ring-white/5">
               <button
                 type="button"
@@ -485,21 +485,15 @@ export function LandingPage({ initialPlans }: LandingPageProps) {
                 type="button"
                 onClick={() => setBillingInterval("annual")}
                 className={cn(
-                  "px-6 py-2.5 rounded-xl text-xs sm:text-sm font-heading font-bold transition-all duration-200 flex items-center gap-2 cursor-pointer",
+                  "px-6 py-2.5 rounded-xl text-xs sm:text-sm font-heading font-bold transition-all duration-200 cursor-pointer",
                   billingInterval === "annual"
                     ? "bg-maroon-800 text-white shadow-glow"
                     : "text-zinc-400 hover:text-white hover:bg-white/5"
                 )}
               >
-                <span>Annual Billing</span>
-                <span className="text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-700/60 px-2 py-0.5 rounded-md font-mono font-bold">
-                  Save ~17% (2 Mo Free)
-                </span>
+                Annual Billing
               </button>
             </div>
-            <span className="text-[11px] text-zinc-500 font-mono">
-              {billingInterval === "annual" ? "✨ Billed annually • Get 2 months completely free" : "Switch to annual billing to save ~17%"}
-            </span>
           </div>
         </div>
 
