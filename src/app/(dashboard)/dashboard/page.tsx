@@ -435,8 +435,8 @@ export default function DashboardOverview() {
           featureName="Store Traffic Analytics"
           description={`Upgrade to the ${getPlanDisplayName("growth")} or ${getPlanDisplayName("pro")} to unlock live visitor charts, conversion tracking, and traffic sources.`}
         >
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full min-w-0">
+            <div className="lg:col-span-2 min-w-0 w-full">
               <AnalyticsCard
                 isLoading={showSkeletons}
                 data={analyticsData?.dailyTrend}
@@ -444,7 +444,7 @@ export default function DashboardOverview() {
                 setTimeRange={setTimeRange}
               />
             </div>
-            <div>
+            <div className="min-w-0 w-full">
               <TrafficSourcesCard
                 isLoading={showSkeletons}
                 sources={analyticsData?.trafficSources}

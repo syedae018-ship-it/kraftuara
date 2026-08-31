@@ -16,9 +16,14 @@ function getEmptySummary(timeRange: "7D" | "30D" | "90D" = "7D"): AnalyticsSumma
   const trend = Array.from({ length: days }).map((_, i) => {
     const d = new Date();
     d.setDate(d.getDate() - (days - 1 - i));
+    const dayLabel =
+      timeRange === "7D"
+        ? d.toLocaleDateString("en-US", { weekday: "short" })
+        : d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+
     return {
       date: d.toISOString().split("T")[0],
-      dayLabel: d.toLocaleDateString("en-US", { weekday: "short" }),
+      dayLabel,
       views: 0,
       visitors: 0,
       orders: 0,
@@ -156,8 +161,8 @@ export default function MerchantAnalyticsPage() {
         </div>
 
         {/* Charts Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full min-w-0">
+          <div className="lg:col-span-2 min-w-0 w-full">
             <AnalyticsCard
               isLoading={isLoading}
               data={analytics?.dailyTrend || []}
@@ -165,7 +170,7 @@ export default function MerchantAnalyticsPage() {
               setTimeRange={setTimeRange}
             />
           </div>
-          <div>
+          <div className="min-w-0 w-full">
             <TrafficSourcesCard
               isLoading={isLoading}
               sources={analytics?.trafficSources || []}
