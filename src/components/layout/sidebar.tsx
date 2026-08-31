@@ -25,6 +25,7 @@ import {
   PlusCircle,
   Check,
   LogOut,
+  Target,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth, DummyStore } from "@/context/auth-context";
@@ -50,6 +51,7 @@ const navigationSections: NavSection[] = [
     title: "Core Platform",
     items: [
       { title: "Overview", href: "/dashboard", icon: LayoutDashboard, feature: "dashboard" },
+      { title: "Growth Quest", href: "/dashboard/goals", icon: Target },
       { title: "Products", href: "/dashboard/products", icon: Package, feature: "products" },
       { title: "Categories", href: "/dashboard/categories", icon: Grid, feature: "categories" },
       { title: "Collections", href: "/dashboard/collections", icon: Grid, feature: "collections" },
