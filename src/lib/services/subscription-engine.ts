@@ -20,15 +20,16 @@ export interface AuthoritativeSubscription {
 
 class SubscriptionEngine {
   private getSupabase(client?: any) {
-    if (client) return client;
     if (typeof window === "undefined") {
       try {
         const { createAdminClient } = require("@/lib/supabase/admin");
         return createAdminClient();
       } catch {
+        if (client) return client;
         return createClient();
       }
     }
+    if (client) return client;
     return createClient();
   }
 
@@ -38,7 +39,8 @@ class SubscriptionEngine {
    * 1. Active row in `subscriptions` table matching store_id.
    * 2. If no store subscription, checks verified active subscription for user_id.
    * 3. Fallback: Checks verified successful payments in `payments` table.
-   * 4. Default: Canonical "startup" (Starter Pack) tier.
+   * 4. Fallback: Checks plan column in `stores` table.
+   * 5. Default: Canonical "startup" (Starter Pack) tier.
    */
   async getAuthoritativeSubscription(
     storeId: string,
@@ -191,6 +193,18 @@ class SubscriptionEngine {
       canonicalPlan = "startup";
     } else if (!subRow && recoveredPaymentPlan) {
       canonicalPlan = recoveredPaymentPlan;
+    } else if (!subRow && storeId) {
+      try {
+        const { data: stRow } = await (supabase.from("stores") as any)
+          .select("plan, status")
+          .eq("id", storeId)
+          .maybeSingle();
+        if (stRow?.plan && stRow.status !== "suspended") {
+          canonicalPlan = normalizePlanTier(stRow.plan);
+        }
+      } catch {
+        // ignore
+      }
     }
 
     const isTrial = !!(trialEnd && new Date(trialEnd).getTime() > now.getTime());

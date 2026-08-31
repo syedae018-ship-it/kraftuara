@@ -25,6 +25,7 @@ export type FeatureKey =
   | "orders"
   | "order_management"
   | "customer_order_tracking"
+  | "order_tracking"
   | "premium_themes"
   | "advanced_themes"
   | "payments"
@@ -338,16 +339,17 @@ export function isPlanAtLeast(currentPlan?: string | null, requiredPlan: PlanTie
 /**
  * Checks if a plan tier has access to a specific feature key.
  */
-export function hasFeature(planName?: string | null, feature?: FeatureKey): boolean {
+export function hasFeature(planName?: string | null, feature?: FeatureKey | string): boolean {
   if (!feature) return true;
+  const canonicalFeature = feature === "order_tracking" ? "customer_order_tracking" : feature;
   const config = getPlanConfig(planName);
-  return config.allowedFeatures.includes(feature);
+  return config.allowedFeatures.includes(canonicalFeature as FeatureKey) || config.allowedFeatures.includes(feature as FeatureKey);
 }
 
 /**
  * Alias for hasFeature for compatibility across components.
  */
-export function hasFeatureAccess(planName?: string | null, feature?: FeatureKey): boolean {
+export function hasFeatureAccess(planName?: string | null, feature?: FeatureKey | string): boolean {
   return hasFeature(planName, feature);
 }
 

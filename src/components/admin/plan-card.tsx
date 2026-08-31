@@ -52,6 +52,7 @@ export function PlanCard({ plans, onUpdatePlan, onToggleStatus, auditLogs = [] }
   const [trialDays, setTrialDays] = useState<number | string>(3);
   const [featuresList, setFeaturesList] = useState<string[]>([]);
   const [newFeatureInput, setNewFeatureInput] = useState("");
+  const [allowedFeatures, setAllowedFeatures] = useState<string[]>([]);
 
   const handleOpenEdit = (plan: PlanConfig) => {
     setEditingPlan(plan);
@@ -70,6 +71,7 @@ export function PlanCard({ plans, onUpdatePlan, onToggleStatus, auditLogs = [] }
     setTrialDays(plan.trialDays || 3);
     setFeaturesList([...plan.featuresDisplay]);
     setNewFeatureInput("");
+    setAllowedFeatures([...(plan.allowedFeatures || [])]);
   };
 
   const handleAddFeature = () => {
@@ -80,6 +82,14 @@ export function PlanCard({ plans, onUpdatePlan, onToggleStatus, auditLogs = [] }
 
   const handleRemoveFeature = (idx: number) => {
     setFeaturesList(featuresList.filter((_, i) => i !== idx));
+  };
+
+  const toggleAllowedFeature = (featureKey: string) => {
+    if (allowedFeatures.includes(featureKey)) {
+      setAllowedFeatures(allowedFeatures.filter((f) => f !== featureKey));
+    } else {
+      setAllowedFeatures([...allowedFeatures, featureKey]);
+    }
   };
 
   const handleSavePlan = async (e: React.FormEvent) => {
@@ -106,6 +116,7 @@ export function PlanCard({ plans, onUpdatePlan, onToggleStatus, auditLogs = [] }
         isTrialEligible,
         trialDays: Number(trialDays),
         featuresDisplay: featuresList,
+        allowedFeatures: allowedFeatures as any,
       };
 
       const success = await onUpdatePlan(editingPlan.id, updates);
@@ -385,6 +396,60 @@ export function PlanCard({ plans, onUpdatePlan, onToggleStatus, auditLogs = [] }
                   onChange={(e) => setTrialDays(e.target.value)}
                 />
               )}
+            </div>
+
+            {/* Platform Feature Entitlements */}
+            <div className="p-4 rounded-2xl bg-[#111111] border border-white/10 space-y-3">
+              <div>
+                <h4 className="text-xs font-bold font-heading text-white uppercase tracking-wider">
+                  Platform Feature Entitlements
+                </h4>
+                <p className="text-[11px] text-zinc-400 font-body">
+                  Toggle database-level capabilities enabled for this SaaS subscription tier.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
+                {[
+                  { key: "customer_order_tracking", label: "Customer Order Tracking", desc: "Track Order button & live status on storefront" },
+                  { key: "order_management", label: "Order Management", desc: "Manage & update customer order status" },
+                  { key: "orders", label: "Orders Dashboard", desc: "View received order transactions" },
+                  { key: "whatsapp_orders", label: "WhatsApp Orders", desc: "Route cart orders directly to WhatsApp" },
+                  { key: "payments", label: "Razorpay Online Payments", desc: "Accept UPI & cards checkout" },
+                  { key: "coupons", label: "Merchant Coupons", desc: "Promo codes & discounts" },
+                  { key: "analytics", label: "Store Analytics", desc: "Visitor views & traffic source metrics" },
+                  { key: "collections", label: "Curated Collections", desc: "Product collections categorization" },
+                  { key: "custom_domain", label: "Custom Domain", desc: "Connect custom merchant domain" },
+                  { key: "premium_themes", label: "Premium Themes", desc: "Unlock designer theme layouts" },
+                  { key: "inventory", label: "Inventory Alerts", desc: "Real-time stock level warnings" },
+                  { key: "ai_commercial_reel", label: "AI Commercial Reel", desc: "AI video generation tools" },
+                  { key: "vip_support_24_7", label: "24/7 Dedicated Support", desc: "Priority merchant assistance" },
+                ].map((feat) => {
+                  const isChecked = allowedFeatures.includes(feat.key);
+                  return (
+                    <label
+                      key={feat.key}
+                      className={cn(
+                        "flex items-start gap-2.5 p-2.5 rounded-xl border cursor-pointer transition-all text-left",
+                        isChecked
+                          ? "bg-maroon-950/30 border-maroon-700/50 text-white"
+                          : "bg-black/30 border-white/5 text-zinc-400 hover:border-white/10"
+                      )}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => toggleAllowedFeature(feat.key)}
+                        className="mt-0.5 rounded border-zinc-700 text-maroon-600 focus:ring-0"
+                      />
+                      <div className="space-y-0.5">
+                        <span className="text-xs font-semibold block">{feat.label}</span>
+                        <span className="text-[10px] text-zinc-500 block leading-tight">{feat.desc}</span>
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
             </div>
 
             {/* Displayed Features Manager */}

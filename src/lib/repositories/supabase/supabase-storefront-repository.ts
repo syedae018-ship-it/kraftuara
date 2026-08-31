@@ -11,16 +11,30 @@ import { DEMO_STORE_DATA } from "@/lib/demo-data";
 
 export class SupabaseStorefrontRepository implements IStorefrontRepository {
   private getSupabase() {
+    if (typeof window === "undefined") {
+      try {
+        const { createAdminClient } = require("@/lib/supabase/admin");
+        return createAdminClient();
+      } catch {
+        return createClient();
+      }
+    }
     return createClient();
   }
 
-  private async resolveStorePlan(storeId: string, userId?: string | null, supabase?: any): Promise<string> {
+  private async resolveStorePlan(storeId: string, userId?: string | null, storeRowPlan?: string | null): Promise<string> {
     try {
       const { subscriptionEngine } = await import("@/lib/services/subscription-engine");
-      const authSub = await subscriptionEngine.getAuthoritativeSubscription(storeId, userId || null, supabase);
-      return authSub.plan;
+      const authSub = await subscriptionEngine.getAuthoritativeSubscription(storeId, userId || null);
+      if (authSub?.plan && authSub.plan !== "startup") {
+        return authSub.plan;
+      }
+      if (storeRowPlan) {
+        return normalizePlanTier(storeRowPlan);
+      }
+      return authSub?.plan || "startup";
     } catch {
-      return "startup";
+      return storeRowPlan ? normalizePlanTier(storeRowPlan) : "startup";
     }
   }
 
@@ -60,7 +74,7 @@ export class SupabaseStorefrontRepository implements IStorefrontRepository {
     };
 
     // Resolve the store's active plan for feature rendering on the storefront
-    const plan = await this.resolveStorePlan(s.id, s.user_id, supabase);
+    const plan = await this.resolveStorePlan(s.id, s.user_id, s.plan);
 
     // Always load fresh appearance, categories, collections, and products for live store accuracy
     const appearance = await supabaseAppearanceRepository.getSettings(s.id, supabase);
