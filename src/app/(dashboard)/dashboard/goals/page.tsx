@@ -17,12 +17,15 @@ import {
   Zap,
   Clock,
   Trash2,
+  Edit2,
   RefreshCw,
   Gift,
   ShieldCheck,
   ChevronRight,
   Loader2,
   X,
+  Filter,
+  Check,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -35,6 +38,7 @@ import { createClient } from "@/lib/supabase/client";
 import {
   getGrowthQuestDataAction,
   createGoalAction,
+  updateGoalAction,
   deleteGoalAction,
   CreateGoalPayload,
 } from "@/lib/actions/growth-quest";
@@ -102,6 +106,7 @@ export default function GrowthQuestPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<"active" | "achievements" | "history">("active");
+  const [achievementCategory, setAchievementCategory] = useState<"all" | "orders" | "revenue" | "streaks" | "goals">("all");
 
   // Create Goal Modal State
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -113,6 +118,16 @@ export default function GrowthQuestPage() {
   const [formPeriod, setFormPeriod] = useState<GoalPeriod>("month");
   const [formStartDate, setFormStartDate] = useState("");
   const [formEndDate, setFormEndDate] = useState("");
+  const [formMilestone1, setFormMilestone1] = useState<string>("");
+  const [formMilestone2, setFormMilestone2] = useState<string>("");
+  const [formMilestone3, setFormMilestone3] = useState<string>("");
+
+  // Edit Goal Modal State
+  const [editingGoal, setEditingGoal] = useState<MerchantGoal | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editTarget, setEditTarget] = useState("");
+  const [editEndDate, setEditEndDate] = useState("");
+  const [isEditingSubmitting, setIsEditingSubmitting] = useState(false);
 
   const loadData = useCallback(async (silent = false) => {
     if (!activeStore?.id) return;
@@ -152,7 +167,6 @@ export default function GrowthQuestPage() {
           filter: `store_id=eq.${activeStore.id}`,
         },
         () => {
-          // Re-evaluate silently
           loadData(true);
         }
       )
@@ -168,6 +182,9 @@ export default function GrowthQuestPage() {
     setFormGoalType(tpl.goalType);
     setFormTarget(tpl.targetValue.toString());
     setFormPeriod(tpl.periodType);
+    setFormMilestone1((tpl.targetValue * 0.25).toString());
+    setFormMilestone2((tpl.targetValue * 0.5).toString());
+    setFormMilestone3((tpl.targetValue * 0.75).toString());
     setCreateMode("custom");
   };
 
@@ -180,6 +197,12 @@ export default function GrowthQuestPage() {
       return;
     }
 
+    const milestones: number[] = [];
+    if (formMilestone1 && !isNaN(parseFloat(formMilestone1))) milestones.push(parseFloat(formMilestone1));
+    if (formMilestone2 && !isNaN(parseFloat(formMilestone2))) milestones.push(parseFloat(formMilestone2));
+    if (formMilestone3 && !isNaN(parseFloat(formMilestone3))) milestones.push(parseFloat(formMilestone3));
+    milestones.push(targetVal);
+
     setIsSubmitting(true);
     try {
       const payload: CreateGoalPayload = {
@@ -189,6 +212,7 @@ export default function GrowthQuestPage() {
         periodType: formPeriod,
         startDate: formPeriod === "custom" ? formStartDate : undefined,
         endDate: formPeriod === "custom" ? formEndDate : undefined,
+        milestones,
       };
 
       const res = await createGoalAction(activeStore.id, payload);
@@ -197,6 +221,9 @@ export default function GrowthQuestPage() {
         setIsCreateModalOpen(false);
         setFormTitle("");
         setFormTarget("10000");
+        setFormMilestone1("");
+        setFormMilestone2("");
+        setFormMilestone3("");
         setCreateMode("template");
         loadData(true);
       } else {
@@ -206,6 +233,45 @@ export default function GrowthQuestPage() {
       toast.error("Error", err.message || "An unexpected error occurred.");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleOpenEdit = (quest: MerchantGoal) => {
+    setEditingGoal(quest);
+    setEditTitle(quest.title);
+    setEditTarget(quest.targetValue.toString());
+    setEditEndDate(quest.endDate.split("T")[0]);
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeStore?.id || !editingGoal) return;
+    const targetVal = parseFloat(editTarget);
+    if (isNaN(targetVal) || targetVal <= 0) {
+      toast.error("Invalid Target", "Target must be a positive number.");
+      return;
+    }
+
+    setIsEditingSubmitting(true);
+    try {
+      const res = await updateGoalAction(activeStore.id, {
+        goalId: editingGoal.id,
+        title: editTitle.trim(),
+        targetValue: targetVal,
+        endDate: editEndDate,
+      });
+
+      if (res.success) {
+        toast.success("Goal Updated", "Your changes have been saved.");
+        setEditingGoal(null);
+        loadData(true);
+      } else {
+        toast.error("Error", res.error || "Failed to update goal.");
+      }
+    } catch (err: any) {
+      toast.error("Error", err.message || "Failed to update goal.");
+    } finally {
+      setIsEditingSubmitting(false);
     }
   };
 
@@ -238,6 +304,11 @@ export default function GrowthQuestPage() {
   const activeQuests = data?.activeGoals || [];
   const completedQuests = data?.completedGoals || [];
   const primaryQuest: MerchantGoal | undefined = activeQuests[0];
+
+  const filteredAchievements = (data?.achievements || []).filter((ach) => {
+    if (achievementCategory === "all") return true;
+    return ach.category === achievementCategory;
+  });
 
   return (
     <DashboardLayout breadcrumbs={[{ label: "Overview", href: "/dashboard" }, { label: "Growth Quest" }]}>
@@ -552,13 +623,22 @@ export default function GrowthQuestPage() {
                         </div>
                         <h3 className="text-base font-bold font-heading text-white">{quest.title}</h3>
                       </div>
-                      <button
-                        onClick={() => handleDeleteGoal(quest.id)}
-                        className="text-zinc-600 hover:text-red-400 p-1 transition-colors"
-                        title="Delete Goal"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => handleOpenEdit(quest)}
+                          className="text-zinc-500 hover:text-white p-1.5 transition-colors"
+                          title="Edit Goal"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteGoal(quest.id)}
+                          className="text-zinc-600 hover:text-red-400 p-1.5 transition-colors"
+                          title="Delete Goal"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
 
                     <div className="space-y-2">
@@ -651,45 +731,65 @@ export default function GrowthQuestPage() {
 
         {/* Tab 2: Achievements Showcase */}
         {activeTab === "achievements" && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {data?.achievements.map((ach) => (
-              <Card
-                key={ach.key}
-                className={cn(
-                  "p-5 rounded-2xl border transition-all text-left space-y-3",
-                  ach.isUnlocked
-                    ? "bg-[#181818] border-amber-500/30 shadow-card"
-                    : "bg-[#111111] border-white/5 opacity-60"
-                )}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-xl">
-                    {ach.icon}
-                  </div>
-                  <span className="text-[10px] font-mono font-bold text-amber-400">
-                    +{ach.xpReward} XP
-                  </span>
-                </div>
+          <div className="space-y-6">
+            {/* Category Filter Pills */}
+            <div className="flex flex-wrap gap-2">
+              {(["all", "orders", "revenue", "streaks", "goals"] as const).map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setAchievementCategory(cat)}
+                  className={cn(
+                    "px-3 py-1.5 text-xs rounded-lg font-medium transition-colors capitalize",
+                    achievementCategory === cat
+                      ? "bg-maroon-800 text-white font-bold"
+                      : "bg-white/5 text-zinc-400 hover:text-white"
+                  )}
+                >
+                  {cat === "all" ? "All Badges" : cat}
+                </button>
+              ))}
+            </div>
 
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-sm font-bold font-heading text-white">{ach.title}</h3>
-                    {ach.isUnlocked ? (
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                    ) : (
-                      <Lock className="w-3 h-3 text-zinc-600 shrink-0" />
-                    )}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredAchievements.map((ach) => (
+                <Card
+                  key={ach.key}
+                  className={cn(
+                    "p-5 rounded-2xl border transition-all text-left space-y-3",
+                    ach.isUnlocked
+                      ? "bg-[#181818] border-amber-500/30 shadow-card"
+                      : "bg-[#111111] border-white/5 opacity-60"
+                  )}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-xl">
+                      {ach.icon}
+                    </div>
+                    <span className="text-[10px] font-mono font-bold text-amber-400">
+                      +{ach.xpReward} XP
+                    </span>
                   </div>
-                  <p className="text-xs text-zinc-400 leading-relaxed">{ach.description}</p>
-                </div>
 
-                {ach.isUnlocked && ach.unlockedAt && (
-                  <span className="text-[9px] font-mono text-zinc-500 block pt-1 border-t border-white/5">
-                    Unlocked: {new Date(ach.unlockedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-                  </span>
-                )}
-              </Card>
-            ))}
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-sm font-bold font-heading text-white">{ach.title}</h3>
+                      {ach.isUnlocked ? (
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                      ) : (
+                        <Lock className="w-3 h-3 text-zinc-600 shrink-0" />
+                      )}
+                    </div>
+                    <p className="text-xs text-zinc-400 leading-relaxed">{ach.description}</p>
+                  </div>
+
+                  {ach.isUnlocked && ach.unlockedAt && (
+                    <span className="text-[9px] font-mono text-zinc-500 block pt-1 border-t border-white/5">
+                      Unlocked: {new Date(ach.unlockedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                    </span>
+                  )}
+                </Card>
+              ))}
+            </div>
           </div>
         )}
 
@@ -863,6 +963,33 @@ export default function GrowthQuestPage() {
                   </div>
                 )}
 
+                {/* Optional Milestones */}
+                <div className="space-y-2 pt-2 border-t border-white/5">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 font-heading block">
+                    Custom Milestones (Optional)
+                  </span>
+                  <div className="grid grid-cols-3 gap-2">
+                    <Input
+                      placeholder="25% (2500)"
+                      type="number"
+                      value={formMilestone1}
+                      onChange={(e) => setFormMilestone1(e.target.value)}
+                    />
+                    <Input
+                      placeholder="50% (5000)"
+                      type="number"
+                      value={formMilestone2}
+                      onChange={(e) => setFormMilestone2(e.target.value)}
+                    />
+                    <Input
+                      placeholder="75% (7500)"
+                      type="number"
+                      value={formMilestone3}
+                      onChange={(e) => setFormMilestone3(e.target.value)}
+                    />
+                  </div>
+                </div>
+
                 <div className="pt-4 flex items-center justify-end gap-3 border-t border-white/10">
                   <Button
                     type="button"
@@ -884,6 +1011,68 @@ export default function GrowthQuestPage() {
                 </div>
               </form>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* 6. Edit Goal Modal */}
+      {editingGoal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+          <div className="bg-[#151515] border border-white/10 rounded-3xl max-w-lg w-full p-6 space-y-6 shadow-2xl text-left">
+            <div className="flex items-center justify-between pb-4 border-b border-white/10">
+              <div>
+                <h3 className="text-lg font-bold font-heading text-white">Edit Goal</h3>
+                <p className="text-xs text-zinc-400">Update quest target, title, or end date.</p>
+              </div>
+              <button onClick={() => setEditingGoal(null)} className="text-zinc-500 hover:text-white p-1">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEdit} className="space-y-4">
+              <Input
+                label="Goal Title"
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                required
+              />
+
+              <Input
+                label="Target Number"
+                type="number"
+                value={editTarget}
+                onChange={(e) => setEditTarget(e.target.value)}
+                required
+              />
+
+              <Input
+                label="End Date"
+                type="date"
+                value={editEndDate}
+                onChange={(e) => setEditEndDate(e.target.value)}
+                required
+              />
+
+              <div className="pt-4 flex items-center justify-end gap-3 border-t border-white/10">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setEditingGoal(null)}
+                  className="text-xs border-white/10"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  variant="primary"
+                  disabled={isEditingSubmitting}
+                  className="text-xs font-semibold shadow-glow"
+                  leftIcon={isEditingSubmitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                >
+                  {isEditingSubmitting ? "Saving..." : "Save Changes"}
+                </Button>
+              </div>
+            </form>
           </div>
         </div>
       )}

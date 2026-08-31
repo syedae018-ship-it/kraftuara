@@ -20,6 +20,7 @@ export interface MerchantGoal {
   storeId: string;
   userId: string;
   title: string;
+  description?: string;
   goalType: GoalType;
   targetValue: number;
   periodType: GoalPeriod;
@@ -166,13 +167,17 @@ export class GrowthQuestEngine {
     const orderIds = allOrders.map((o: any) => o.id);
     let itemsByOrderId: Record<string, number> = {};
     if (orderIds.length > 0) {
-      const { data: rawItems } = await (supabase.from("order_items") as any)
-        .select("order_id, quantity")
-        .in("order_id", orderIds);
-      if (rawItems) {
-        rawItems.forEach((itm: any) => {
-          itemsByOrderId[itm.order_id] = (itemsByOrderId[itm.order_id] || 0) + (Number(itm.quantity) || 1);
-        });
+      try {
+        const { data: rawItems } = await (supabase.from("order_items") as any)
+          .select("order_id, quantity")
+          .in("order_id", orderIds);
+        if (rawItems) {
+          rawItems.forEach((itm: any) => {
+            itemsByOrderId[itm.order_id] = (itemsByOrderId[itm.order_id] || 0) + (Number(itm.quantity) || 1);
+          });
+        }
+      } catch (err) {
+        console.warn("Order items query fallback:", err);
       }
     }
 
@@ -247,34 +252,93 @@ export class GrowthQuestEngine {
       }
     }
 
-    // 4. Fetch stored goals & milestones
-    const { data: rawGoals } = await (supabase.from("merchant_goals") as any)
-      .select("*")
-      .eq("store_id", storeId)
-      .order("created_at", { ascending: false });
+    // 4. Fetch stored goals & milestones (with resilient fallback to activity_logs)
+    let rawGoals: any[] = [];
+    let isPrimaryGoalsTable = true;
+
+    try {
+      const { data, error } = await (supabase.from("merchant_goals") as any)
+        .select("*")
+        .eq("store_id", storeId)
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        isPrimaryGoalsTable = false;
+      } else if (data) {
+        rawGoals = data;
+      }
+    } catch {
+      isPrimaryGoalsTable = false;
+    }
+
+    // Fallback to activity_logs if primary table is not yet provisioned in Supabase
+    if (!isPrimaryGoalsTable) {
+      try {
+        const { data: logGoals } = await (supabase.from("activity_logs") as any)
+          .select("*")
+          .eq("store_id", storeId)
+          .like("action", "growth_quest_goal_%")
+          .order("created_at", { ascending: false });
+
+        if (logGoals) {
+          const activeMap: Record<string, any> = {};
+          logGoals.forEach((l: any) => {
+            const goalId = l.action.replace("growth_quest_goal_", "");
+            if (!activeMap[goalId] && l.details) {
+              if (l.details.isDeleted) {
+                activeMap[goalId] = { isDeleted: true };
+              } else {
+                activeMap[goalId] = {
+                  id: goalId,
+                  store_id: storeId,
+                  user_id: userId,
+                  ...l.details,
+                };
+              }
+            }
+          });
+          rawGoals = Object.values(activeMap).filter((g) => !g.isDeleted);
+        }
+      } catch (err) {
+        console.warn("Goals activity_logs fallback query error:", err);
+      }
+    }
 
     const goalIds = (rawGoals || []).map((g: any) => g.id);
     let milestonesByGoalId: Record<string, GoalMilestone[]> = {};
 
     if (goalIds.length > 0) {
-      const { data: rawMilestones } = await (supabase.from("goal_milestones") as any)
-        .select("*")
-        .in("goal_id", goalIds)
-        .order("target_value", { ascending: true });
+      if (isPrimaryGoalsTable) {
+        try {
+          const { data: rawMilestones } = await (supabase.from("goal_milestones") as any)
+            .select("*")
+            .in("goal_id", goalIds)
+            .order("target_value", { ascending: true });
 
-      if (rawMilestones) {
-        rawMilestones.forEach((m: any) => {
-          if (!milestonesByGoalId[m.goal_id]) milestonesByGoalId[m.goal_id] = [];
-          milestonesByGoalId[m.goal_id].push({
-            id: m.id,
-            goalId: m.goal_id,
-            storeId: m.store_id,
-            targetValue: Number(m.target_value),
-            label: m.label,
-            xpReward: Number(m.xp_reward) || 50,
-            isReached: Boolean(m.is_reached),
-            reachedAt: m.reached_at,
-          });
+          if (rawMilestones) {
+            rawMilestones.forEach((m: any) => {
+              if (!milestonesByGoalId[m.goal_id]) milestonesByGoalId[m.goal_id] = [];
+              milestonesByGoalId[m.goal_id].push({
+                id: m.id,
+                goalId: m.goal_id,
+                storeId: m.store_id,
+                targetValue: Number(m.target_value),
+                label: m.label,
+                xpReward: Number(m.xp_reward) || 50,
+                isReached: Boolean(m.is_reached),
+                reachedAt: m.reached_at,
+              });
+            });
+          }
+        } catch {
+          // ignore
+        }
+      } else {
+        // Fallback for milestones in activity_logs
+        rawGoals.forEach((g: any) => {
+          if (Array.isArray(g.milestones)) {
+            milestonesByGoalId[g.id] = g.milestones;
+          }
         });
       }
     }
@@ -284,10 +348,11 @@ export class GrowthQuestEngine {
     const evaluatedGoals: MerchantGoal[] = [];
 
     for (const g of rawGoals || []) {
-      const start = new Date(g.start_date);
-      const end = new Date(g.end_date);
+      const start = new Date(g.start_date || g.startDate);
+      const end = new Date(g.end_date || g.endDate);
       const isExpired = now > end && g.status === "active";
-      const targetVal = Number(g.target_value) || 1;
+      const targetVal = Number(g.target_value || g.targetValue) || 1;
+      const gType = (g.goal_type || g.goalType || "revenue") as GoalType;
 
       // Filter qualifying orders within the goal date window
       const windowOrders = allOrders.filter((o: any) => {
@@ -297,7 +362,7 @@ export class GrowthQuestEngine {
 
       let calculatedValue = 0;
 
-      switch (g.goal_type) {
+      switch (gType) {
         case "revenue":
           calculatedValue = windowOrders.reduce((sum: number, o: any) => sum + (Number(o.total_amount) || 0), 0);
           break;
@@ -326,16 +391,18 @@ export class GrowthQuestEngine {
       // Evaluate milestones for this goal
       const milestones = milestonesByGoalId[g.id] || [];
       let updatedMilestones: GoalMilestone[] = [];
-      let crossedAnyMilestone = false;
 
       for (const m of milestones) {
         const isReachedNow = calculatedValue >= m.targetValue;
         if (isReachedNow && !m.isReached) {
-          crossedAnyMilestone = true;
           // Mark reached in database & award milestone XP
-          await (supabase.from("goal_milestones") as any)
-            .update({ is_reached: true, reached_at: new Date().toISOString() })
-            .eq("id", m.id);
+          if (isPrimaryGoalsTable) {
+            try {
+              await (supabase.from("goal_milestones") as any)
+                .update({ is_reached: true, reached_at: new Date().toISOString() })
+                .eq("id", m.id);
+            } catch {}
+          }
 
           await this.awardXp(
             storeId,
@@ -357,9 +424,13 @@ export class GrowthQuestEngine {
       let currentStatus: GoalStatus = g.status;
       if (progressPercent >= 100 && currentStatus === "active") {
         currentStatus = "completed";
-        await (supabase.from("merchant_goals") as any)
-          .update({ status: "completed", completed_at: new Date().toISOString() })
-          .eq("id", g.id);
+        if (isPrimaryGoalsTable) {
+          try {
+            await (supabase.from("merchant_goals") as any)
+              .update({ status: "completed", completed_at: new Date().toISOString() })
+              .eq("id", g.id);
+          } catch {}
+        }
 
         // Award Goal Completion XP
         await this.awardXp(
@@ -373,27 +444,32 @@ export class GrowthQuestEngine {
         );
       } else if (isExpired && currentStatus === "active") {
         currentStatus = "expired";
-        await (supabase.from("merchant_goals") as any)
-          .update({ status: "expired" })
-          .eq("id", g.id);
+        if (isPrimaryGoalsTable) {
+          try {
+            await (supabase.from("merchant_goals") as any)
+              .update({ status: "expired" })
+              .eq("id", g.id);
+          } catch {}
+        }
       }
 
       const nextMilestone = updatedMilestones.find((m) => !m.isReached) || null;
 
       evaluatedGoals.push({
         id: g.id,
-        storeId: g.store_id,
-        userId: g.user_id,
+        storeId: g.store_id || storeId,
+        userId: g.user_id || userId,
         title: g.title,
-        goalType: g.goal_type,
+        description: g.description,
+        goalType: gType,
         targetValue: targetVal,
-        periodType: g.period_type,
-        startDate: g.start_date,
-        endDate: g.end_date,
+        periodType: g.period_type || g.periodType || "month",
+        startDate: g.start_date || g.startDate,
+        endDate: g.end_date || g.endDate,
         status: currentStatus,
-        completedAt: g.completed_at,
-        createdAt: g.created_at,
-        updatedAt: g.updated_at,
+        completedAt: g.completed_at || g.completedAt,
+        createdAt: g.created_at || g.createdAt || new Date().toISOString(),
+        updatedAt: g.updated_at || g.updatedAt || new Date().toISOString(),
         currentValue: calculatedValue,
         progressPercent,
         remainingValue,
@@ -418,39 +494,80 @@ export class GrowthQuestEngine {
     );
 
     // 7. Calculate and Sync Total XP & Gamification Profile
-    const { data: xpLogs } = await (supabase.from("merchant_xp_log") as any)
-      .select("*")
-      .eq("store_id", storeId)
-      .order("created_at", { ascending: false });
+    let xpLogs: any[] = [];
+    try {
+      const { data } = await (supabase.from("merchant_xp_log") as any)
+        .select("*")
+        .eq("store_id", storeId)
+        .order("created_at", { ascending: false });
+      if (data) xpLogs = data;
+    } catch {
+      // Fallback from activity_logs
+      try {
+        const { data: altLogs } = await (supabase.from("activity_logs") as any)
+          .select("*")
+          .eq("store_id", storeId)
+          .like("action", "growth_quest_xp_%")
+          .order("created_at", { ascending: false });
+        if (altLogs) {
+          xpLogs = altLogs.map((l: any) => ({
+            id: l.id,
+            source: l.details?.source || "activity",
+            source_id: l.details?.source_id,
+            xp_amount: l.details?.xp_amount || 50,
+            description: l.details?.description || l.action,
+            created_at: l.created_at,
+          }));
+        }
+      } catch {}
+    }
 
     const totalXp = (xpLogs || []).reduce((sum: number, l: any) => sum + (Number(l.xp_amount) || 0), 0);
     const levelInfo = getLevelInfo(totalXp);
 
-    // Upsert gamification profile
-    await (supabase.from("merchant_gamification_profile") as any).upsert({
-      store_id: storeId,
-      user_id: userId,
-      xp: totalXp,
-      level: levelInfo.level,
-      current_streak_days: currentStreakDays,
-      longest_streak_days: longestStreakDays,
-      last_sale_date: lastSaleDate,
-      highest_daily_revenue: highestDailyRevenue,
-      highest_daily_orders: highestDailyOrders,
-      highest_monthly_revenue: highestMonthlyRevenue,
-      highest_monthly_orders: highestMonthlyOrders,
-      updated_at: new Date().toISOString(),
-    });
+    // Upsert gamification profile if table available
+    try {
+      await (supabase.from("merchant_gamification_profile") as any).upsert({
+        store_id: storeId,
+        user_id: userId,
+        xp: totalXp,
+        level: levelInfo.level,
+        current_streak_days: currentStreakDays,
+        longest_streak_days: longestStreakDays,
+        last_sale_date: lastSaleDate,
+        highest_daily_revenue: highestDailyRevenue,
+        highest_daily_orders: highestDailyOrders,
+        highest_monthly_revenue: highestMonthlyRevenue,
+        highest_monthly_orders: highestMonthlyOrders,
+        updated_at: new Date().toISOString(),
+      });
+    } catch {
+      // ignore
+    }
 
     // 8. Fetch stored unlocked achievements
-    const { data: unlockedRows } = await (supabase.from("merchant_achievements") as any)
-      .select("*")
-      .eq("store_id", storeId);
-
     const unlockedMap: Record<string, string> = {};
-    (unlockedRows || []).forEach((u: any) => {
-      unlockedMap[u.achievement_key] = u.unlocked_at;
-    });
+    try {
+      const { data: unlockedRows } = await (supabase.from("merchant_achievements") as any)
+        .select("*")
+        .eq("store_id", storeId);
+
+      (unlockedRows || []).forEach((u: any) => {
+        unlockedMap[u.achievement_key] = u.unlocked_at;
+      });
+    } catch {
+      // Fallback from activity_logs
+      try {
+        const { data: altAch } = await (supabase.from("activity_logs") as any)
+          .select("*")
+          .eq("store_id", storeId)
+          .like("action", "growth_quest_achievement_%");
+        (altAch || []).forEach((u: any) => {
+          const achKey = u.action.replace("growth_quest_achievement_", "");
+          unlockedMap[achKey] = u.created_at;
+        });
+      } catch {}
+    }
 
     const achievements: MerchantAchievementItem[] = ALL_ACHIEVEMENTS.map((a) => ({
       ...a,
@@ -486,7 +603,7 @@ export class GrowthQuestEngine {
   }
 
   /**
-   * Idempotently awards XP and logs event
+   * Idempotently awards XP and logs event with dual-layer persistence
    */
   static async awardXp(
     storeId: string,
@@ -497,8 +614,9 @@ export class GrowthQuestEngine {
     description: string,
     supabase: any
   ) {
+    // 1. Try primary merchant_xp_log table
     try {
-      await (supabase.from("merchant_xp_log") as any).insert({
+      const { error } = await (supabase.from("merchant_xp_log") as any).insert({
         store_id: storeId,
         user_id: userId,
         source,
@@ -506,9 +624,31 @@ export class GrowthQuestEngine {
         xp_amount: amount,
         description,
       });
-    } catch {
-      // Ignored if duplicate unique constraint
-    }
+      if (!error) return;
+    } catch {}
+
+    // 2. Resilient backup to activity_logs
+    try {
+      const { data: existing } = await (supabase.from("activity_logs") as any)
+        .select("id")
+        .eq("store_id", storeId)
+        .eq("action", `growth_quest_xp_${source}_${sourceId}`)
+        .maybeSingle();
+
+      if (!existing) {
+        await (supabase.from("activity_logs") as any).insert({
+          store_id: storeId,
+          user_id: userId,
+          action: `growth_quest_xp_${source}_${sourceId}`,
+          details: {
+            source,
+            source_id: sourceId,
+            xp_amount: amount,
+            description,
+          },
+        });
+      }
+    } catch {}
   }
 
   /**
@@ -550,6 +690,7 @@ export class GrowthQuestEngine {
     if (metrics.completedGoalsCount >= 1) toUnlock.push(ALL_ACHIEVEMENTS.find((a) => a.key === "goal_completed")!);
 
     for (const ach of toUnlock.filter(Boolean)) {
+      let saved = false;
       try {
         const { error } = await (supabase.from("merchant_achievements") as any).insert({
           store_id: storeId,
@@ -562,6 +703,7 @@ export class GrowthQuestEngine {
         });
 
         if (!error) {
+          saved = true;
           await this.awardXp(
             storeId,
             userId,
@@ -572,8 +714,40 @@ export class GrowthQuestEngine {
             supabase
           );
         }
-      } catch {
-        // Ignored if already unlocked
+      } catch {}
+
+      if (!saved) {
+        // Fallback to activity_logs
+        try {
+          const { data: existing } = await (supabase.from("activity_logs") as any)
+            .select("id")
+            .eq("store_id", storeId)
+            .eq("action", `growth_quest_achievement_${ach.key}`)
+            .maybeSingle();
+
+          if (!existing) {
+            await (supabase.from("activity_logs") as any).insert({
+              store_id: storeId,
+              user_id: userId,
+              action: `growth_quest_achievement_${ach.key}`,
+              details: {
+                title: ach.title,
+                description: ach.description,
+                icon: ach.icon,
+                xp_reward: ach.xpReward,
+              },
+            });
+            await this.awardXp(
+              storeId,
+              userId,
+              "achievement",
+              ach.key,
+              ach.xpReward,
+              `Unlocked Achievement: ${ach.title}`,
+              supabase
+            );
+          }
+        } catch {}
       }
     }
   }
