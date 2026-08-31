@@ -41,18 +41,40 @@ export default function BloomStorefront({
   initialCategory?: string;
   initialCollection?: string;
 }) {
-  // Filter products by category and collection query params if present
-  const filteredProducts = store.products.filter((p) => {
-    const matchesCategory = !initialCategory || initialCategory === "all" || p.categoryId === initialCategory;
-    let matchesCollection = true;
-    if (initialCollection && initialCollection !== "all") {
-      const col = store.collections?.find((c) => c.id === initialCollection);
-      matchesCollection = Boolean(col && col.selectedProductIds?.includes(p.id));
-    }
-    return matchesCategory && matchesCollection;
-  });
+  const [selectedCategory, setSelectedCategory] = React.useState<string>(initialCategory || "all");
 
-  const basePath = isSubdomain ? "" : `/store/${store.slug}`;
+  React.useEffect(() => {
+    if (initialCategory) {
+      setSelectedCategory(initialCategory);
+    }
+  }, [initialCategory]);
+
+  const handleCategorySelect = (categoryId: string) => {
+    setSelectedCategory(categoryId);
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      if (categoryId === "all") {
+        url.searchParams.delete("category");
+      } else {
+        url.searchParams.set("category", categoryId);
+      }
+      window.history.replaceState(null, "", url.pathname + url.search + (url.hash || "#products"));
+    }
+  };
+
+  // Instant memoized local product filtering with zero network lag or page reloads
+  const filteredProducts = React.useMemo(() => {
+    return store.products.filter((p) => {
+      const matchesCategory = selectedCategory === "all" || p.categoryId === selectedCategory;
+      let matchesCollection = true;
+      if (initialCollection && initialCollection !== "all") {
+        const col = store.collections?.find((c) => c.id === initialCollection);
+        matchesCollection = Boolean(col && col.selectedProductIds?.includes(p.id));
+      }
+      return matchesCategory && matchesCollection;
+    });
+  }, [store.products, selectedCategory, initialCollection, store.collections]);
+
   const fontsLink = getBloomFontsLink(store.appearance.typography);
 
   return (
@@ -155,43 +177,47 @@ export default function BloomStorefront({
           </div>
         )}
 
-        {/* Categories Quick Filter */}
+        {/* Categories Quick Filter - Responsive, Non-Overlapping Layout Container */}
         {store.categories.length > 0 && (
-          <div className="flex flex-wrap items-center justify-center gap-2 mb-8">
-            <Link
-              href={basePath || "/"}
-              style={{
-                backgroundColor: (!initialCategory || initialCategory === "all")
-                  ? "var(--color-primary)"
-                  : "var(--color-surface)",
-                color: (!initialCategory || initialCategory === "all")
-                  ? "var(--color-primary-foreground)"
-                  : "var(--color-text-secondary)",
-                borderColor: (!initialCategory || initialCategory === "all")
-                  ? "var(--color-primary)"
-                  : "var(--color-border)",
-              }}
-              className="px-4 py-1.5 rounded-full text-xs font-semibold border transition-all shadow-sm"
-            >
-              All Products
-            </Link>
-            {store.categories.map((c) => {
-              const isActive = initialCategory === c.id;
-              return (
-                <Link
-                  key={c.id}
-                  href={`${basePath || ""}?category=${c.id}#products`}
-                  style={{
-                    backgroundColor: isActive ? "var(--color-primary)" : "var(--color-surface)",
-                    color: isActive ? "var(--color-primary-foreground)" : "var(--color-text-secondary)",
-                    borderColor: isActive ? "var(--color-primary)" : "var(--color-border)",
-                  }}
-                  className="px-4 py-1.5 rounded-full text-xs font-semibold border transition-all shadow-sm"
-                >
-                  {c.name}
-                </Link>
-              );
-            })}
+          <div className="w-full mb-8">
+            <div className="flex items-center gap-2 overflow-x-auto pb-2 sm:pb-0 sm:flex-wrap sm:justify-center scrollbar-none no-scrollbar px-1 py-1">
+              <button
+                type="button"
+                onClick={() => handleCategorySelect("all")}
+                style={{
+                  backgroundColor: selectedCategory === "all"
+                    ? "var(--color-primary)"
+                    : "var(--color-surface)",
+                  color: selectedCategory === "all"
+                    ? "var(--color-primary-foreground)"
+                    : "var(--color-text-secondary)",
+                  borderColor: selectedCategory === "all"
+                    ? "var(--color-primary)"
+                    : "var(--color-border)",
+                }}
+                className="shrink-0 h-8 sm:h-9 px-4 py-1.5 rounded-full text-xs font-semibold border transition-all duration-150 shadow-sm cursor-pointer whitespace-nowrap active:scale-95 select-none"
+              >
+                All Products
+              </button>
+              {store.categories.map((c) => {
+                const isActive = selectedCategory === c.id;
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => handleCategorySelect(c.id)}
+                    style={{
+                      backgroundColor: isActive ? "var(--color-primary)" : "var(--color-surface)",
+                      color: isActive ? "var(--color-primary-foreground)" : "var(--color-text-secondary)",
+                      borderColor: isActive ? "var(--color-primary)" : "var(--color-border)",
+                    }}
+                    className="shrink-0 h-8 sm:h-9 px-4 py-1.5 rounded-full text-xs font-semibold border transition-all duration-150 shadow-sm cursor-pointer whitespace-nowrap active:scale-95 select-none"
+                  >
+                    {c.name}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
 

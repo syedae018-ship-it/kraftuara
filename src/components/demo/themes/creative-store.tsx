@@ -291,11 +291,11 @@ export function CreativeStore({ store }: { store: StoreData }) {
             <h2 className="text-3xl sm:text-4xl font-serif italic font-bold">Artisanal Products</h2>
           </div>
 
-          <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto">
+          <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto pb-2 sm:pb-0 scrollbar-none no-scrollbar">
             <button
               onClick={() => setSelectedCategory("all")}
               className={cn(
-                "px-4 py-2 text-xs font-mono uppercase tracking-wider font-bold transition-all whitespace-nowrap",
+                "shrink-0 h-8 sm:h-9 px-4 py-1.5 text-xs font-mono uppercase tracking-wider font-bold transition-all whitespace-nowrap active:scale-95 cursor-pointer",
                 getRadiusClass(),
                 selectedCategory === "all"
                   ? "bg-purple-600 text-white shadow-md"
@@ -312,7 +312,7 @@ export function CreativeStore({ store }: { store: StoreData }) {
                 key={c.id}
                 onClick={() => setSelectedCategory(c.id)}
                 className={cn(
-                  "px-4 py-2 text-xs font-mono uppercase tracking-wider font-bold transition-all whitespace-nowrap",
+                  "shrink-0 h-8 sm:h-9 px-4 py-1.5 text-xs font-mono uppercase tracking-wider font-bold transition-all whitespace-nowrap active:scale-95 cursor-pointer",
                   getRadiusClass(),
                   selectedCategory === c.id
                     ? "bg-purple-600 text-white shadow-md"

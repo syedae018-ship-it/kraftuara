@@ -384,11 +384,11 @@ export function LuxuryStore({ store }: { store: StoreData }) {
           </div>
 
           {/* Category Filter Tabs */}
-          <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto pb-2 sm:pb-0">
+          <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto pb-2 sm:pb-0 scrollbar-none no-scrollbar">
             <button
               onClick={() => setSelectedCategory("all")}
               className={cn(
-                "px-4 py-2 text-xs uppercase tracking-widest font-heading font-semibold transition-all whitespace-nowrap",
+                "shrink-0 h-8 sm:h-9 px-4 py-1.5 text-xs uppercase tracking-widest font-heading font-semibold transition-all whitespace-nowrap active:scale-95 cursor-pointer",
                 getRadiusClass(),
                 selectedCategory === "all"
                   ? "bg-amber-500 text-black shadow-glow font-bold"
@@ -402,7 +402,7 @@ export function LuxuryStore({ store }: { store: StoreData }) {
                 key={c.id}
                 onClick={() => setSelectedCategory(c.id)}
                 className={cn(
-                  "px-4 py-2 text-xs uppercase tracking-widest font-heading font-semibold transition-all whitespace-nowrap",
+                  "shrink-0 h-8 sm:h-9 px-4 py-1.5 text-xs uppercase tracking-widest font-heading font-semibold transition-all whitespace-nowrap active:scale-95 cursor-pointer",
                   getRadiusClass(),
                   selectedCategory === c.id
                     ? "bg-amber-500 text-black shadow-glow font-bold"
