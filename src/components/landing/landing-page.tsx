@@ -238,7 +238,7 @@ export function LandingPage({ initialPlans }: LandingPageProps) {
                 <span className="w-3 h-3 rounded-full bg-emerald-500/80 inline-block" />
               </div>
               <div className="px-4 py-1 rounded-lg bg-[#151515] border border-white/10 text-[11px] font-mono text-zinc-400">
-                craft-store.platform.com
+                craft-store.kraftaura.in
               </div>
               <div className="text-[10px] text-emerald-400 font-mono flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> Live Store

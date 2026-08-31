@@ -208,7 +208,7 @@ export function PreviewWindow({
               </div>
               <div className="flex items-center gap-1.5 px-3 py-1 rounded-md bg-[#0a0a0a] border border-white/5 text-[11px] font-mono text-zinc-400 max-w-sm w-full mx-auto justify-center">
                 <Lock className="w-2.5 h-2.5 text-emerald-400" />
-                <span className="text-zinc-300">{previewStoreData.slug}.kraftaura.com</span>
+                <span className="text-zinc-300">{previewStoreData.slug}.kraftaura.in</span>
               </div>
               <div className="w-8" />
             </div>

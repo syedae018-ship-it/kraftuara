@@ -237,7 +237,7 @@ export const DEMO_STORE_DATA: StoreData = {
       logoUrl: "",
       whatsapp: "+91 98765 43210",
       phone: "+91 98765 43210",
-      email: "demo@kraftaura.com",
+      email: "demo@kraftaura.in",
       address: "Artisan Quarter, Mumbai, MH",
       instagram: "@kraftauraclassic",
       facebook: "facebook.com/kraftauraclassic",
