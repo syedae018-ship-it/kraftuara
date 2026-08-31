@@ -75,9 +75,24 @@ export async function middleware(request: NextRequest) {
           },
         });
       }
+    } else if (!subdomain && pathname.startsWith("/store/")) {
+      // 2. Legacy /store/{slug} URL 308 permanent redirect to canonical merchant subdomain
+      const parts = pathname.replace(/^\/store\//, "").split("/");
+      const slug = parts[0];
+      const subPath = parts.slice(1).join("/");
+
+      if (slug && !RESERVED_SUBDOMAINS.has(slug)) {
+        const isLocalhost = hostname.includes("localhost") || hostname.includes("127.0.0.1");
+        const port = request.nextUrl.port ? `:${request.nextUrl.port}` : "";
+        const targetUrl = isLocalhost
+          ? `http://${slug}.localhost${port}${subPath ? `/${subPath}` : ""}${request.nextUrl.search}`
+          : `https://${slug}.${rootDomain}${subPath ? `/${subPath}` : ""}${request.nextUrl.search}`;
+
+        return NextResponse.redirect(new URL(targetUrl), 308);
+      }
     }
 
-    // 2. Supabase Auth Session Management & Refresh
+    // 3. Supabase Auth Session Management & Refresh
     const mockMode = process.env.NEXT_PUBLIC_MOCK_MODE === "true";
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
     const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";

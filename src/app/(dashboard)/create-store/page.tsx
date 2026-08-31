@@ -386,7 +386,7 @@ export default function CreateStoreWizard() {
                 <div className="space-y-2 text-xs text-zinc-400">
                   <p className="font-semibold text-zinc-200">What happens next:</p>
                   <ul className="list-disc pl-4 space-y-1">
-                    <li>Your store goes live at <span className="text-emerald-400 font-mono">/store/{previewSlug || "your-slug"}</span></li>
+                    <li>Your store goes live at <span className="text-emerald-400 font-mono">https://{previewSlug || "your-store"}.kraftaura.in</span></li>
                     <li>Add products from the Products dashboard</li>
                     <li>Customise colors &amp; fonts from the Appearance page</li>
                     <li>Set up WhatsApp ordering so customers can place orders</li>

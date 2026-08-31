@@ -387,13 +387,21 @@ export default function MerchantSettingsPage() {
               leftIcon={<Store className="w-4 h-4 text-zinc-500" />}
             />
 
-            <Input
-              label="Store Slug / URL"
-              value={slug}
-              onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-"))}
-              required
-              leftIcon={<Globe className="w-4 h-4 text-zinc-500" />}
-            />
+            <div className="space-y-1">
+              <Input
+                label="Store Subdomain Slug"
+                value={slug}
+                onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-"))}
+                required
+                leftIcon={<Globe className="w-4 h-4 text-zinc-500" />}
+              />
+              <p className="text-[11px] text-zinc-400 font-mono">
+                Live Store URL:{" "}
+                <span className="text-amber-400 font-semibold">
+                  https://{slug || "your-slug"}.kraftaura.in
+                </span>
+              </p>
+            </div>
 
             <Input
               label="Category Preset"

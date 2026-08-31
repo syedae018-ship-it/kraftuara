@@ -19,10 +19,12 @@ export function normalizeSlug(slug: string): string {
 }
 
 /**
- * Returns the absolute canonical public URL for a storefront based on its slug.
- * Prioritizes merchant subdomain (e.g. https://riyaban.kraftaura.in).
+ * Returns the absolute canonical public URL for a storefront based on its slug:
+ * https://{store-slug}.kraftaura.in
+ *
+ * This is the single source of truth for storefront URL resolution across Kraftaura.
  */
-export function getStoreUrl(storeSlug: string, isDemo?: boolean, demoTheme?: string): string {
+export function getStorefrontUrl(storeSlug: string, isDemo?: boolean, demoTheme?: string): string {
   if (isDemo || storeSlug === "demo") {
     return "/demo";
   }
@@ -40,23 +42,23 @@ export function getStoreUrl(storeSlug: string, isDemo?: boolean, demoTheme?: str
     const port = window.location.port ? `:${window.location.port}` : "";
     const protocol = window.location.protocol;
 
-    // Localhost multi-tenant support: e.g. http://riyaban.localhost:3000
-    if (hostname === "localhost" || hostname === "127.0.0.1") {
+    // Localhost multi-tenant dev support: e.g. http://riyaban.localhost:3000
+    if (hostname === "localhost" || hostname === "127.0.0.1" || hostname.endsWith(".localhost")) {
       return `${protocol}//${cleanSlug}.localhost${port}`;
     }
 
-    // If on a specific preview deployment on *.vercel.app without wildcard DNS
-    if (hostname.endsWith(".vercel.app") && !hostname.endsWith(`.${rootDomain}`)) {
-      return `${window.location.origin}/store/${cleanSlug}`;
-    }
-
-    // Default canonical merchant subdomain URL
+    // Default canonical merchant subdomain URL in production
     return `https://${cleanSlug}.${rootDomain}`;
   }
 
   // Server-side execution: default canonical merchant subdomain
   return `https://${cleanSlug}.${rootDomain}`;
 }
+
+/**
+ * Universal alias for getStorefrontUrl for backward compatibility
+ */
+export const getStoreUrl = getStorefrontUrl;
 
 /**
  * Returns the relative base path for internal navigation inside the storefront.

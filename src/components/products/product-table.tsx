@@ -9,6 +9,8 @@ import { StatusBadge } from "./status-badge";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { formatCurrency, formatRelativeTime } from "@/lib/utils";
 import { resolveProductImageUrl, FALLBACK_PRODUCT_IMAGE } from "@/lib/image-resolver";
+import { getStorefrontUrl } from "@/lib/urls";
+import { useAuth } from "@/context/auth-context";
 
 export interface ProductTableProps {
   products: Product[];
@@ -29,6 +31,7 @@ export function ProductTable({
   onArchive,
   onDelete,
 }: ProductTableProps) {
+  const { activeStore } = useAuth();
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const allSelected = products.length > 0 && selectedIds.length === products.length;
 
@@ -177,7 +180,7 @@ export function ProductTable({
                           <Copy className="w-3.5 h-3.5 text-zinc-400" /> Duplicate
                         </button>
                         <a
-                          href={`/store/${product.slug}`}
+                          href={activeStore?.slug ? `${getStorefrontUrl(activeStore.slug)}/product/${product.slug}` : `/product/${product.slug}`}
                           target="_blank"
                           rel="noreferrer"
                           className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-zinc-300 hover:text-white hover:bg-white/5 transition-colors"

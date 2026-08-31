@@ -1,5 +1,5 @@
 import { extractSubdomainFromHostname, isValidSubdomainSlug, RESERVED_SUBDOMAINS } from "../src/lib/subdomain-utils";
-import { getStoreUrl, getStoreBasePath } from "../src/lib/urls";
+import { getStorefrontUrl, getStoreUrl, getStoreBasePath } from "../src/lib/urls";
 
 let passed = 0;
 let failed = 0;
@@ -21,6 +21,7 @@ console.log("==========================================");
 assert(isValidSubdomainSlug("riyaban").valid === true, "Valid slug: riyaban");
 assert(isValidSubdomainSlug("aroma-perfumes").valid === true, "Valid slug: aroma-perfumes");
 assert(isValidSubdomainSlug("tech-haven-2026").valid === true, "Valid slug: tech-haven-2026");
+assert(isValidSubdomainSlug("newstore").valid === true, "Valid slug: newstore");
 
 assert(isValidSubdomainSlug("").valid === false, "Empty slug rejected");
 assert(isValidSubdomainSlug("ab").valid === false, "Short slug (< 3 chars) rejected");
@@ -32,8 +33,10 @@ assert(isValidSubdomainSlug("UPPERCASE").valid === true, "Uppercase converted/al
 
 const reservedTests = [
   "www", "app", "admin", "api", "dashboard", "support",
-  "help", "billing", "payments", "auth", "login", "signup",
-  "status", "docs", "checkout", "cart", "account", "settings"
+  "help", "mail", "smtp", "cdn", "assets", "static",
+  "billing", "payments", "auth", "login", "signup",
+  "status", "docs", "checkout", "cart", "account", "settings",
+  "pricing", "terms", "privacy"
 ];
 
 for (const r of reservedTests) {
@@ -80,8 +83,10 @@ console.log("\n==========================================");
 console.log("TEST SUITE 3: Canonical URL & Base Path Resolution");
 console.log("==========================================");
 
+assert(getStorefrontUrl("riyaban") === "https://riyaban.kraftaura.in", "getStorefrontUrl('riyaban') -> https://riyaban.kraftaura.in");
+assert(getStorefrontUrl("aroma-perfumes") === "https://aroma-perfumes.kraftaura.in", "getStorefrontUrl('aroma-perfumes') -> https://aroma-perfumes.kraftaura.in");
+assert(getStorefrontUrl("newstore") === "https://newstore.kraftaura.in", "getStorefrontUrl('newstore') -> https://newstore.kraftaura.in");
 assert(getStoreUrl("riyaban") === "https://riyaban.kraftaura.in", "getStoreUrl('riyaban') -> https://riyaban.kraftaura.in");
-assert(getStoreUrl("aroma-perfumes") === "https://aroma-perfumes.kraftaura.in", "getStoreUrl('aroma-perfumes') -> https://aroma-perfumes.kraftaura.in");
 
 // Store Base Path (Subdomain vs Fallback route)
 assert(getStoreBasePath("riyaban", true) === "", "Subdomain base path is empty root ('')");

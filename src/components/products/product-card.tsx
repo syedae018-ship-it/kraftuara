@@ -19,6 +19,8 @@ import { StatusBadge } from "./status-badge";
 import { formatCurrency } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { resolveProductImageUrl, FALLBACK_PRODUCT_IMAGE } from "@/lib/image-resolver";
+import { getStorefrontUrl } from "@/lib/urls";
+import { useAuth } from "@/context/auth-context";
 
 export interface ProductCardProps {
   product: Product;
@@ -39,7 +41,12 @@ export function ProductCard({
   onDelete,
   className,
 }: ProductCardProps) {
+  const { activeStore } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+
+  const productPreviewUrl = activeStore?.slug
+    ? `${getStorefrontUrl(activeStore.slug)}/product/${product.slug}`
+    : `/product/${product.slug}`;
 
   const coverImage = product.images.find((img) => img.isCover) || product.images[0];
 
@@ -113,7 +120,7 @@ export function ProductCard({
                   <Copy className="w-3.5 h-3.5 text-zinc-400" /> Duplicate
                 </button>
                 <a
-                  href={`/store/${product.slug}`}
+                  href={productPreviewUrl}
                   target="_blank"
                   rel="noreferrer"
                   className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-zinc-300 hover:text-white hover:bg-white/5 transition-colors"

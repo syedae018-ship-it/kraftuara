@@ -52,15 +52,16 @@ function isSupabaseConfigured() {
 export async function checkSlugAvailabilityAction(
   slug: string,
   excludeStoreId?: string
-): Promise<ActionResponse<{ available: boolean; suggestions?: string[] }>> {
+): Promise<ActionResponse<{ available: boolean; suggestions?: string[]; reason?: string }>> {
   const cleanSlug = normalizeSlug(slug);
-  if (!cleanSlug || cleanSlug.length < 3) {
-    return errorResponse("Slug must be at least 3 characters.");
-  }
-
-  const { RESERVED_SUBDOMAINS } = await import("@/lib/subdomain-utils");
-  if (RESERVED_SUBDOMAINS.has(cleanSlug)) {
-    return successResponse({ available: false, suggestions: [`${cleanSlug}-store`, `${cleanSlug}-shop`] });
+  const { isValidSubdomainSlug } = await import("@/lib/subdomain-utils");
+  const validation = isValidSubdomainSlug(cleanSlug);
+  if (!validation.valid) {
+    return successResponse({
+      available: false,
+      reason: validation.reason,
+      suggestions: [`${cleanSlug}-store`, `${cleanSlug}-shop`],
+    });
   }
 
   if (!isSupabaseConfigured()) {
@@ -131,12 +132,12 @@ export async function createCompleteStoreAction(
     return errorResponse("Business name and category are required.");
   }
 
-  const baseSlug = normalizeSlug(name);
+  const baseSlug = normalizeSlug(rawSlug || name);
+  const { isValidSubdomainSlug, RESERVED_SUBDOMAINS } = await import("@/lib/subdomain-utils");
   if (!baseSlug || baseSlug.length < 3) {
-    return errorResponse("Please enter a valid store name.");
+    return errorResponse("Please enter a valid store name (at least 3 characters).");
   }
 
-  const { RESERVED_SUBDOMAINS } = await import("@/lib/subdomain-utils");
   let slug = baseSlug;
   let suffix = 1;
   let isUnique = false;

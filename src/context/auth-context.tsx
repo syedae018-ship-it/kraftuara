@@ -423,8 +423,10 @@ export function DummyAuthProvider({ children }: { children: React.ReactNode }) {
       if (!currentUser) throw new Error("User not authenticated");
 
       let cleanSlug = normalizeSlug(storeSlug);
-      if (!cleanSlug || cleanSlug.length < 3) {
-        throw new Error("Slug must be at least 3 characters.");
+      const { isValidSubdomainSlug } = await import("@/lib/subdomain-utils");
+      const validation = isValidSubdomainSlug(cleanSlug);
+      if (!validation.valid) {
+        throw new Error(validation.reason || "Invalid store slug.");
       }
 
       if (activeStore?.id) {
