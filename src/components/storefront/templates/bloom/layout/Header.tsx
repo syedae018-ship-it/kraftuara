@@ -1,7 +1,7 @@
 "use client";
 
 import { useCart } from "@/context/CartContext";
-import { Menu, Search, ShoppingCart, X } from "lucide-react";
+import { Menu, Search, ShoppingCart, X, Truck } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
@@ -115,7 +115,23 @@ export default function Header({ store, isSubdomain = false }: { store: StoreDat
             </nav>
           </div>
 
-          <div className="flex items-center space-x-2 sm:space-x-4">
+          <div className="flex items-center space-x-2 sm:space-x-3">
+            {canTrackOrders && (
+              <Link
+                href={trackLink}
+                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all duration-200 shadow-sm hover:opacity-90 active:scale-95"
+                style={{
+                  backgroundColor: "var(--color-surface, var(--bloom-background))",
+                  borderColor: "var(--color-border, var(--bloom-border))",
+                  color: "var(--color-text-primary, var(--bloom-foreground))",
+                }}
+                aria-label="Track Order"
+              >
+                <Truck className="w-3.5 h-3.5" style={{ color: "var(--color-primary, var(--bloom-primary))" }} />
+                <span>Track Order</span>
+              </Link>
+            )}
+
             <button
               onClick={toggleMobileMenu}
               className="md:hidden p-2 rounded-full hover:bg-bloom-secondary transition-colors"
@@ -153,8 +169,24 @@ export default function Header({ store, isSubdomain = false }: { store: StoreDat
             role="navigation"
             aria-label="Mobile navigation"
           >
-            <div className="flex flex-col space-y-3 pb-4 border-b border-bloom-border">
-              {navItems.map(({ href, label }) => (
+            <div className="flex flex-col space-y-2 pb-4 border-b border-bloom-border">
+              {canTrackOrders && (
+                <Link
+                  key="mobile-track-order"
+                  href={trackLink}
+                  onClick={closeMobileMenu}
+                  className="flex items-center gap-2 text-xs font-semibold py-2.5 px-3 rounded-xl border transition-all"
+                  style={{
+                    backgroundColor: isActivePath(trackLink) ? "var(--color-primary)" : "var(--color-surface)",
+                    color: isActivePath(trackLink) ? "var(--color-primary-foreground)" : "var(--color-text-primary)",
+                    borderColor: "var(--color-border)",
+                  }}
+                >
+                  <Truck className="w-4 h-4" />
+                  <span>Track Order</span>
+                </Link>
+              )}
+              {navItems.filter((i) => i.href !== trackLink).map(({ href, label }) => (
                 <Link
                   key={href}
                   href={href}

@@ -62,7 +62,13 @@ function LoginFormContent() {
         router.push("/dashboard");
       }
     } catch (err: any) {
-      toast.error("Sign In Failed", err.message || "Failed to sign in.");
+      const msg = err.message || "Failed to sign in.";
+      if (msg.toLowerCase().includes("email not confirmed")) {
+        toast.error("Email Not Confirmed", "Please check your inbox or verify your email.");
+        router.push(`/verify-email?email=${encodeURIComponent(email)}`);
+      } else {
+        toast.error("Sign In Failed", msg);
+      }
       setLoading(false);
     }
   };
@@ -102,9 +108,12 @@ function LoginFormContent() {
           />
           {errors.password && <p className="text-[10px] text-red-500 mt-1 font-body">{errors.password}</p>}
           <div className="flex justify-end pt-1">
-            <span className="text-xs text-zinc-500 font-body cursor-not-allowed">
+            <Link
+              href="/forgot-password"
+              className="text-xs text-zinc-400 hover:text-maroon-400 font-body transition-colors"
+            >
               Forgot password?
-            </span>
+            </Link>
           </div>
         </div>
 

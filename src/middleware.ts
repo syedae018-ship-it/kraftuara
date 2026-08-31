@@ -165,11 +165,23 @@ export async function middleware(request: NextRequest) {
       }
     }
 
-    // 4. Retrieve authenticated user info. getUser() validates the token signature.
+    const isDashboardRoute =
+      pathname.startsWith("/dashboard") ||
+      pathname.startsWith("/create-store") ||
+      pathname.startsWith("/choose-plan") ||
+      pathname.startsWith("/choose-template");
+    const isAdminRoute = pathname.startsWith("/admin");
+    const isAuthRoute = pathname.startsWith("/login") || pathname.startsWith("/signup");
+
+    // 4. Retrieve authenticated user info only when needed (protected or auth routes) with timeout safety
     let user = null;
-    if (isSupabaseConfigured && supabase) {
+    if (isSupabaseConfigured && supabase && (isDashboardRoute || isAdminRoute || isAuthRoute)) {
       try {
-        const { data } = await supabase.auth.getUser();
+        const userPromise = supabase.auth.getUser();
+        const timeoutPromise = new Promise<{ data: { user: null } }>((resolve) =>
+          setTimeout(() => resolve({ data: { user: null } }), 3000)
+        );
+        const { data } = await Promise.race([userPromise, timeoutPromise]);
         user = data?.user;
       } catch (e) {
         console.warn("Supabase auth.getUser failed in middleware:", e);
@@ -178,18 +190,16 @@ export async function middleware(request: NextRequest) {
 
     const isLoggedIn = isSupabaseConfigured && supabase ? !!user : true;
 
-    const isDashboardRoute =
-      pathname.startsWith("/dashboard") ||
-      pathname.startsWith("/create-store") ||
-      pathname.startsWith("/choose-plan") ||
-      pathname.startsWith("/choose-template");
-    const isAdminRoute = pathname.startsWith("/admin");
-
     const adminEmails = (process.env.ADMIN_EMAILS || "syed.ae018@gmail.com")
       .split(",")
       .map((e) => e.trim().toLowerCase());
     const userEmail = (user?.email || "").toLowerCase();
     const isUserAdmin = !!userEmail && adminEmails.includes(userEmail);
+
+    // Redirect logged-in users away from login/signup
+    if (isAuthRoute && user) {
+      return withCookies(NextResponse.redirect(new URL(isUserAdmin ? "/admin" : "/dashboard", request.url)));
+    }
 
     if ((isDashboardRoute || isAdminRoute) && !isLoggedIn) {
       return withCookies(NextResponse.redirect(new URL("/login", request.url)));

@@ -9,7 +9,7 @@ import { SEOCard } from "@/components/products/seo-card";
 import { ImageUploader } from "@/components/products/image-uploader";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { Palette, Type, Layers, Share2, Globe, Sparkles, ChevronDown, Image as ImageIcon } from "lucide-react";
+import { Palette, Type, Layers, Share2, Globe, Sparkles, ChevronDown, Image as ImageIcon, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface AppearanceSidebarProps {
@@ -77,7 +77,19 @@ export function AppearanceSidebar({ settings, onChange, className }: AppearanceS
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs font-semibold text-zinc-300 font-heading">Store Logo Image</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-zinc-300 font-heading">Store Logo Image</label>
+                  {settings.branding.logoUrl && (
+                    <button
+                      type="button"
+                      onClick={() => onChange({ branding: { ...settings.branding, logoUrl: "" } })}
+                      className="text-[11px] text-red-400 hover:text-red-300 flex items-center gap-1 transition-colors font-medium hover:underline"
+                      title="Remove current logo image"
+                    >
+                      <Trash2 className="w-3 h-3" /> Remove Logo
+                    </button>
+                  )}
+                </div>
                 <ImageUploader
                   images={
                     settings.branding.logoUrl
@@ -89,9 +101,18 @@ export function AppearanceSidebar({ settings, onChange, className }: AppearanceS
               </div>
 
               <div className="space-y-2">
-                <div className="flex items-baseline justify-between">
+                <div className="flex items-center justify-between">
                   <label className="text-xs font-semibold text-zinc-300 font-heading">Hero Banner Image (16:9 ratio)</label>
-                  <span className="text-[10px] text-zinc-500 font-mono">16:9 Aspect Ratio</span>
+                  {settings.branding.heroBannerUrl && (
+                    <button
+                      type="button"
+                      onClick={() => onChange({ branding: { ...settings.branding, heroBannerUrl: "" } })}
+                      className="text-[11px] text-red-400 hover:text-red-300 flex items-center gap-1 transition-colors font-medium hover:underline"
+                      title="Remove current hero banner"
+                    >
+                      <Trash2 className="w-3 h-3" /> Remove Banner
+                    </button>
+                  )}
                 </div>
                 <p className="text-[11px] text-zinc-400 font-body">
                   One 16:9 source banner scales smoothly across Desktop, Tablet, and Mobile without stretching.

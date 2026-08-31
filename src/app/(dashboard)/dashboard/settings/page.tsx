@@ -410,12 +410,52 @@ export default function MerchantSettingsPage() {
               required
             />
 
-            <Input
-              label="Custom Logo URL"
-              value={logoUrl}
-              onChange={(e) => setLogoUrl(e.target.value)}
-              placeholder="https://..."
-            />
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-zinc-300 font-heading">Custom Logo URL</label>
+                {logoUrl && (
+                  <button
+                    type="button"
+                    onClick={() => setLogoUrl("")}
+                    className="text-[11px] text-red-400 hover:text-red-300 flex items-center gap-1 transition-colors font-medium hover:underline"
+                    title="Remove custom logo URL"
+                  >
+                    <Trash2 className="w-3 h-3" /> Remove Logo
+                  </button>
+                )}
+              </div>
+              <div className="relative">
+                <Input
+                  value={logoUrl}
+                  onChange={(e) => setLogoUrl(e.target.value)}
+                  placeholder="https://..."
+                />
+              </div>
+              {logoUrl && (
+                <div className="flex items-center gap-3 p-2.5 rounded-xl bg-[#151515] border border-white/5">
+                  <img
+                    src={resolveImageUrl(logoUrl)}
+                    alt="Logo Preview"
+                    className="w-10 h-10 rounded-lg object-cover border border-white/10 bg-black shrink-0"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = "none";
+                    }}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <span className="text-[10px] text-zinc-400 font-mono block truncate">{logoUrl}</span>
+                    <span className="text-[10px] text-emerald-400 font-semibold font-body">Custom Logo Active</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setLogoUrl("")}
+                    className="p-1.5 rounded-lg text-red-400 hover:bg-red-950/40 transition-colors shrink-0"
+                    title="Clear Logo URL"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+            </div>
 
             <div className="pt-4 border-t border-white/10">
               <Button

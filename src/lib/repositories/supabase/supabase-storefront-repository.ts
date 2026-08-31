@@ -14,17 +14,15 @@ export class SupabaseStorefrontRepository implements IStorefrontRepository {
     return createClient();
   }
 
-  private async resolveStorePlan(storeId: string, supabase: any): Promise<string> {
+  private async resolveStorePlan(storeId: string, userId?: string | null, supabase?: any): Promise<string> {
     try {
       const { subscriptionEngine } = await import("@/lib/services/subscription-engine");
-      const authSub = await subscriptionEngine.getAuthoritativeSubscription(storeId, null, supabase);
+      const authSub = await subscriptionEngine.getAuthoritativeSubscription(storeId, userId || null, supabase);
       return authSub.plan;
     } catch {
       return "startup";
     }
   }
-
-
 
   async getStoreBySlug(slug: string, client?: any): Promise<StoreData | null> {
     const isDemoSlug = ["demo", "demo-craft-classic", "craft-classic", "aroma-perfumes", "tech-haven", "creative-threads"].includes(slug);
@@ -62,7 +60,7 @@ export class SupabaseStorefrontRepository implements IStorefrontRepository {
     };
 
     // Resolve the store's active plan for feature rendering on the storefront
-    const plan = await this.resolveStorePlan(s.id, supabase);
+    const plan = await this.resolveStorePlan(s.id, s.user_id, supabase);
 
     // Always load fresh appearance, categories, collections, and products for live store accuracy
     const appearance = await supabaseAppearanceRepository.getSettings(s.id, supabase);

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Upload, Link as LinkIcon, Star, Trash2, ArrowLeft, ArrowRight, Loader2, Plus, CheckCircle2, AlertCircle, Eye } from "lucide-react";
+import { Upload, Link as LinkIcon, Star, Trash2, ArrowLeft, ArrowRight, Loader2, Plus, CheckCircle2, AlertCircle, Eye, X } from "lucide-react";
 import { ProductImage } from "@/types/product";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -58,6 +58,13 @@ export function ImageUploader({ images, onChange, className }: ImageUploaderProp
       }
     }
   }, [urlInput]);
+
+  const handleClearUrlInput = () => {
+    setUrlInput("");
+    setLivePreviewUrl(null);
+    setUrlWarning(null);
+    setUrlError(null);
+  };
 
   const handleAddUrl = async () => {
     const trimmedInput = urlInput.trim();
@@ -139,10 +146,7 @@ export function ImageUploader({ images, onChange, className }: ImageUploaderProp
       };
 
       onChange([...images, newImg]);
-      setUrlInput("");
-      setLivePreviewUrl(null);
-      setUrlWarning(null);
-      setUrlError(null);
+      handleClearUrlInput();
       toast.success("Image Added", "Image added to gallery.");
     } catch (err: any) {
       toast.error("Validation Error", err.message || "Failed to validate image URL.");
@@ -232,6 +236,12 @@ export function ImageUploader({ images, onChange, className }: ImageUploaderProp
       filtered[0].isCover = true;
     }
     onChange(filtered);
+    toast.info("Image Removed", "Image removed from gallery.");
+  };
+
+  const clearAllImages = () => {
+    onChange([]);
+    toast.info("Images Removed", "All images removed.");
   };
 
   const moveImage = (index: number, direction: "left" | "right") => {
@@ -252,7 +262,19 @@ export function ImageUploader({ images, onChange, className }: ImageUploaderProp
         <label className="text-xs font-semibold text-zinc-300 font-heading tracking-wide">
           Media Gallery ({images.length})
         </label>
-        <span className="text-[11px] text-zinc-500 font-body">Direct URLs, Google Drive, JPG, PNG, WebP · Max 5MB</span>
+        <div className="flex items-center gap-3">
+          {images.length > 0 && (
+            <button
+              type="button"
+              onClick={clearAllImages}
+              className="text-[11px] text-red-400 hover:text-red-300 flex items-center gap-1 transition-colors font-medium"
+              title="Remove all uploaded images"
+            >
+              <Trash2 className="w-3 h-3" /> Remove All
+            </button>
+          )}
+          <span className="text-[11px] text-zinc-500 font-body hidden sm:inline">Direct URLs, Google Drive, JPG, PNG, WebP · Max 5MB</span>
+        </div>
       </div>
 
       {/* Drag & Drop Upload Zone */}
@@ -306,7 +328,7 @@ export function ImageUploader({ images, onChange, className }: ImageUploaderProp
       {/* Add via Image URL Input */}
       <div className="space-y-2">
         <div className="flex items-center gap-2">
-          <div className="flex-1">
+          <div className="flex-1 relative">
             <Input
               placeholder={isValidatingUrl ? "Validating image resource..." : "Paste direct image URL (JPG, PNG, Google Drive link, etc.)"}
               value={urlInput}
@@ -314,6 +336,16 @@ export function ImageUploader({ images, onChange, className }: ImageUploaderProp
               disabled={isValidatingUrl}
               leftIcon={<LinkIcon className="w-4 h-4 text-zinc-500" />}
             />
+            {urlInput && !isValidatingUrl && (
+              <button
+                type="button"
+                onClick={handleClearUrlInput}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-zinc-400 hover:text-white rounded-md bg-white/5 hover:bg-white/10 transition-colors"
+                title="Clear URL input"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
           <Button
             variant="outline"
@@ -324,20 +356,52 @@ export function ImageUploader({ images, onChange, className }: ImageUploaderProp
           >
             {isValidatingUrl ? "Validating..." : "Add URL"}
           </Button>
+          {urlInput && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={handleClearUrlInput}
+              className="text-zinc-400 hover:text-red-400 px-2"
+              title="Discard entered URL"
+            >
+              Clear
+            </Button>
+          )}
         </div>
 
         {/* Live URL Guidance / Warning / Error Message */}
         {urlError && (
-          <div className="flex items-start gap-2 p-2.5 rounded-xl bg-red-950/40 border border-red-800/40 text-red-300 text-xs font-body">
-            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-400" />
-            <span>{urlError}</span>
+          <div className="flex items-start justify-between gap-2 p-2.5 rounded-xl bg-red-950/40 border border-red-800/40 text-red-300 text-xs font-body">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-400" />
+              <span>{urlError}</span>
+            </div>
+            <button
+              type="button"
+              onClick={handleClearUrlInput}
+              className="text-red-400 hover:text-white p-0.5 rounded transition-colors"
+              title="Dismiss and clear"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
           </div>
         )}
 
         {urlWarning && !urlError && (
-          <div className="flex items-start gap-2 p-2.5 rounded-xl bg-amber-950/40 border border-amber-800/40 text-amber-300 text-xs font-body">
-            <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5 text-amber-400" />
-            <span>{urlWarning}</span>
+          <div className="flex items-start justify-between gap-2 p-2.5 rounded-xl bg-amber-950/40 border border-amber-800/40 text-amber-300 text-xs font-body">
+            <div className="flex items-start gap-2">
+              <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5 text-amber-400" />
+              <span>{urlWarning}</span>
+            </div>
+            <button
+              type="button"
+              onClick={handleClearUrlInput}
+              className="text-amber-400 hover:text-white p-0.5 rounded transition-colors"
+              title="Clear input"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
           </div>
         )}
 
@@ -348,9 +412,19 @@ export function ImageUploader({ images, onChange, className }: ImageUploaderProp
               <span className="flex items-center gap-1.5 text-zinc-400">
                 <Eye className="w-3.5 h-3.5 text-maroon-400" /> URL Live Preview
               </span>
-              <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800/40">
-                Ready to add
-              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleClearUrlInput}
+                  className="text-[11px] text-red-400 hover:text-red-300 flex items-center gap-1 transition-colors font-medium px-2 py-0.5 rounded hover:bg-red-950/30"
+                  title="Discard this preview"
+                >
+                  <Trash2 className="w-3 h-3" /> Discard / Clear
+                </button>
+                <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800/40">
+                  Ready to add
+                </span>
+              </div>
             </div>
             <div className="relative aspect-video max-h-40 rounded-xl overflow-hidden bg-[#111111] border border-white/5 flex items-center justify-center">
               {/* eslint-disable-next-line @next/next/no-img-element */}

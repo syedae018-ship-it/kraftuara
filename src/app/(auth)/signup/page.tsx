@@ -71,10 +71,15 @@ function SignupFormContent() {
     }
 
     try {
-      await signUp(name, email, password, businessName, true, CURRENT_TERMS_VERSION);
+      const res = await signUp(name, email, password, businessName, true, CURRENT_TERMS_VERSION);
       
-      toast.success("Account Created", "Welcome to Kraftaura Platform!");
+      if (!res.hasSession) {
+        toast.success("Account Created", "Please check your email for the verification code.");
+        router.push(`/verify-email?email=${encodeURIComponent(email)}`);
+        return;
+      }
 
+      toast.success("Account Created", "Welcome to Kraftaura Platform!");
       router.push("/choose-plan");
     } catch (err: any) {
       toast.error("SignUp Error", err.message || "Something went wrong.");

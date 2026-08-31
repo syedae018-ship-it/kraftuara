@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Search, ShoppingBag, MessageSquare, Menu, X } from "lucide-react";
+import { Search, ShoppingBag, MessageSquare, Menu, X, Truck } from "lucide-react";
 import { StoreData } from "@/lib/repositories/storefront-repository";
 import { WhatsAppButton } from "./whatsapp-button";
 import { StoreSearch } from "./store-search";
@@ -111,6 +111,17 @@ export function StoreNavbar({ store, className, isSubdomain = false }: StoreNavb
 
         {/* Search & WhatsApp CTA */}
         <div className="flex items-center gap-2.5">
+          {hasFeatureAccess(store.plan || "startup", "customer_order_tracking") && (
+            <Link
+              href={`${storePrefix}/track`}
+              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border border-white/10 bg-white/5 hover:bg-white/10 text-white transition-colors shadow-sm"
+              aria-label="Track Order"
+            >
+              <Truck className="w-3.5 h-3.5 text-maroon-400" />
+              <span>Track Order</span>
+            </Link>
+          )}
+
           <button
             onClick={() => setSearchOpen(true)}
             className="p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-white/5 transition-colors border border-white/10"
@@ -165,9 +176,10 @@ export function StoreNavbar({ store, className, isSubdomain = false }: StoreNavb
             <Link
               href={`${storePrefix}/track`}
               onClick={() => setMobileMenuOpen(false)}
-              className="block py-2 px-3 rounded-xl text-xs font-heading font-medium text-zinc-400 hover:text-white hover:bg-white/5"
+              className="flex items-center gap-2 py-2 px-3 rounded-xl text-xs font-heading font-medium text-maroon-300 hover:text-white bg-maroon-950/40 border border-maroon-800/40"
             >
-              Track Order
+              <Truck className="w-3.5 h-3.5 text-maroon-400" />
+              <span>Track Order</span>
             </Link>
           )}
         </nav>

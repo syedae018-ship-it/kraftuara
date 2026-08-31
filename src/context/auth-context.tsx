@@ -110,7 +110,13 @@ export function DummyAuthProvider({ children }: { children: React.ReactNode }) {
 
   const getSession = useCallback(async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      // 5-second safety timeout so network hiccups never freeze the entire application
+      const sessionPromise = supabase.auth.getSession();
+      const timeoutPromise = new Promise<{ data: { session: null } }>((resolve) =>
+        setTimeout(() => resolve({ data: { session: null } }), 6000)
+      );
+
+      const { data: { session } } = await Promise.race([sessionPromise, timeoutPromise]);
 
       if (session?.user) {
         const u = session.user;
@@ -125,60 +131,65 @@ export function DummyAuthProvider({ children }: { children: React.ReactNode }) {
           storeSlug: "",
         };
 
-        const { data: userStores, error } = await supabase
-          .from("stores")
-          .select("*, subscriptions(*)")
-          .eq("user_id", u.id);
+        try {
+          const { data: userStores, error } = await supabase
+            .from("stores")
+            .select("*, subscriptions(*)")
+            .eq("user_id", u.id);
 
-        if (error) {
-          console.error("Failed to load stores for user:", error);
-          setUser(profile);
-          setStores([]);
-          setActiveStore(null as any);
-          setIsLoading(false);
-          return { user: profile, stores: [], activeStore: null };
-        }
+          if (error) {
+            console.warn("Failed to load stores for user:", error);
+            setUser(profile);
+            setStores([]);
+            setActiveStore(null as any);
+            setIsLoading(false);
+            return { user: profile, stores: [], activeStore: null };
+          }
 
-        if (userStores && userStores.length > 0) {
-          const { subscriptionEngine } = await import("@/lib/services/subscription-engine");
-          const mappedStores: DummyStore[] = await Promise.all(
-            userStores.map(async (s: any) => {
-              const authSub = await subscriptionEngine.getAuthoritativeSubscription(s.id, u.id, supabase);
+          if (userStores && userStores.length > 0) {
+            const mappedStores: DummyStore[] = userStores.map((s: any) => {
+              const sub = Array.isArray(s.subscriptions) ? s.subscriptions[0] : s.subscriptions;
+              const plan = sub?.plan || "startup";
               return {
                 id: s.id,
                 name: s.name,
                 slug: s.slug,
-                plan: authSub.plan,
+                plan: plan,
                 category: s.category || "",
                 logoUrl: s.logo_url || "",
                 primaryColor: s.primary_color || "",
                 secondaryColor: s.secondary_color || "",
                 userId: s.user_id,
               };
-            })
-          );
-          setStores(mappedStores);
+            });
+            setStores(mappedStores);
 
-          const savedActiveStoreId = typeof window !== "undefined" ? localStorage.getItem("symar_active_store_id") : null;
-          const found = mappedStores.find((s) => s.id === savedActiveStoreId);
+            const savedActiveStoreId = typeof window !== "undefined" ? localStorage.getItem("symar_active_store_id") : null;
+            const found = mappedStores.find((s) => s.id === savedActiveStoreId);
 
-          const currentStore = found || mappedStores[0];
-          setActiveStore(currentStore);
+            const currentStore = found || mappedStores[0];
+            setActiveStore(currentStore);
 
-          profile.storeId = currentStore.id;
-          profile.storeName = currentStore.name;
-          profile.storeSlug = currentStore.slug;
-          profile.plan = currentStore.plan;
+            profile.storeId = currentStore.id;
+            profile.storeName = currentStore.name;
+            profile.storeSlug = currentStore.slug;
+            profile.plan = currentStore.plan;
+            setUser(profile);
+            setIsLoading(false);
+            return { user: profile, stores: mappedStores, activeStore: currentStore };
+          } else {
+            profile.plan = "startup";
+            setStores([]);
+            setActiveStore(null as any);
+            setUser(profile);
+            setIsLoading(false);
+            return { user: profile, stores: [], activeStore: null };
+          }
+        } catch (dbErr) {
+          console.warn("Store load exception in getSession:", dbErr);
           setUser(profile);
-          setIsLoading(false);
-          return { user: profile, stores: mappedStores, activeStore: currentStore };
-        } else {
-          const { subscriptionEngine } = await import("@/lib/services/subscription-engine");
-          const authSub = await subscriptionEngine.getAuthoritativeSubscription("", u.id, supabase);
-          profile.plan = authSub.plan;
           setStores([]);
           setActiveStore(null as any);
-          setUser(profile);
           setIsLoading(false);
           return { user: profile, stores: [], activeStore: null };
         }
@@ -190,7 +201,7 @@ export function DummyAuthProvider({ children }: { children: React.ReactNode }) {
         return { user: null, stores: [], activeStore: null };
       }
     } catch (e) {
-      console.error("Supabase auth session load failed:", e);
+      console.warn("Supabase auth session load failed:", e);
       setUser(null as any);
       setStores([]);
       setActiveStore(null as any);
@@ -200,10 +211,9 @@ export function DummyAuthProvider({ children }: { children: React.ReactNode }) {
   }, [supabase]);
 
   useEffect(() => {
-    // Session Lifecycle Enforcement (Remember Me and Tab Session expiration checks)
+    // Session Lifecycle Check (Remember Me 7-day expiration check)
     if (typeof window !== "undefined") {
       const rememberMe = localStorage.getItem("symar_remember_me") === "true";
-      
       if (rememberMe) {
         const loginTime = localStorage.getItem("symar_session_login_time");
         if (loginTime) {
@@ -215,13 +225,7 @@ export function DummyAuthProvider({ children }: { children: React.ReactNode }) {
             localStorage.removeItem("symar_remember_me");
           }
         }
-      } else {
-        const hasTabSession = sessionStorage.getItem("symar_tab_session") === "true";
-        if (!hasTabSession) {
-          supabase.auth.signOut();
-        }
       }
-      sessionStorage.setItem("symar_tab_session", "true");
     }
 
     getSession();
