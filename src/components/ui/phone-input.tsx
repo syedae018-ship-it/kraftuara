@@ -59,12 +59,10 @@ export function PhoneInput({
   useEffect(() => {
     const split = splitPhoneNumber(value);
     const found = SUPPORTED_COUNTRIES.find((c) => c.dialCode === split.countryCode);
-    if (found && found.dialCode !== selectedCountry.dialCode) {
+    if (found) {
       setSelectedCountry(found);
     }
-    if (split.nationalNumber !== nationalNumber) {
-      setNationalNumber(split.nationalNumber);
-    }
+    setNationalNumber(split.nationalNumber);
   }, [value]);
 
   // Close dropdown on outside click

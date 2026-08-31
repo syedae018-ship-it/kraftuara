@@ -322,7 +322,7 @@ export default function MerchantSettingsPage() {
                     Save WhatsApp Number
                   </Button>
 
-                  {cleanWhatsAppDigits && (
+                  {isWhatsAppConfigured && (
                     <Button
                       type="button"
                       variant="outline"
@@ -336,9 +336,9 @@ export default function MerchantSettingsPage() {
                   )}
                 </div>
 
-                {cleanWhatsAppDigits && isWhatsAppValid && (
+                {isWhatsAppConfigured && (
                   <a
-                    href={`https://wa.me/${cleanWhatsAppDigits}?text=${encodeURIComponent(
+                    href={`https://wa.me/${normalizedWhatsAppDigits.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(
                       `Hello from ${activeStore.name}! This is a test message to verify store WhatsApp configuration.`
                     )}`}
                     target="_blank"
