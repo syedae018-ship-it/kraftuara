@@ -454,47 +454,52 @@ export function LandingPage({ initialPlans }: LandingPageProps) {
       </section>
 
       {/* 4. PRICING SECTION */}
-      <section id="pricing" className="py-24 px-4 sm:px-6 lg:px-12 max-w-7xl mx-auto space-y-10 border-t border-white/10">
-        <div className="text-center space-y-3">
+      <section id="pricing" className="py-24 px-4 sm:px-6 lg:px-12 max-w-7xl mx-auto space-y-12 border-t border-white/10">
+        <div className="text-center space-y-4">
           <Badge variant="maroon" className="text-xs uppercase tracking-wider">
             Affordable Plans
           </Badge>
-          <h2 className="text-3xl sm:text-4xl font-bold font-heading text-white tracking-tight">
+          <h2 className="text-3xl sm:text-5xl font-extrabold font-heading text-white tracking-tight">
             Transparent Pricing for Every Business Tier
           </h2>
-          <p className="text-sm text-zinc-400 max-w-xl mx-auto">
+          <p className="text-sm sm:text-base text-zinc-400 max-w-xl mx-auto">
             Simple, transparent plans designed for growing businesses in India. Includes a 3-day free trial on eligible plans.
           </p>
 
-          {/* Monthly / Annual Billing Toggle */}
-          <div className="pt-4 flex items-center justify-center">
-            <div className="bg-[#111111] p-1 rounded-2xl border border-white/10 flex items-center gap-1">
+          {/* Prominent Monthly / Annual Billing Toggle Switch */}
+          <div className="pt-6 flex flex-col items-center justify-center gap-2">
+            <div className="bg-[#111111] p-1.5 rounded-2xl border border-white/15 flex items-center gap-1.5 shadow-2xl backdrop-blur-xl ring-1 ring-white/5">
               <button
+                type="button"
                 onClick={() => setBillingInterval("monthly")}
                 className={cn(
-                  "px-5 py-2 rounded-xl text-xs font-heading font-semibold transition-all",
+                  "px-6 py-2.5 rounded-xl text-xs sm:text-sm font-heading font-bold transition-all duration-200 cursor-pointer",
                   billingInterval === "monthly"
                     ? "bg-maroon-800 text-white shadow-glow"
-                    : "text-zinc-400 hover:text-white"
+                    : "text-zinc-400 hover:text-white hover:bg-white/5"
                 )}
               >
                 Monthly Billing
               </button>
               <button
+                type="button"
                 onClick={() => setBillingInterval("annual")}
                 className={cn(
-                  "px-5 py-2 rounded-xl text-xs font-heading font-semibold transition-all flex items-center gap-1.5",
+                  "px-6 py-2.5 rounded-xl text-xs sm:text-sm font-heading font-bold transition-all duration-200 flex items-center gap-2 cursor-pointer",
                   billingInterval === "annual"
                     ? "bg-maroon-800 text-white shadow-glow"
-                    : "text-zinc-400 hover:text-white"
+                    : "text-zinc-400 hover:text-white hover:bg-white/5"
                 )}
               >
                 <span>Annual Billing</span>
-                <span className="text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-700/50 px-1.5 py-0.5 rounded-md font-mono">
-                  Save ~17%
+                <span className="text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-700/60 px-2 py-0.5 rounded-md font-mono font-bold">
+                  Save ~17% (2 Mo Free)
                 </span>
               </button>
             </div>
+            <span className="text-[11px] text-zinc-500 font-mono">
+              {billingInterval === "annual" ? "✨ Billed annually • Get 2 months completely free" : "Switch to annual billing to save ~17%"}
+            </span>
           </div>
         </div>
 
