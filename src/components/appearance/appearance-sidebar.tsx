@@ -8,6 +8,7 @@ import { SectionSorter } from "./section-sorter";
 import { SEOCard } from "@/components/products/seo-card";
 import { ImageUploader } from "@/components/products/image-uploader";
 import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { Card } from "@/components/ui/card";
 import { Palette, Type, Layers, Share2, Globe, Sparkles, ChevronDown, Image as ImageIcon, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -190,22 +191,17 @@ export function AppearanceSidebar({ settings, onChange, className }: AppearanceS
                 value={settings.branding.email || ""}
                 onChange={(e) => onChange({ branding: { ...settings.branding, email: e.target.value } })}
               />
-              <Input
-                label="Phone Number"
+              <PhoneInput
+                label="Store Phone Number"
                 value={settings.branding.phone || ""}
-                onChange={(e) => onChange({ branding: { ...settings.branding, phone: e.target.value } })}
+                onChange={(phone) => onChange({ branding: { ...settings.branding, phone } })}
               />
-              <div className="space-y-1">
-                <Input
-                  label="WhatsApp Business Number (Cart Orders)"
-                  placeholder="e.g. +91 98765 43210"
-                  value={settings.branding.whatsapp || ""}
-                  onChange={(e) => onChange({ branding: { ...settings.branding, whatsapp: e.target.value } })}
-                />
-                <p className="text-[10px] text-zinc-500 font-body">
-                  Customers will send their completed cart orders to this WhatsApp number.
-                </p>
-              </div>
+              <PhoneInput
+                label="WhatsApp Business Number (Cart Orders)"
+                value={settings.branding.whatsapp || ""}
+                onChange={(whatsapp) => onChange({ branding: { ...settings.branding, whatsapp } })}
+                helperText="Customers will send their completed cart orders to this WhatsApp number."
+              />
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-zinc-300 font-heading">Business Physical Address</label>
                 <textarea

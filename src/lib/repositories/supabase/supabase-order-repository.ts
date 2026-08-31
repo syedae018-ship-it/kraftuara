@@ -2,6 +2,7 @@ import { Order, OrderItemInput, CustomerInput, IOrderRepository } from "../order
 import { createClient } from "@/lib/supabase/client";
 import { DEMO_STORE_PRODUCTS } from "@/lib/demo-data";
 import { supabaseCouponRepository } from "./supabase-coupon-repository";
+import { normalizePhoneNumber } from "@/lib/phone-utils";
 
 export class SupabaseOrderRepository implements IOrderRepository {
   private getSupabase(client?: any) {
@@ -192,13 +193,15 @@ export class SupabaseOrderRepository implements IOrderRepository {
 
     const finalAmount = calculatedTotal - discountAmount;
 
+    const normalizedPhone = normalizePhoneNumber(customer.phone);
+
     // 6. Insert order record
     const { data: orderRow, error: orderError } = await (supabase.from("orders") as any)
       .insert({
         store_id: storeId,
         order_number: orderNumber,
         customer_name: customer.name.trim(),
-        customer_phone: customer.phone.trim(),
+        customer_phone: normalizedPhone,
         shipping_address: customer.shippingAddress.trim(),
         total_amount: finalAmount,
         coupon_code: appliedCouponCode,

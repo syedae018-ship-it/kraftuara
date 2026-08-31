@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { Modal } from "@/components/ui/modal";
 import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { Button } from "@/components/ui/button";
 import { UserPlus, Sparkles, Store, Mail, Phone, Tag } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
@@ -18,7 +19,7 @@ export interface CreateUserModalProps {
 export function CreateUserModal({ isOpen, onClose, onUserCreated }: CreateUserModalProps) {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("+91 98765 43210");
+  const [phone, setPhone] = useState("+919876543210");
   const [businessName, setBusinessName] = useState("");
   const [storeName, setStoreName] = useState("");
   const [category, setCategory] = useState("Perfumes");
@@ -102,7 +103,7 @@ export function CreateUserModal({ isOpen, onClose, onUserCreated }: CreateUserMo
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <Input label="Phone Number" placeholder="+91 98765 43210" value={phone} onChange={(e) => setPhone(e.target.value)} />
+          <PhoneInput label="Phone Number" value={phone} onChange={setPhone} />
           <Input label="Business Legal Name" placeholder="e.g. Al Mansoor Perfumeries Ltd." value={businessName} onChange={(e) => setBusinessName(e.target.value)} />
         </div>
 

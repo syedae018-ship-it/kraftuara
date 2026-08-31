@@ -13,6 +13,7 @@ import { Separator } from "../ui/separator";
 import { getStoreBasePath } from "@/lib/urls";
 import { StoreData } from "@/types/store";
 import { hasFeatureAccess } from "@/lib/feature-gating";
+import { formatPhoneNumber } from "@/lib/phone-utils";
 
 export default function Footer({ store, isSubdomain = false }: { store: StoreData; isSubdomain?: boolean }) {
   const { branding } = store.appearance;
@@ -97,7 +98,7 @@ export default function Footer({ store, isSubdomain = false }: { store: StoreDat
                   {(branding.whatsapp || branding.phone) && (
                     <div className="flex items-center gap-3">
                       <Phone className="h-4 w-4 text-bloom-primary shrink-0" />
-                      <span>{branding.whatsapp || branding.phone}</span>
+                      <span>{formatPhoneNumber(branding.whatsapp || branding.phone)}</span>
                     </div>
                   )}
                   {branding.email && (

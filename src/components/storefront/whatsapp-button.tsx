@@ -5,6 +5,8 @@ import { MessageSquare } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 
+import { getWhatsAppDestination } from "@/lib/phone-utils";
+
 export interface WhatsAppButtonProps {
   phone?: string;
   productName: string;
@@ -16,7 +18,7 @@ export interface WhatsAppButtonProps {
 }
 
 export function WhatsAppButton({
-  phone = "+91 98765 43210",
+  phone = "+919876543210",
   productName,
   sku,
   price,
@@ -24,9 +26,9 @@ export function WhatsAppButton({
   size = "md",
   className,
 }: WhatsAppButtonProps) {
-  const sanitizedPhone = phone.replace(/[^0-9]/g, "");
+  const destination = getWhatsAppDestination(phone);
   const message = `Hi! I would like to order *${productName}* ${sku ? `(SKU: ${sku})` : ""} priced at *${formatCurrency(price)}* from your catalog store.`;
-  const whatsappUrl = `https://wa.me/${sanitizedPhone}?text=${encodeURIComponent(message)}`;
+  const whatsappUrl = `https://wa.me/${destination}?text=${encodeURIComponent(message)}`;
 
   return (
     <a

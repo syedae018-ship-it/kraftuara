@@ -23,6 +23,8 @@ import { Badge } from "@/components/ui/table";
 import { useAuth } from "@/context/auth-context";
 import { appearanceRepository } from "@/lib/repositories/appearance-repository";
 import { resolveImageUrl } from "@/lib/image-resolver";
+import { PhoneInput } from "@/components/ui/phone-input";
+import { normalizePhoneNumber, formatPhoneNumber, isValidPhoneNumber } from "@/lib/phone-utils";
 import { toast } from "@/hooks/use-toast";
 
 export default function MerchantSettingsPage() {
@@ -100,37 +102,29 @@ export default function MerchantSettingsPage() {
     );
   }
 
-  const cleanWhatsAppDigits = whatsappNumber.replace(/[^0-9]/g, "");
-  const isWhatsAppValid = cleanWhatsAppDigits.length >= 8 && cleanWhatsAppDigits.length <= 15;
+  const normalizedWhatsAppDigits = normalizePhoneNumber(whatsappNumber);
+  const isWhatsAppConfigured = Boolean(whatsappNumber.trim() && isValidPhoneNumber(normalizedWhatsAppDigits));
 
   const handleSaveWhatsApp = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const cleanWhatsApp = whatsappNumber.replace(/[^0-9]/g, "");
-    if (whatsappNumber.trim() && !isWhatsAppValid) {
+    const normalizedWhatsApp = whatsappNumber.trim() ? normalizePhoneNumber(whatsappNumber) : "";
+    if (whatsappNumber.trim() && !isValidPhoneNumber(normalizedWhatsApp)) {
       toast.error(
         "Invalid WhatsApp Number",
-        "Please enter a valid phone number with country code (8 to 15 digits, e.g. +91 98765 43210)."
+        "Please enter a valid 10-digit mobile number."
       );
       return;
     }
 
-    if (whatsappNumber.trim() && cleanWhatsApp.length === 10) {
-      toast.error(
-        "Country Code Required",
-        "Please include your international country code (e.g. +91 for India, +1 for US)."
-      );
-      return;
-    }
-
-    const normalizedWhatsApp = whatsappNumber.trim() ? `+${cleanWhatsApp}` : "";
+    const normalizedSupportPhone = supportPhone.trim() ? normalizePhoneNumber(supportPhone) : undefined;
 
     setIsSavingWhatsApp(true);
     try {
       await appearanceRepository.updateSettings(activeStore.id, {
         branding: {
           whatsapp: normalizedWhatsApp || undefined,
-          phone: supportPhone.trim() || undefined,
+          phone: normalizedSupportPhone,
           email: supportEmail.trim() || undefined,
         },
       });
@@ -138,7 +132,7 @@ export default function MerchantSettingsPage() {
       toast.success(
         "WhatsApp Settings Saved",
         normalizedWhatsApp
-          ? `Orders for ${activeStore.name} will now be sent to ${normalizedWhatsApp}.`
+          ? `Orders for ${activeStore.name} will now be sent to ${formatPhoneNumber(normalizedWhatsApp)}.`
           : "WhatsApp number removed. Customers will see a contact prompt on checkout."
       );
     } catch (err) {
@@ -274,7 +268,7 @@ export default function MerchantSettingsPage() {
             </div>
 
             <div>
-              {cleanWhatsAppDigits ? (
+              {isWhatsAppConfigured ? (
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-950/60 border border-emerald-800/50 text-xs font-mono font-semibold text-emerald-400">
                   <CheckCircle2 className="w-3.5 h-3.5" /> Active Channel
                 </span>
@@ -292,35 +286,23 @@ export default function MerchantSettingsPage() {
             </div>
           ) : (
             <form onSubmit={handleSaveWhatsApp} className="space-y-4">
-              <div>
-                <label className="text-xs font-semibold text-zinc-300 font-heading block mb-1.5">
-                  Store Owner WhatsApp Phone Number *
-                </label>
-                <div className="space-y-1">
-                  <Input
-                    placeholder="e.g. +91 98765 43210 (include country code)"
-                    value={whatsappNumber}
-                    onChange={(e) => setWhatsappNumber(e.target.value)}
-                    leftIcon={<Phone className="w-4 h-4 text-emerald-400" />}
-                  />
-                  <p className="text-[11px] text-zinc-500 font-body">
-                    When customers click &quot;Order on WhatsApp&quot;, their complete formatted order will open in
-                    WhatsApp for this specific number.
-                  </p>
-                </div>
-              </div>
+              <PhoneInput
+                label="Store Owner WhatsApp Phone Number *"
+                value={whatsappNumber}
+                onChange={setWhatsappNumber}
+                helperText="When customers click 'Order on WhatsApp', their complete formatted order will open in WhatsApp for this specific number."
+              />
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-                <Input
+                <PhoneInput
                   label="Alternative Customer Support Phone"
-                  placeholder="e.g. +91 80000 12345"
                   value={supportPhone}
-                  onChange={(e) => setSupportPhone(e.target.value)}
-                  leftIcon={<Phone className="w-4 h-4 text-zinc-500" />}
+                  onChange={setSupportPhone}
+                  placeholder="80000 12345"
                 />
                 <Input
                   label="Store Support Email"
-                  placeholder="e.g. contact@yourstore.com"
+                  placeholder="contact@yourstore.com"
                   value={supportEmail}
                   onChange={(e) => setSupportEmail(e.target.value)}
                   leftIcon={<Mail className="w-4 h-4 text-zinc-500" />}

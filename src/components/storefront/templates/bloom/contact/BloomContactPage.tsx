@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { StoreData } from "@/types/store";
 import { toast } from "@/hooks/use-toast";
+import { formatPhoneNumber } from "@/lib/phone-utils";
 
 export default function BloomContactPage({ store, isSubdomain = false }: { store: StoreData; isSubdomain?: boolean }) {
   const [formData, setFormData] = useState({
@@ -73,7 +74,7 @@ export default function BloomContactPage({ store, isSubdomain = false }: { store
     contactInfo.push({
       icon: Phone,
       title: "Call / WhatsApp Us",
-      details: [branding.whatsapp || branding.phone || ""],
+      details: [formatPhoneNumber(branding.whatsapp || branding.phone || "")],
       description: "Get in touch directly",
     });
   }

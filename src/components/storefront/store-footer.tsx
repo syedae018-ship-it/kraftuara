@@ -7,6 +7,8 @@ import { StoreData } from "@/lib/repositories/storefront-repository";
 import { Mail, Phone, MapPin, Instagram, Facebook, MessageSquare } from "lucide-react";
 import { getStoreBasePath } from "@/lib/urls";
 
+import { formatPhoneNumber } from "@/lib/phone-utils";
+
 export function StoreFooter({ store, isSubdomain = false }: { store: StoreData, isSubdomain?: boolean }) {
   const pathname = usePathname();
   const isDemo = pathname?.startsWith("/demo");
@@ -38,15 +40,15 @@ export function StoreFooter({ store, isSubdomain = false }: { store: StoreData, 
           <h5 className="font-bold font-heading text-white uppercase tracking-wider text-[11px]">Contact & Social</h5>
           <ul className="space-y-1.5 text-zinc-400">
             {branding.email && <li className="flex items-center gap-2"><Mail className="w-3.5 h-3.5 text-maroon-400" /> {branding.email}</li>}
-            {branding.phone && <li className="flex items-center gap-2"><Phone className="w-3.5 h-3.5 text-maroon-400" /> {branding.phone}</li>}
+            {branding.phone && <li className="flex items-center gap-2"><Phone className="w-3.5 h-3.5 text-maroon-400" /> {formatPhoneNumber(branding.phone)}</li>}
             {branding.instagram && <li className="flex items-center gap-2"><Instagram className="w-3.5 h-3.5 text-maroon-400" /> {branding.instagram}</li>}
           </ul>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
-        <span>© {new Date().getFullYear()} {store.name}. Powered by Catalog SaaS.</span>
-        <span className="text-[11px] text-zinc-500 font-mono">Subdomain: {store.slug}.platform.com</span>
+        <span>© {new Date().getFullYear()} {store.name}. Powered by Kraftaura.</span>
+        <span className="text-[11px] text-zinc-500 font-mono">Subdomain: {store.slug}.kraftaura.in</span>
       </div>
     </footer>
   );

@@ -13,6 +13,13 @@ import { createOrderAction } from "@/lib/actions/order";
 import { toast } from "@/hooks/use-toast";
 import { trackClientEvent } from "@/components/storefront/storefront-tracker";
 import { validateCouponAction } from "@/lib/actions/coupon";
+import { PhoneInput } from "@/components/ui/phone-input";
+import {
+  normalizePhoneNumber,
+  formatPhoneNumber,
+  getWhatsAppDestination,
+  isValidPhoneNumber,
+} from "@/lib/phone-utils";
 
 export default function OrderSummary({ store, onOrderPlaced }: { store: StoreData; onOrderPlaced?: (data: any) => void }) {
   const { cart, clearCart } = useCart();
@@ -112,9 +119,9 @@ export default function OrderSummary({ store, onOrderPlaced }: { store: StoreDat
       return;
     }
 
-    const cleanPhone = customerPhone.replace(/[^0-9+]/g, "");
-    if (!cleanPhone || cleanPhone.length < 8) {
-      toast.error("Invalid Phone", "Please enter a valid phone number.");
+    const normalizedCustomerPhone = normalizePhoneNumber(customerPhone);
+    if (!normalizedCustomerPhone || !isValidPhoneNumber(normalizedCustomerPhone)) {
+      toast.error("Invalid Phone Number", "Please enter a valid 10-digit mobile number.");
       return;
     }
 
@@ -155,7 +162,7 @@ export default function OrderSummary({ store, onOrderPlaced }: { store: StoreDat
         store.id,
         {
           name: customerName.trim(),
-          phone: cleanPhone,
+          phone: normalizedCustomerPhone,
           shippingAddress: fullAddress,
           couponCode: appliedCoupon?.code || undefined,
         },
@@ -171,8 +178,8 @@ export default function OrderSummary({ store, onOrderPlaced }: { store: StoreDat
       const order = response.order;
       trackClientEvent(store.id, "order_conversion");
 
-      // Use merchant's configured WhatsApp — never the customer's phone, never hardcoded
-      const destinationNumber = merchantWhatsApp.replace(/[^0-9]/g, "");
+      // Use merchant's configured WhatsApp destination digits
+      const destinationNumber = getWhatsAppDestination(merchantWhatsApp);
 
       const cartItemsText = order.items
         ?.map(
@@ -197,7 +204,7 @@ export default function OrderSummary({ store, onOrderPlaced }: { store: StoreDat
         `Total: ${formatCurrency(total)}\n\n` +
         `Customer Details:\n` +
         `Name: ${order.customerName}\n` +
-        `Phone: ${order.customerPhone}\n` +
+        `Phone: ${formatPhoneNumber(order.customerPhone || normalizedCustomerPhone)}\n` +
         `Address: ${addressLine.trim()}\n` +
         `City: ${city.trim()}\n` +
         `State: ${state.trim()}\n` +
@@ -391,20 +398,14 @@ export default function OrderSummary({ store, onOrderPlaced }: { store: StoreDat
                 />
               </div>
 
-              <div>
-                <label className="text-[10px] text-bloom-muted block mb-1 font-heading">Your Phone Number *</label>
-                <input
-                  type="tel"
-                  inputMode="tel"
-                  autoComplete="tel"
-                  required
-                  placeholder="e.g. +91 98765 43210"
-                  value={customerPhone}
-                  onChange={(e) => setCustomerPhone(e.target.value)}
-                  disabled={isSubmitting}
-                  className={fieldClass}
-                />
-              </div>
+              <PhoneInput
+                variant="bloom"
+                label="Your Phone Number"
+                required
+                value={customerPhone}
+                onChange={setCustomerPhone}
+                disabled={isSubmitting}
+              />
 
               <div>
                 <label className="text-[10px] text-bloom-muted block mb-1 font-heading">Street Address *</label>
