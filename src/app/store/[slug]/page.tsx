@@ -6,6 +6,7 @@ import BloomStorefront from "@/components/storefront/templates/bloom/home/BloomS
 import { Metadata } from "next";
 import { headers } from "next/headers";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { getStoreUrl } from "@/lib/urls";
 
 // Always render dynamically so dashboard changes appear immediately on the storefront.
 // Without this, Next.js caches the server component and products/appearance changes go unseen.
@@ -22,12 +23,18 @@ export async function generateMetadata({
   const store = await storefrontRepository.getStoreBySlug(slug, supabase);
   if (!store) return {};
 
+  const canonicalUrl = getStoreUrl(slug);
+
   return {
     title: store.appearance.seo.seoTitle || `${store.name} | Official Catalog`,
     description: store.appearance.seo.seoDescription || store.appearance.branding.description,
+    alternates: {
+      canonical: canonicalUrl,
+    },
     openGraph: {
-      title: store.appearance.seo.seoTitle,
-      description: store.appearance.seo.seoDescription,
+      title: store.appearance.seo.seoTitle || store.name,
+      description: store.appearance.seo.seoDescription || store.appearance.branding.description,
+      url: canonicalUrl,
       images: store.appearance.seo.socialImageUrl ? [store.appearance.seo.socialImageUrl] : [],
     },
   };

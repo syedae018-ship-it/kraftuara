@@ -58,6 +58,11 @@ export async function checkSlugAvailabilityAction(
     return errorResponse("Slug must be at least 3 characters.");
   }
 
+  const { RESERVED_SUBDOMAINS } = await import("@/lib/subdomain-utils");
+  if (RESERVED_SUBDOMAINS.has(cleanSlug)) {
+    return successResponse({ available: false, suggestions: [`${cleanSlug}-store`, `${cleanSlug}-shop`] });
+  }
+
   if (!isSupabaseConfigured()) {
     return successResponse({ available: true });
   }
@@ -131,17 +136,10 @@ export async function createCompleteStoreAction(
     return errorResponse("Please enter a valid store name.");
   }
 
-  const RESERVED_SLUGS = [
-    "admin", "dashboard", "login", "signup", "api", "store", "auth", 
-    "choose-template", "create-store", "billing", "settings", "callback", 
-    "demo", "choose-plan", "forgot-password", "reset-password", "verify-email"
-  ];
-
+  const { RESERVED_SUBDOMAINS } = await import("@/lib/subdomain-utils");
   let slug = baseSlug;
   let suffix = 1;
   let isUnique = false;
-
-
 
   try {
     const supabase = await createServerSupabaseClient();
@@ -153,7 +151,7 @@ export async function createCompleteStoreAction(
 
     // Resolve collision and reserved routes in database
     while (!isUnique) {
-      if (RESERVED_SLUGS.includes(slug)) {
+      if (RESERVED_SUBDOMAINS.has(slug)) {
         suffix++;
         slug = `${baseSlug}-${suffix}`;
         continue;

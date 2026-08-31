@@ -499,8 +499,13 @@ export function DummyAuthProvider({ children }: { children: React.ReactNode }) {
       if (!currentUser) throw new Error("User not authenticated");
 
       // Generate slug if not provided
+      const { RESERVED_SUBDOMAINS } = await import("@/lib/subdomain-utils");
       let slug = normalizeSlug(storeData.storeSlug || storeData.storeName);
       if (!slug || slug.length < 3) slug = `store-${Date.now().toString(36)}`;
+
+      if (RESERVED_SUBDOMAINS.has(slug)) {
+        slug = `${slug}-store`;
+      }
 
       // Check slug uniqueness
       const { data: existingStore } = await (supabase.from("stores") as any)
@@ -540,10 +545,22 @@ export function DummyAuthProvider({ children }: { children: React.ReactNode }) {
 
       if (storeError) throw storeError;
 
-      // 2. Add appearance settings
+      // 2. Add store settings with canonical appearance
+      const { resolveThemeTokens } = await import("@/lib/theme-token-resolver");
+      const resolved = resolveThemeTokens({
+        colors: {
+          primary: storeData.accentColor || "#800020",
+          secondary: "#F4F4F5",
+          accent: storeData.accentColor || "#800020",
+          background: "#FFFFFF",
+        },
+      });
+
       const appearanceData = {
-        store_id: store.id,
-        theme_id: "bloom",
+        themeId: "bloom",
+        paletteId: resolved.paletteId,
+        customOverrides: {},
+        tokens: resolved.tokens,
         branding: {
           name: storeData.storeName,
           tagline: storeData.tagline || "",
@@ -557,20 +574,42 @@ export function DummyAuthProvider({ children }: { children: React.ReactNode }) {
           facebook: storeData.facebook || "",
         },
         colors: {
-          primary: "#18181B",
-          secondary: "#F4F4F5",
-          accent: storeData.accentColor || "#800020",
-          background: "#FFFFFF",
+          primary: resolved.tokens.primary,
+          secondary: resolved.tokens.secondary,
+          accent: resolved.tokens.accent,
+          background: resolved.tokens.background,
         },
         typography: {
           headingFont: storeData.headingFont || "Plus Jakarta Sans",
           bodyFont: storeData.bodyFont || "Inter",
           animationStyle: "smooth",
         },
+        homepageSections: [
+          { id: "hero", type: "hero", enabled: true, title: "Hero Banner", order: 0 },
+          { id: "featured_products", type: "featured_products", enabled: true, title: "Featured Products", order: 1 },
+          { id: "categories", type: "categories", enabled: true, title: "Shop by Category", order: 2 },
+          { id: "banner", type: "banner", enabled: true, title: "Promotional Banner", order: 3 },
+          { id: "testimonials", type: "testimonials", enabled: false, title: "Customer Reviews", order: 4 },
+        ],
+        seo: {
+          seoTitle: `${storeData.storeName} | Official Catalog`,
+          seoDescription: storeData.aboutText || "",
+        },
+        updatedAt: new Date().toISOString(),
       };
 
-      const { error: appError } = await (supabase.from("appearance_settings") as any).insert(appearanceData);
-      if (appError) console.error("Appearance creation error:", appError);
+      const { error: settingsError } = await (supabase.from("store_settings") as any).insert({
+        store_id: store.id,
+        metadata: {
+          appearance: appearanceData,
+          shipping: {
+            freeShippingEnabled: true,
+            freeShippingThreshold: 0,
+            shippingFee: 50,
+          },
+        },
+      });
+      if (settingsError) console.error("Store settings creation error:", settingsError);
 
       // 3. Add default category
       await (supabase.from("categories") as any).insert({

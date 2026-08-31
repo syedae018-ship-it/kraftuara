@@ -2,6 +2,10 @@
  * Centralized utility for resolving tenant-aware storefront URLs.
  */
 
+import { normalizeSubdomainSlug, RESERVED_SUBDOMAINS } from "./subdomain-utils";
+
+export { normalizeSubdomainSlug, RESERVED_SUBDOMAINS };
+
 /**
  * Normalizes a store slug consistently across the application:
  * - lowercase
@@ -11,24 +15,12 @@
  * - strips leading/trailing hyphens
  */
 export function normalizeSlug(slug: string): string {
-  if (!slug) return "";
-  let clean = slug
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9-]/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "");
-
-  if (clean.length > 0 && clean.length < 3) {
-    clean = `${clean}-store`;
-  }
-  return clean;
+  return normalizeSubdomainSlug(slug);
 }
 
 /**
- * Returns the absolute URL for a storefront based on its slug.
- * Handles local development (localhost:3000), Vercel deployments (*.vercel.app),
- * and custom domains.
+ * Returns the absolute canonical public URL for a storefront based on its slug.
+ * Prioritizes merchant subdomain (e.g. https://riyaban.kraftaura.in).
  */
 export function getStoreUrl(storeSlug: string, isDemo?: boolean, demoTheme?: string): string {
   if (isDemo || storeSlug === "demo") {
@@ -36,46 +28,40 @@ export function getStoreUrl(storeSlug: string, isDemo?: boolean, demoTheme?: str
   }
 
   const cleanSlug = normalizeSlug(storeSlug);
+  const rootDomain = (process.env.NEXT_PUBLIC_ROOT_DOMAIN || "kraftaura.in")
+    .toLowerCase()
+    .replace(/^https?:\/\//, "")
+    .replace(/:\d+$/, "")
+    .replace(/^www\./, "");
 
   // Client-side execution
   if (typeof window !== "undefined") {
-    const origin = window.location.origin;
-    const hostname = window.location.hostname;
+    const hostname = window.location.hostname.toLowerCase();
+    const port = window.location.port ? `:${window.location.port}` : "";
+    const protocol = window.location.protocol;
 
-    // Check if a dedicated custom multi-tenant root domain is configured
-    // and ensure it is NOT a vercel.app or localhost domain
-    const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN;
-    const isCustomWildcardDomain =
-      rootDomain &&
-      !rootDomain.includes("vercel.app") &&
-      !rootDomain.includes("localhost") &&
-      !rootDomain.includes("127.0.0.1") &&
-      hostname.endsWith(rootDomain) &&
-      hostname !== rootDomain;
-
-    if (isCustomWildcardDomain) {
-      const protocol = window.location.protocol;
-      return `${protocol}//${cleanSlug}.${rootDomain}`;
+    // Localhost multi-tenant support: e.g. http://riyaban.localhost:3000
+    if (hostname === "localhost" || hostname === "127.0.0.1") {
+      return `${protocol}//${cleanSlug}.localhost${port}`;
     }
 
-    // Canonical path-based store URL on Vercel deployments, localhost, and single-domain setups
-    return `${origin}/store/${cleanSlug}`;
+    // If on a specific preview deployment on *.vercel.app without wildcard DNS
+    if (hostname.endsWith(".vercel.app") && !hostname.endsWith(`.${rootDomain}`)) {
+      return `${window.location.origin}/store/${cleanSlug}`;
+    }
+
+    // Default canonical merchant subdomain URL
+    return `https://${cleanSlug}.${rootDomain}`;
   }
 
-  // Server-side execution
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL;
-  if (appUrl) {
-    const base = appUrl.startsWith("http") ? appUrl : `https://${appUrl}`;
-    return `${base}/store/${cleanSlug}`;
-  }
-
-  return `/store/${cleanSlug}`;
+  // Server-side execution: default canonical merchant subdomain
+  return `https://${cleanSlug}.${rootDomain}`;
 }
 
 /**
  * Returns the relative base path for internal navigation inside the storefront.
- * If running on a subdomain, internal links are relative to `/`.
- * If running on the fallback route, links are relative to `/store/[slug]`.
+ * If running on a subdomain (e.g. riyaban.kraftaura.in), internal links are relative to `/`.
+ * If running on the fallback route (/store/riyaban), links are relative to `/store/[slug]`.
  */
 export function getStoreBasePath(storeSlug: string, isSubdomain: boolean, isDemo?: boolean, demoTheme?: string): string {
   if (isDemo || storeSlug === "demo") {
@@ -83,7 +69,7 @@ export function getStoreBasePath(storeSlug: string, isSubdomain: boolean, isDemo
   }
 
   if (isSubdomain) {
-    return ""; // Empty string allows relative hash/path like `#category` or `/product/123`
+    return ""; // Subdomain URLs stay clean: `/product/abc`, `/cart`, `/contact`, `/track`
   }
 
   return `/store/${normalizeSlug(storeSlug)}`;

@@ -1,11 +1,17 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { extractSubdomainFromHostname, RESERVED_SUBDOMAINS } from "@/lib/subdomain-utils";
 
 export async function middleware(request: NextRequest) {
   try {
     const pathname = request.nextUrl.pathname;
-    const hostname = request.headers.get("host") || "";
-    const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "platform.com";
+    const rawHost = request.headers.get("x-forwarded-host") || request.headers.get("host") || "";
+    const hostname = rawHost.split(",")[0].trim();
+    const rootDomain = (process.env.NEXT_PUBLIC_ROOT_DOMAIN || "kraftaura.in")
+      .toLowerCase()
+      .split(":")[0]
+      .replace(/^https?:\/\//, "")
+      .replace(/^www\./, "");
 
     let response = NextResponse.next({
       request: {
@@ -28,24 +34,20 @@ export async function middleware(request: NextRequest) {
       return newResponse;
     };
 
-    const rawRootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "";
-    const isVercelOrLocalHost = hostname.includes("vercel.app") || hostname.includes("localhost") || hostname.includes("127.0.0.1");
-
-    // Multi-Tenant Subdomain / Custom Domain Resolution Architecture
-    const isSubdomain =
-      !isVercelOrLocalHost &&
-      rawRootDomain !== "" &&
-      !rawRootDomain.includes("vercel.app") &&
-      hostname.endsWith(`.${rawRootDomain}`) &&
-      hostname !== rawRootDomain &&
-      !hostname.startsWith("app.") &&
-      !hostname.startsWith("www.");
-
-    const subdomain = isSubdomain ? hostname.replace(`.${rawRootDomain}`, "") : null;
+    // 1. Multi-Tenant Subdomain Resolution Architecture
+    const subdomain = extractSubdomainFromHostname(hostname, rootDomain);
     const isAlreadyRewritten = pathname.startsWith(`/store/`);
 
-    if (isSubdomain) {
-      // Tenant Isolation: Block access to platform interfaces from public subdomains
+    // Allow API routes and static metadata files to pass directly without store rewriting
+    const isSystemOrApiRoute =
+      pathname.startsWith("/api") ||
+      pathname.startsWith("/_next") ||
+      pathname === "/favicon.ico" ||
+      pathname === "/robots.txt" ||
+      pathname === "/sitemap.xml";
+
+    if (subdomain && !isSystemOrApiRoute) {
+      // Tenant Isolation: Block access to platform management from merchant subdomains
       if (
         pathname.startsWith("/dashboard") ||
         pathname.startsWith("/admin") ||
@@ -53,22 +55,29 @@ export async function middleware(request: NextRequest) {
         pathname.startsWith("/signup") ||
         pathname.startsWith("/choose-plan") ||
         pathname.startsWith("/choose-template") ||
-        pathname === "/create-store"
+        pathname === "/create-store" ||
+        pathname === "/pricing"
       ) {
         const protocol = rootDomain.includes("localhost") || rootDomain.includes("127.0.0.1") ? "http://" : "https://";
-        return NextResponse.redirect(new URL(`${pathname}`, `${protocol}${rootDomain}`));
+        return NextResponse.redirect(new URL(`${pathname}${request.nextUrl.search}`, `${protocol}${rootDomain}`));
       }
 
       if (!isAlreadyRewritten) {
         request.headers.set("x-is-subdomain", "true");
-        response = NextResponse.rewrite(new URL(`/store/${subdomain}${pathname}`, request.url), {
+        request.headers.set("x-store-slug", subdomain);
+        request.headers.set("x-subdomain", subdomain);
+
+        const rewriteTarget = new URL(`/store/${subdomain}${pathname}`, request.url);
+        rewriteTarget.search = request.nextUrl.search;
+        response = NextResponse.rewrite(rewriteTarget, {
           request: {
             headers: request.headers,
-          }
+          },
         });
       }
     }
 
+    // 2. Supabase Auth Session Management & Refresh
     const mockMode = process.env.NEXT_PUBLIC_MOCK_MODE === "true";
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
     const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
@@ -79,7 +88,6 @@ export async function middleware(request: NextRequest) {
       supabaseAnonKey !== "" && 
       supabaseAnonKey !== "placeholder-anon-key";
 
-    // Create a server client for Supabase session management & refresh
     let supabase = null;
     if (isSupabaseConfigured) {
       try {
@@ -98,8 +106,10 @@ export async function middleware(request: NextRequest) {
                   });
                   
                   const oldResponse = response;
-                  if (isSubdomain && !isAlreadyRewritten) {
-                    response = NextResponse.rewrite(new URL(`/store/${subdomain}${pathname}`, request.url), {
+                  if (subdomain && !isAlreadyRewritten && !isSystemOrApiRoute) {
+                    const rewriteTarget = new URL(`/store/${subdomain}${pathname}`, request.url);
+                    rewriteTarget.search = request.nextUrl.search;
+                    response = NextResponse.rewrite(rewriteTarget, {
                       request: {
                         headers: request.headers,
                       }
@@ -140,7 +150,7 @@ export async function middleware(request: NextRequest) {
       }
     }
 
-    // Retrieve authenticated user info. getUser() validates the token signature.
+    // 4. Retrieve authenticated user info. getUser() validates the token signature.
     let user = null;
     if (isSupabaseConfigured && supabase) {
       try {
@@ -182,11 +192,9 @@ export async function middleware(request: NextRequest) {
       }
     }
 
-
     return response;
   } catch (err) {
     console.error("Critical error in middleware invocation safety net:", err);
-    // Return NextResponse.next() to avoid MIDDLEWARE_INVOCATION_FAILED (500)
     return NextResponse.next();
   }
 }

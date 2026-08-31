@@ -5,6 +5,7 @@ import BloomContactPage from "@/components/storefront/templates/bloom/contact/Bl
 import { Metadata } from "next";
 import { headers } from "next/headers";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { getStoreUrl } from "@/lib/urls";
 
 export async function generateMetadata({
   params,
@@ -16,9 +17,19 @@ export async function generateMetadata({
   const store = await storefrontRepository.getStoreBySlug(slug, supabase);
   if (!store) return {};
 
+  const canonicalUrl = `${getStoreUrl(slug)}/contact`;
+
   return {
     title: `Contact Us | ${store.name}`,
     description: `Get in touch with ${store.name}`,
+    alternates: {
+      canonical: canonicalUrl,
+    },
+    openGraph: {
+      title: `Contact Us | ${store.name}`,
+      description: `Get in touch with ${store.name}`,
+      url: canonicalUrl,
+    },
   };
 }
 

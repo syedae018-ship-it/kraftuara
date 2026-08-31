@@ -9,7 +9,7 @@ import { BuyNowButton } from "@/components/storefront/buy-now-button";
 import { StatusBadge } from "@/components/products/status-badge";
 import { StoreProductCard } from "@/components/storefront/store-product-card";
 import { formatCurrency } from "@/lib/utils";
-import { getStoreBasePath } from "@/lib/urls";
+import { getStoreBasePath, getStoreUrl } from "@/lib/urls";
 import { Metadata } from "next";
 import { headers } from "next/headers";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
@@ -27,13 +27,18 @@ export async function generateMetadata({
   if (!data) return {};
 
   const { product, store } = data;
+  const canonicalUrl = `${getStoreUrl(slug)}/product/${productSlug}`;
 
   return {
     title: `${product.name} | ${store.name}`,
     description: product.shortDescription || product.seoDescription,
+    alternates: {
+      canonical: canonicalUrl,
+    },
     openGraph: {
       title: product.seoTitle || product.name,
       description: product.seoDescription || product.shortDescription,
+      url: canonicalUrl,
       images: product.images[0] ? [product.images[0].url] : [],
     },
   };
