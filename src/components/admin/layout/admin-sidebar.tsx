@@ -17,6 +17,7 @@ import {
   TrendingUp,
   Headphones,
   Settings,
+  Target,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
@@ -34,6 +35,7 @@ const navItems: NavItem[] = [
   { label: "Overview", href: "/admin", icon: LayoutDashboard },
   { label: "User Accounts", href: "/admin/users", icon: Users },
   { label: "Stores & Domains", href: "/admin/stores", icon: Store },
+  { label: "Growth Quests", href: "/admin/growth-quests", icon: Target, badge: "Rebuilt" },
   { label: "Theme Templates", href: "/admin/templates", icon: Palette },
   { label: "Creative Services", href: "/admin/creative", icon: Sparkles, badge: "New" },
   { label: "Catalog Orders", href: "/admin/orders", icon: ShoppingBag },

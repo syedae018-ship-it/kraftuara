@@ -5,27 +5,26 @@ import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import {
   Target,
   Trophy,
-  Flame,
   Sparkles,
   Plus,
   CheckCircle2,
-  Lock,
-  ArrowRight,
   TrendingUp,
-  Award,
   Calendar,
   Zap,
-  Clock,
   Trash2,
   Edit2,
   RefreshCw,
   Gift,
-  ShieldCheck,
   ChevronRight,
   Loader2,
   X,
-  Filter,
-  Check,
+  Layers,
+  ArrowRight,
+  Package,
+  ShoppingBag,
+  History,
+  Info,
+  Award,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -37,97 +36,44 @@ import { useAuth } from "@/context/auth-context";
 import { createClient } from "@/lib/supabase/client";
 import {
   getGrowthQuestDataAction,
-  createGoalAction,
-  updateGoalAction,
-  deleteGoalAction,
-  CreateGoalPayload,
+  createMerchantQuestAction,
+  updateMerchantQuestAction,
+  pauseOrArchiveQuestAction,
+  joinCraftauraQuestAction,
 } from "@/lib/actions/growth-quest";
 import {
-  GamificationSummary,
-  MerchantGoal,
-  GoalType,
-  GoalPeriod,
-} from "@/lib/services/growth-quest-engine";
+  GrowthQuestOverview,
+  MerchantQuest,
+  QuestTemplate,
+  QuestDifficulty,
+} from "@/lib/services/growth-quest-service";
 import { formatCurrency, cn } from "@/lib/utils";
-
-const GOAL_TEMPLATES: Array<{
-  title: string;
-  goalType: GoalType;
-  targetValue: number;
-  periodType: GoalPeriod;
-  description: string;
-  icon: string;
-}> = [
-  {
-    title: "First 10 Orders",
-    goalType: "orders_count",
-    targetValue: 10,
-    periodType: "month",
-    description: "Launch your storefront catalog and process your first 10 orders",
-    icon: "📦",
-  },
-  {
-    title: "₹10,000 Monthly Revenue",
-    goalType: "revenue",
-    targetValue: 10000,
-    periodType: "month",
-    description: "Build steady daily sales volume reaching ₹10K monthly revenue",
-    icon: "💰",
-  },
-  {
-    title: "₹25,000 Growth Quest",
-    goalType: "revenue",
-    targetValue: 25000,
-    periodType: "month",
-    description: "Accelerate catalog sales across WhatsApp and direct orders",
-    icon: "🚀",
-  },
-  {
-    title: "7-Day Selling Streak",
-    goalType: "selling_streak",
-    targetValue: 7,
-    periodType: "month",
-    description: "Generate qualifying sales for 7 consecutive calendar days",
-    icon: "🔥",
-  },
-  {
-    title: "50 Units Distributed",
-    goalType: "units_sold",
-    targetValue: 50,
-    periodType: "month",
-    description: "Sell 50 product units from your published catalog",
-    icon: "✨",
-  },
-];
 
 export default function GrowthQuestPage() {
   const { activeStore } = useAuth();
-  const [data, setData] = useState<GamificationSummary | null>(null);
+  const [data, setData] = useState<GrowthQuestOverview | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [activeTab, setActiveTab] = useState<"active" | "achievements" | "history">("active");
-  const [achievementCategory, setAchievementCategory] = useState<"all" | "orders" | "revenue" | "streaks" | "goals">("all");
+  const [activeTab, setActiveTab] = useState<"quest" | "leaderboard" | "history">("quest");
 
-  // Create Goal Modal State
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [createMode, setCreateMode] = useState<"template" | "custom">("template");
+  // Template Selection Modal
+  const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
+
+  // Create / Edit Quest Form Modal
+  const [isFormModalOpen, setIsFormModalOpen] = useState(false);
+  const [formMode, setFormMode] = useState<"create_custom" | "create_from_template" | "edit">("create_custom");
+  const [selectedTemplate, setSelectedTemplate] = useState<QuestTemplate | null>(null);
+
+  // Form Fields
+  const [formQuestName, setFormQuestName] = useState("");
+  const [formRevenueTarget, setFormRevenueTarget] = useState("");
+  const [formOrdersTarget, setFormOrdersTarget] = useState("");
+  const [formProductsTarget, setFormProductsTarget] = useState("");
+  const [formDifficulty, setFormDifficulty] = useState<QuestDifficulty>("custom");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [formTitle, setFormTitle] = useState("");
-  const [formGoalType, setFormGoalType] = useState<GoalType>("revenue");
-  const [formTarget, setFormTarget] = useState<string>("10000");
-  const [formPeriod, setFormPeriod] = useState<GoalPeriod>("month");
-  const [formStartDate, setFormStartDate] = useState("");
-  const [formEndDate, setFormEndDate] = useState("");
-  const [formMilestone1, setFormMilestone1] = useState<string>("");
-  const [formMilestone2, setFormMilestone2] = useState<string>("");
-  const [formMilestone3, setFormMilestone3] = useState<string>("");
 
-  // Edit Goal Modal State
-  const [editingGoal, setEditingGoal] = useState<MerchantGoal | null>(null);
-  const [editTitle, setEditTitle] = useState("");
-  const [editTarget, setEditTarget] = useState("");
-  const [editEndDate, setEditEndDate] = useState("");
-  const [isEditingSubmitting, setIsEditingSubmitting] = useState(false);
+  // Points Ledger Modal
+  const [isPointsModalOpen, setIsPointsModalOpen] = useState(false);
 
   const loadData = useCallback(async (silent = false) => {
     if (!activeStore?.id) return;
@@ -137,7 +83,7 @@ export default function GrowthQuestPage() {
       if (res.success && res.data) {
         setData(res.data);
       } else {
-        toast.error("Error", res.error || "Failed to load Growth Quest data.");
+        toast.error("Error", res.error || "Failed to load Growth Quest.");
       }
     } catch (err: any) {
       toast.error("Error", err.message || "Failed to load Growth Quest.");
@@ -151,19 +97,31 @@ export default function GrowthQuestPage() {
     loadData();
   }, [loadData]);
 
-  // Realtime subscription for incoming orders to update goals & milestones dynamically
+  // Realtime subscription for instant updates on new orders & quests
   useEffect(() => {
     if (!activeStore?.id) return;
     const supabase = createClient();
 
     const channel = supabase
-      .channel(`growth-quest-${activeStore.id}`)
+      .channel(`growth-quest-store-${activeStore.id}`)
       .on(
         "postgres_changes",
         {
           event: "*",
           schema: "public",
           table: "orders",
+          filter: `store_id=eq.${activeStore.id}`,
+        },
+        () => {
+          loadData(true);
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "growth_quests",
           filter: `store_id=eq.${activeStore.id}`,
         },
         () => {
@@ -177,57 +135,108 @@ export default function GrowthQuestPage() {
     };
   }, [activeStore?.id, loadData]);
 
-  const handleApplyTemplate = (tpl: typeof GOAL_TEMPLATES[0]) => {
-    setFormTitle(tpl.title);
-    setFormGoalType(tpl.goalType);
-    setFormTarget(tpl.targetValue.toString());
-    setFormPeriod(tpl.periodType);
-    setFormMilestone1((tpl.targetValue * 0.25).toString());
-    setFormMilestone2((tpl.targetValue * 0.5).toString());
-    setFormMilestone3((tpl.targetValue * 0.75).toString());
-    setCreateMode("custom");
+  // Handle open custom creator
+  const handleOpenCustomCreate = () => {
+    const currentMonth = new Date().toLocaleString("default", { month: "long" });
+    setFormMode("create_custom");
+    setSelectedTemplate(null);
+    setFormDifficulty("custom");
+    setFormQuestName(`${currentMonth} Growth Quest`);
+    setFormRevenueTarget("10000");
+    setFormOrdersTarget("15");
+    setFormProductsTarget("20");
+    setIsTemplateModalOpen(false);
+    setIsFormModalOpen(true);
   };
 
-  const handleCreateGoal = async (e: React.FormEvent) => {
+  // Handle open template picker
+  const handleOpenTemplatePicker = () => {
+    setIsTemplateModalOpen(true);
+  };
+
+  // When merchant selects a template
+  const handleSelectTemplate = (tpl: QuestTemplate) => {
+    const currentMonth = new Date().toLocaleString("default", { month: "long" });
+    setFormMode("create_from_template");
+    setSelectedTemplate(tpl);
+    setFormDifficulty(tpl.difficulty);
+    setFormQuestName(`${currentMonth} - ${tpl.name}`);
+    setFormRevenueTarget(tpl.revenueTarget > 0 ? tpl.revenueTarget.toString() : "");
+    setFormOrdersTarget(tpl.ordersTarget > 0 ? tpl.ordersTarget.toString() : "");
+    setFormProductsTarget(tpl.productsTarget > 0 ? tpl.productsTarget.toString() : "");
+    setIsTemplateModalOpen(false);
+    setIsFormModalOpen(true);
+  };
+
+  // Open edit modal for active quest
+  const handleOpenEdit = (quest: MerchantQuest) => {
+    setFormMode("edit");
+    setSelectedTemplate(null);
+    setFormDifficulty(quest.difficulty);
+    setFormQuestName(quest.questName);
+    setFormRevenueTarget(quest.revenueTarget > 0 ? quest.revenueTarget.toString() : "");
+    setFormOrdersTarget(quest.ordersTarget > 0 ? quest.ordersTarget.toString() : "");
+    setFormProductsTarget(quest.productsTarget > 0 ? quest.productsTarget.toString() : "");
+    setIsFormModalOpen(true);
+  };
+
+  // Submit create or edit form
+  const handleSaveQuest = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!activeStore?.id) return;
-    const targetVal = parseFloat(formTarget);
-    if (isNaN(targetVal) || targetVal <= 0) {
-      toast.error("Invalid Target", "Please enter a valid positive number for target.");
+
+    if (!formQuestName.trim()) {
+      toast.error("Validation Error", "Please provide a quest name.");
       return;
     }
 
-    const milestones: number[] = [];
-    if (formMilestone1 && !isNaN(parseFloat(formMilestone1))) milestones.push(parseFloat(formMilestone1));
-    if (formMilestone2 && !isNaN(parseFloat(formMilestone2))) milestones.push(parseFloat(formMilestone2));
-    if (formMilestone3 && !isNaN(parseFloat(formMilestone3))) milestones.push(parseFloat(formMilestone3));
-    milestones.push(targetVal);
+    const rev = parseFloat(formRevenueTarget) || 0;
+    const ord = parseInt(formOrdersTarget, 10) || 0;
+    const prod = parseInt(formProductsTarget, 10) || 0;
+
+    if (rev <= 0 && ord <= 0 && prod <= 0) {
+      toast.error("Validation Error", "Please specify at least one target (Revenue, Orders, or Products Sold).");
+      return;
+    }
 
     setIsSubmitting(true);
     try {
-      const payload: CreateGoalPayload = {
-        title: formTitle.trim() || `${formGoalType === "revenue" ? "Revenue" : "Sales"} Quest`,
-        goalType: formGoalType,
-        targetValue: targetVal,
-        periodType: formPeriod,
-        startDate: formPeriod === "custom" ? formStartDate : undefined,
-        endDate: formPeriod === "custom" ? formEndDate : undefined,
-        milestones,
-      };
+      if (formMode === "edit" && data?.activeQuest) {
+        const res = await updateMerchantQuestAction({
+          questId: data.activeQuest.id,
+          storeId: activeStore.id,
+          questName: formQuestName,
+          revenueTarget: rev,
+          ordersTarget: ord,
+          productsTarget: prod,
+        });
 
-      const res = await createGoalAction(activeStore.id, payload);
-      if (res.success) {
-        toast.success("🎯 Quest Created!", "Your goal is live and tracking real store orders.");
-        setIsCreateModalOpen(false);
-        setFormTitle("");
-        setFormTarget("10000");
-        setFormMilestone1("");
-        setFormMilestone2("");
-        setFormMilestone3("");
-        setCreateMode("template");
-        loadData(true);
+        if (res.success) {
+          toast.success("Quest Updated", "Your monthly quest targets have been updated.");
+          setIsFormModalOpen(false);
+          await loadData(true);
+        } else {
+          toast.error("Update Failed", res.error || "Failed to update quest.");
+        }
       } else {
-        toast.error("Failed", res.error || "Could not create goal.");
+        const res = await createMerchantQuestAction({
+          storeId: activeStore.id,
+          questName: formQuestName,
+          sourceType: formMode === "create_from_template" ? "template" : "custom",
+          templateId: selectedTemplate?.id,
+          difficulty: formDifficulty,
+          revenueTarget: rev,
+          ordersTarget: ord,
+          productsTarget: prod,
+        });
+
+        if (res.success) {
+          toast.success("Quest Activated!", "Your new monthly growth quest is now active.");
+          setIsFormModalOpen(false);
+          await loadData(true);
+        } else {
+          toast.error("Creation Failed", res.error || "Failed to create quest.");
+        }
       }
     } catch (err: any) {
       toast.error("Error", err.message || "An unexpected error occurred.");
@@ -236,101 +245,97 @@ export default function GrowthQuestPage() {
     }
   };
 
-  const handleOpenEdit = (quest: MerchantGoal) => {
-    setEditingGoal(quest);
-    setEditTitle(quest.title);
-    setEditTarget(quest.targetValue.toString());
-    setEditEndDate(quest.endDate.split("T")[0]);
-  };
-
-  const handleSaveEdit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!activeStore?.id || !editingGoal) return;
-    const targetVal = parseFloat(editTarget);
-    if (isNaN(targetVal) || targetVal <= 0) {
-      toast.error("Invalid Target", "Target must be a positive number.");
-      return;
-    }
-
-    setIsEditingSubmitting(true);
-    try {
-      const res = await updateGoalAction(activeStore.id, {
-        goalId: editingGoal.id,
-        title: editTitle.trim(),
-        targetValue: targetVal,
-        endDate: editEndDate,
-      });
-
-      if (res.success) {
-        toast.success("Goal Updated", "Your changes have been saved.");
-        setEditingGoal(null);
-        loadData(true);
-      } else {
-        toast.error("Error", res.error || "Failed to update goal.");
-      }
-    } catch (err: any) {
-      toast.error("Error", err.message || "Failed to update goal.");
-    } finally {
-      setIsEditingSubmitting(false);
-    }
-  };
-
-  const handleDeleteGoal = async (goalId: string) => {
+  // Pause / Archive Quest
+  const handleArchiveQuest = async (questId: string) => {
     if (!activeStore?.id) return;
-    if (!confirm("Are you sure you want to remove this quest?")) return;
+    if (!confirm("Are you sure you want to end this quest? Your points will remain in your monthly score.")) return;
+
     try {
-      const res = await deleteGoalAction(activeStore.id, goalId);
+      const res = await pauseOrArchiveQuestAction(questId, activeStore.id, "archived");
       if (res.success) {
-        toast.success("Quest Removed", "The goal has been deleted.");
-        loadData(true);
+        toast.success("Quest Ended", "Your quest has been archived.");
+        await loadData(true);
       } else {
-        toast.error("Error", res.error || "Failed to delete quest.");
+        toast.error("Error", res.error || "Failed to archive quest.");
       }
     } catch (err: any) {
-      toast.error("Error", err.message || "Could not delete quest.");
+      toast.error("Error", err.message || "Failed to archive quest.");
     }
   };
 
-  const formatTarget = (val: number, type: GoalType) => {
-    if (type === "revenue" || type === "avg_order_value") {
-      return formatCurrency(val);
+  // Join Craftaura Platform Quest
+  const handleJoinCraftauraQuest = async (questId: string) => {
+    if (!activeStore?.id) return;
+    try {
+      const res = await joinCraftauraQuestAction(questId, activeStore.id);
+      if (res.success) {
+        toast.success("Challenge Joined! 🎯", "You are now participating in this month's Craftaura challenge.");
+        await loadData(true);
+      } else {
+        toast.error("Error", res.error || "Failed to join challenge.");
+      }
+    } catch (err: any) {
+      toast.error("Error", err.message || "Failed to join challenge.");
     }
-    if (type === "orders_count") return `${val.toLocaleString()} Orders`;
-    if (type === "units_sold") return `${val.toLocaleString()} Units`;
-    if (type === "selling_streak") return `${val} Days Streak`;
-    return val.toLocaleString();
   };
 
-  const activeQuests = data?.activeGoals || [];
-  const completedQuests = data?.completedGoals || [];
-  const primaryQuest: MerchantGoal | undefined = activeQuests[0];
+  if (isLoading) {
+    return (
+      <DashboardLayout breadcrumbs={[{ label: "Overview", href: "/dashboard" }, { label: "Growth Quest" }]}>
+        <div className="space-y-6 max-w-6xl mx-auto pb-12">
+          <div className="flex justify-between items-center">
+            <Skeleton className="h-10 w-48 bg-white/5" />
+            <Skeleton className="h-10 w-32 bg-white/5" />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Skeleton className="h-64 rounded-2xl bg-white/5" />
+            <Skeleton className="h-64 rounded-2xl bg-white/5" />
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
-  const filteredAchievements = (data?.achievements || []).filter((ach) => {
-    if (achievementCategory === "all") return true;
-    return ach.category === achievementCategory;
-  });
+  const activeQuest = data?.activeQuest;
+  const progress = data?.progress;
+  const craftauraQuest = data?.craftauraQuest;
+  const templates = data?.templates || [];
+  const leaderboard = data?.leaderboard || [];
+  const totalPoints = data?.totalPoints || 0;
+  const currentMonthName = data?.currentMonthName || "This Month";
 
   return (
     <DashboardLayout breadcrumbs={[{ label: "Overview", href: "/dashboard" }, { label: "Growth Quest" }]}>
-      <div className="space-y-8 text-left max-w-7xl mx-auto">
-        {/* 1. Header with Level Badge & Actions */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b border-white/10">
+      <div className="space-y-8 max-w-5xl mx-auto pb-16 font-body text-zinc-100">
+        
+        {/* Top Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-6">
           <div>
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-maroon-900/40 border border-maroon-600/40 flex items-center justify-center text-maroon-400">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400">
                 <Target className="w-5 h-5" />
               </div>
-              <h1 className="text-xl sm:text-2xl font-bold font-heading text-white">Growth Quest</h1>
-              <Badge variant="maroon" className="text-xs uppercase tracking-wider font-bold">
-                Level {data?.levelInfo.level || 1} • {data?.levelInfo.title || "Getting Started"}
-              </Badge>
+              <div>
+                <h1 className="text-2xl font-bold font-heading text-white tracking-tight">Growth Quest</h1>
+                <p className="text-xs text-zinc-400">Simple, practical monthly business targets for your store</p>
+              </div>
             </div>
-            <p className="text-xs text-zinc-400 font-body mt-1">
-              Gamified sales milestones derived strictly from real customer orders in Supabase.
-            </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            {/* Quest Points Badge */}
+            <button
+              onClick={() => setIsPointsModalOpen(true)}
+              className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 hover:bg-amber-500/20 transition-all cursor-pointer shadow-sm group"
+            >
+              <Sparkles className="w-4 h-4 text-amber-400 group-hover:rotate-12 transition-transform" />
+              <div className="text-left">
+                <span className="text-[10px] uppercase tracking-wider text-amber-400/80 block font-semibold leading-none">Quest Points</span>
+                <span className="text-sm font-bold font-heading text-white">{totalPoints.toLocaleString()}</span>
+              </div>
+            </button>
+
+            {/* Refresh Button */}
             <Button
               variant="outline"
               size="sm"
@@ -339,743 +344,811 @@ export default function GrowthQuestPage() {
                 loadData(true);
               }}
               disabled={isRefreshing}
-              className="text-xs border-white/10"
-              leftIcon={<RefreshCw className={cn("w-3.5 h-3.5", isRefreshing && "animate-spin")} />}
+              className="border-white/10 bg-white/5 hover:bg-white/10 text-zinc-300 h-9"
             >
-              Sync Orders
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={() => setIsCreateModalOpen(true)}
-              className="text-xs font-semibold shadow-glow"
-              leftIcon={<Plus className="w-3.5 h-3.5" />}
-            >
-              Start New Quest
+              <RefreshCw className={cn("w-3.5 h-3.5 mr-1.5", isRefreshing && "animate-spin text-amber-400")} />
+              Sync
             </Button>
           </div>
         </div>
 
-        {/* 2. Top Gamer Stats Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Level & XP Card */}
-          <Card className="p-5 bg-[#151515] border-white/10 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] uppercase font-bold tracking-widest text-zinc-500 font-heading">
-                Merchant Level
-              </span>
-              <span className="text-lg">{data?.levelInfo.badge || "🌱"}</span>
-            </div>
-            <div>
-              <div className="flex items-baseline justify-between">
-                <span className="text-xl font-bold font-heading text-white">
-                  Level {data?.levelInfo.level || 1}
-                </span>
-                <span className="text-xs font-mono text-amber-400 font-semibold">
-                  {(data?.xp || 0).toLocaleString()} XP
-                </span>
-              </div>
-              <p className="text-[11px] text-zinc-400 font-body">{data?.levelInfo.title || "Getting Started"}</p>
-            </div>
-            <div className="space-y-1">
-              <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-amber-500 to-amber-300 rounded-full transition-all duration-500"
-                  style={{ width: `${data?.levelInfo.progressPercent || 0}%` }}
-                />
-              </div>
-              <span className="text-[9px] font-mono text-zinc-500 block text-right">
-                {data?.levelInfo.progressPercent || 0}% to Level {(data?.levelInfo.level || 1) + 1}
-              </span>
-            </div>
-          </Card>
+        {/* Navigation Tabs */}
+        <div className="flex gap-2 border-b border-white/10 pb-2">
+          <button
+            onClick={() => setActiveTab("quest")}
+            className={cn(
+              "px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2",
+              activeTab === "quest"
+                ? "bg-maroon-700/80 text-white border border-maroon-600/50 shadow-md"
+                : "text-zinc-400 hover:text-white hover:bg-white/5"
+            )}
+          >
+            <Target className="w-4 h-4" />
+            Active Quest
+          </button>
 
-          {/* Selling Streak Card */}
-          <Card className="p-5 bg-[#151515] border-white/10 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] uppercase font-bold tracking-widest text-zinc-500 font-heading">
-                Selling Streak
-              </span>
-              <Flame className="w-4 h-4 text-orange-500" />
-            </div>
-            <div>
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-2xl font-bold font-mono text-orange-400">
-                  {data?.currentStreakDays || 0}
-                </span>
-                <span className="text-xs text-zinc-400">Consecutive Days</span>
-              </div>
-              <p className="text-[11px] text-zinc-500 font-body mt-0.5">
-                Best streak: <strong className="text-white">{data?.longestStreakDays || 0} days</strong>
-              </p>
-            </div>
-            <div className="text-[10px] font-mono text-zinc-400 flex items-center gap-1">
-              <Clock className="w-3 h-3 text-zinc-500" />
-              <span>{data?.lastSaleDate ? `Last sale: ${data.lastSaleDate}` : "No sales recorded yet"}</span>
-            </div>
-          </Card>
+          <button
+            onClick={() => setActiveTab("leaderboard")}
+            className={cn(
+              "px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2",
+              activeTab === "leaderboard"
+                ? "bg-maroon-700/80 text-white border border-maroon-600/50 shadow-md"
+                : "text-zinc-400 hover:text-white hover:bg-white/5"
+            )}
+          >
+            <Trophy className="w-4 h-4 text-amber-400" />
+            Monthly Leaderboard
+          </button>
 
-          {/* Highest Single Day Record */}
-          <Card className="p-5 bg-[#151515] border-white/10 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] uppercase font-bold tracking-widest text-zinc-500 font-heading">
-                Peak Single Day
-              </span>
-              <Zap className="w-4 h-4 text-emerald-400" />
-            </div>
-            <div>
-              <span className="text-xl font-bold font-mono text-emerald-400 block">
-                {formatCurrency(data?.highestDailyRevenue || 0)}
-              </span>
-              <p className="text-[11px] text-zinc-400 font-body mt-0.5">
-                {data?.highestDailyOrders || 0} orders in 24 hours
-              </p>
-            </div>
-            <span className="text-[10px] font-mono text-zinc-500 block">Historical Daily Best</span>
-          </Card>
-
-          {/* Achievements Unlocked */}
-          <Card className="p-5 bg-[#151515] border-white/10 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] uppercase font-bold tracking-widest text-zinc-500 font-heading">
-                Achievements
-              </span>
-              <Award className="w-4 h-4 text-maroon-400" />
-            </div>
-            <div>
-              <div className="flex items-baseline gap-1">
-                <span className="text-2xl font-bold font-mono text-white">
-                  {data?.achievements.filter((a) => a.isUnlocked).length || 0}
-                </span>
-                <span className="text-xs text-zinc-400">/ {data?.achievements.length || 15}</span>
-              </div>
-              <p className="text-[11px] text-zinc-400 font-body mt-0.5">Badges unlocked from real sales</p>
-            </div>
-            <button
-              onClick={() => setActiveTab("achievements")}
-              className="text-[10px] text-maroon-400 hover:text-maroon-300 font-semibold flex items-center gap-1 cursor-pointer"
-            >
-              View Badge Showcase <ArrowRight className="w-3 h-3" />
-            </button>
-          </Card>
+          <button
+            onClick={() => setActiveTab("history")}
+            className={cn(
+              "px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2",
+              activeTab === "history"
+                ? "bg-maroon-700/80 text-white border border-maroon-600/50 shadow-md"
+                : "text-zinc-400 hover:text-white hover:bg-white/5"
+            )}
+          >
+            <History className="w-4 h-4 text-zinc-400" />
+            Past Quests
+          </button>
         </div>
 
-        {/* 3. Primary Hero Quest Banner (If Active Quest Exists) */}
-        {primaryQuest && (
-          <Card className="relative overflow-hidden bg-gradient-to-r from-[#1c0e14] via-[#151115] to-[#111111] border-maroon-800/60 ring-1 ring-maroon-500/20 p-6 sm:p-8 rounded-3xl shadow-glow space-y-6">
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-              <div className="space-y-2 max-w-xl">
-                <div className="flex items-center gap-2">
-                  <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest bg-maroon-900/60 border border-maroon-600/40 text-maroon-300">
-                    Active Main Quest
-                  </span>
-                  <span className="text-xs font-mono text-zinc-400">
-                    {primaryQuest.daysRemaining} days remaining
-                  </span>
+        {/* ----------------- TAB 1: ACTIVE QUEST ----------------- */}
+        {activeTab === "quest" && (
+          <div className="space-y-8">
+            
+            {/* IF NO ACTIVE QUEST: SHOW 2 PRIMARY ENTRY CARDS */}
+            {!activeQuest ? (
+              <div className="space-y-6 pt-4">
+                <div className="text-center max-w-md mx-auto space-y-2">
+                  <h2 className="text-xl font-bold font-heading text-white">Your first quest starts here.</h2>
+                  <p className="text-sm text-zinc-400">
+                    Choose how you would like to set your monthly business target for {currentMonthName}.
+                  </p>
                 </div>
-                <h2 className="text-2xl sm:text-3xl font-bold font-heading text-white tracking-tight">
-                  {primaryQuest.title}
-                </h2>
-                <p className="text-xs sm:text-sm text-zinc-300 font-body">
-                  Target: <strong>{formatTarget(primaryQuest.targetValue, primaryQuest.goalType)}</strong> by{" "}
-                  {new Date(primaryQuest.endDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-                </p>
-              </div>
 
-              {/* Progress Summary Big Numbers */}
-              <div className="p-4 sm:p-5 rounded-2xl bg-black/40 border border-white/10 text-right min-w-[200px] space-y-1">
-                <span className="text-[10px] uppercase font-bold tracking-widest text-zinc-400 font-heading block">
-                  Current Progress
-                </span>
-                <span className="text-2xl sm:text-3xl font-bold font-mono text-white block">
-                  {formatTarget(primaryQuest.currentValue, primaryQuest.goalType)}
-                </span>
-                <div className="flex items-center justify-end gap-2 text-xs font-mono">
-                  <span className="text-emerald-400 font-bold">{primaryQuest.progressPercent}%</span>
-                  <span className="text-zinc-500">•</span>
-                  <span className="text-zinc-400">
-                    {primaryQuest.remainingValue > 0
-                      ? `${formatTarget(primaryQuest.remainingValue, primaryQuest.goalType)} left`
-                      : "🎉 Goal Reached!"}
-                  </span>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto pt-2">
+                  
+                  {/* CARD 1: CREATE YOUR OWN QUEST */}
+                  <Card
+                    onClick={handleOpenCustomCreate}
+                    className="relative overflow-hidden bg-gradient-to-br from-zinc-900/90 to-zinc-950/90 border border-white/10 hover:border-amber-500/50 p-6 rounded-2xl cursor-pointer group transition-all duration-300 hover:shadow-xl hover:-translate-y-1"
+                  >
+                    <div className="space-y-4">
+                      <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 group-hover:scale-110 transition-transform">
+                        <Plus className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-bold font-heading text-white group-hover:text-amber-300 transition-colors">
+                          Create Your Own Quest
+                        </h3>
+                        <p className="text-sm text-zinc-400 mt-1">
+                          Set your own monthly business target.
+                        </p>
+                      </div>
+                      <div className="pt-2 flex items-center text-xs font-semibold text-amber-400 gap-1 group-hover:translate-x-1 transition-transform">
+                        <span>Get Started</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </div>
+                    </div>
+                  </Card>
+
+                  {/* CARD 2: USE A TEMPLATE */}
+                  <Card
+                    onClick={handleOpenTemplatePicker}
+                    className="relative overflow-hidden bg-gradient-to-br from-zinc-900/90 to-zinc-950/90 border border-white/10 hover:border-maroon-500/50 p-6 rounded-2xl cursor-pointer group transition-all duration-300 hover:shadow-xl hover:-translate-y-1"
+                  >
+                    <div className="space-y-4">
+                      <div className="w-12 h-12 rounded-xl bg-maroon-500/10 border border-maroon-500/30 flex items-center justify-center text-maroon-400 group-hover:scale-110 transition-transform">
+                        <Layers className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-bold font-heading text-white group-hover:text-maroon-300 transition-colors">
+                          Use a Template
+                        </h3>
+                        <p className="text-sm text-zinc-400 mt-1">
+                          Start with a practical monthly challenge.
+                        </p>
+                      </div>
+                      <div className="pt-2 flex items-center text-xs font-semibold text-maroon-400 gap-1 group-hover:translate-x-1 transition-transform">
+                        <span>Browse 3 Difficulty Levels</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </div>
+                    </div>
+                  </Card>
                 </div>
               </div>
-            </div>
+            ) : (
+              /* ACTIVE QUEST DASHBOARD */
+              <div className="space-y-6">
+                
+                {/* 1. PRIMARY PROGRESS CARD */}
+                <Card className="relative overflow-hidden bg-gradient-to-br from-zinc-900 via-zinc-900/95 to-black border border-white/10 p-6 sm:p-8 rounded-3xl shadow-xl">
+                  {/* Decorative background glow */}
+                  <div className="absolute top-0 right-0 w-80 h-80 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
 
-            {/* Giant Progress Bar with Milestone Checkpoints */}
-            <div className="space-y-3 pt-2">
-              <div className="relative w-full h-4 bg-white/10 rounded-full overflow-hidden p-0.5">
-                <div
-                  className="h-full bg-gradient-to-r from-maroon-700 via-maroon-500 to-amber-400 rounded-full transition-all duration-700 shadow-glow"
-                  style={{ width: `${Math.min(primaryQuest.progressPercent, 100)}%` }}
-                />
-              </div>
+                  <div className="relative space-y-6">
+                    
+                    {/* Header line */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-4">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs uppercase tracking-widest text-amber-400 font-semibold font-mono">
+                            {currentMonthName} Growth Quest
+                          </span>
+                          {activeQuest.difficulty && (
+                            <Badge variant="outline" className="text-[10px] capitalize border-white/20 text-zinc-300">
+                              {activeQuest.difficulty}
+                            </Badge>
+                          )}
+                          {progress?.isComplete && (
+                            <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/40 text-[10px]">
+                              🎉 100% Completed
+                            </Badge>
+                          )}
+                        </div>
+                        <h2 className="text-2xl font-bold font-heading text-white">{activeQuest.questName}</h2>
+                      </div>
 
-              {/* Milestone Checkpoint Markers */}
-              {primaryQuest.milestones.length > 0 && (
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2">
-                  {primaryQuest.milestones.map((m) => (
-                    <div
-                      key={m.id}
-                      className={cn(
-                        "p-2.5 rounded-xl border text-left transition-all",
-                        m.isReached
-                          ? "bg-emerald-950/30 border-emerald-700/40 text-emerald-300"
-                          : "bg-white/5 border-white/5 text-zinc-400"
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleOpenEdit(activeQuest)}
+                          className="border-white/10 bg-white/5 hover:bg-white/10 text-zinc-300 h-8 text-xs"
+                        >
+                          <Edit2 className="w-3.5 h-3.5 mr-1" />
+                          Edit Quest
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleArchiveQuest(activeQuest.id)}
+                          className="text-zinc-500 hover:text-red-400 hover:bg-red-500/10 h-8 text-xs"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Big Numbers Display */}
+                    {activeQuest.revenueTarget > 0 ? (
+                      <div className="space-y-3">
+                        <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-1">
+                          <div className="flex items-baseline gap-2">
+                            <span className="text-3xl sm:text-4xl font-extrabold font-heading text-white">
+                              {formatCurrency(progress?.currentRevenue || 0)}
+                            </span>
+                            <span className="text-sm text-zinc-400 font-medium">
+                              of {formatCurrency(activeQuest.revenueTarget)}
+                            </span>
+                          </div>
+                          <div className="text-sm font-semibold text-amber-400 font-mono">
+                            {progress?.revenueRemaining === 0
+                              ? "Target Reached! 🚀"
+                              : `${formatCurrency(progress?.revenueRemaining || 0)} to go`}
+                          </div>
+                        </div>
+
+                        {/* Animated Progress Bar */}
+                        <div className="w-full bg-zinc-800/80 rounded-full h-4 p-0.5 border border-white/5 overflow-hidden">
+                          <div
+                            className="bg-gradient-to-r from-amber-500 via-orange-500 to-emerald-400 h-full rounded-full transition-all duration-700 ease-out shadow-sm"
+                            style={{ width: `${progress?.revenueProgressPercent || 0}%` }}
+                          />
+                        </div>
+
+                        <div className="flex justify-between items-center text-xs text-zinc-400 font-mono">
+                          <span>{progress?.revenueProgressPercent || 0}% achieved</span>
+                          <span>Target: {formatCurrency(activeQuest.revenueTarget)}</span>
+                        </div>
+                      </div>
+                    ) : (
+                      /* If only orders or products target was set */
+                      <div className="space-y-3">
+                        <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-1">
+                          <div className="flex items-baseline gap-2">
+                            <span className="text-3xl sm:text-4xl font-extrabold font-heading text-white">
+                              {progress?.currentOrders || 0} Orders
+                            </span>
+                            <span className="text-sm text-zinc-400 font-medium">
+                              of {activeQuest.ordersTarget} Orders Target
+                            </span>
+                          </div>
+                          <div className="text-sm font-semibold text-amber-400 font-mono">
+                            {progress?.ordersRemaining === 0 ? "Target Reached! 🚀" : `${progress?.ordersRemaining} orders to go`}
+                          </div>
+                        </div>
+
+                        <div className="w-full bg-zinc-800/80 rounded-full h-4 p-0.5 border border-white/5 overflow-hidden">
+                          <div
+                            className="bg-gradient-to-r from-amber-500 via-orange-500 to-emerald-400 h-full rounded-full transition-all duration-700 ease-out"
+                            style={{ width: `${progress?.ordersProgressPercent || 0}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 2. YOUR TARGETS BREAKDOWN */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+                      
+                      {/* Revenue Target Card */}
+                      {activeQuest.revenueTarget > 0 && (
+                        <div className="p-4 rounded-2xl bg-zinc-800/40 border border-white/5 space-y-1">
+                          <div className="flex items-center justify-between text-xs text-zinc-400">
+                            <span className="flex items-center gap-1.5">
+                              <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />
+                              Revenue
+                            </span>
+                            <span className="font-mono text-emerald-400">{progress?.revenueProgressPercent || 0}%</span>
+                          </div>
+                          <div className="text-base font-bold text-white font-heading">
+                            {formatCurrency(progress?.currentRevenue || 0)}
+                          </div>
+                          <div className="text-[11px] text-zinc-500">
+                            Goal: {formatCurrency(activeQuest.revenueTarget)}
+                          </div>
+                        </div>
                       )}
-                    >
-                      <div className="flex items-center justify-between text-[10px] font-mono mb-1">
-                        <span className="font-bold">{m.label}</span>
-                        {m.isReached ? (
-                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+
+                      {/* Orders Target Card */}
+                      {activeQuest.ordersTarget > 0 && (
+                        <div className="p-4 rounded-2xl bg-zinc-800/40 border border-white/5 space-y-1">
+                          <div className="flex items-center justify-between text-xs text-zinc-400">
+                            <span className="flex items-center gap-1.5">
+                              <ShoppingBag className="w-3.5 h-3.5 text-amber-400" />
+                              Orders
+                            </span>
+                            <span className="font-mono text-amber-400">{progress?.ordersProgressPercent || 0}%</span>
+                          </div>
+                          <div className="text-base font-bold text-white font-heading">
+                            {progress?.currentOrders || 0} / {activeQuest.ordersTarget}
+                          </div>
+                          <div className="text-[11px] text-zinc-500">
+                            {progress?.ordersRemaining === 0 ? "Target Completed" : `${progress?.ordersRemaining} more to reach target`}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Products Sold Target Card */}
+                      {activeQuest.productsTarget > 0 && (
+                        <div className="p-4 rounded-2xl bg-zinc-800/40 border border-white/5 space-y-1">
+                          <div className="flex items-center justify-between text-xs text-zinc-400">
+                            <span className="flex items-center gap-1.5">
+                              <Package className="w-3.5 h-3.5 text-orange-400" />
+                              Products Sold
+                            </span>
+                            <span className="font-mono text-orange-400">{progress?.productsProgressPercent || 0}%</span>
+                          </div>
+                          <div className="text-base font-bold text-white font-heading">
+                            {progress?.currentProducts || 0} / {activeQuest.productsTarget}
+                          </div>
+                          <div className="text-[11px] text-zinc-500">
+                            {progress?.productsRemaining === 0 ? "Target Completed" : `${progress?.productsRemaining} units remaining`}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 3. NEXT MILESTONE & MOTIVATION */}
+                    <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 via-orange-500/5 to-transparent border border-amber-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="space-y-1">
+                        <div className="text-xs uppercase tracking-wider text-amber-400 font-semibold flex items-center gap-1.5">
+                          <Zap className="w-3.5 h-3.5" />
+                          Next Milestone ({progress?.nextMilestonePercent}%)
+                        </div>
+                        <div className="text-sm font-medium text-white">
+                          {activeQuest.revenueTarget > 0 ? (
+                            <>
+                              {formatCurrency(progress?.nextMilestoneValue || 0)} —{" "}
+                              <span className="text-amber-300">
+                                Only {formatCurrency(progress?.remainingToNextMilestone || 0)} to go!
+                              </span>
+                            </>
+                          ) : (
+                            <>
+                              {progress?.nextMilestoneValue} Orders —{" "}
+                              <span className="text-amber-300">
+                                Only {progress?.remainingToNextMilestone} orders to go!
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="text-xs text-zinc-400 italic">
+                        Keep going. You&apos;re getting closer.
+                      </div>
+                    </div>
+
+                  </div>
+                </Card>
+
+                {/* 4. CRAFTAURA PLATFORM-WIDE CHALLENGE */}
+                {craftauraQuest && (
+                  <Card className="relative overflow-hidden bg-gradient-to-br from-zinc-900/90 to-zinc-950 border border-maroon-500/30 p-6 rounded-3xl shadow-lg">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-maroon-500/20 border border-maroon-500/30 flex items-center justify-center text-maroon-400">
+                          <Trophy className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <div className="text-[10px] uppercase font-mono tracking-widest text-maroon-400 font-semibold">
+                            Platform Challenge
+                          </div>
+                          <h3 className="text-lg font-bold font-heading text-white">{craftauraQuest.name}</h3>
+                        </div>
+                      </div>
+
+                      <div>
+                        {craftauraQuest.isJoined ? (
+                          <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/40 text-xs">
+                            <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
+                            Joined & Tracking
+                          </Badge>
                         ) : (
-                          <Lock className="w-3 h-3 text-zinc-600" />
+                          <Button
+                            size="sm"
+                            onClick={() => handleJoinCraftauraQuest(craftauraQuest.id)}
+                            className="bg-maroon-700 hover:bg-maroon-600 text-white text-xs h-8"
+                          >
+                            Join Challenge (+{craftauraQuest.pointsReward} pts)
+                          </Button>
                         )}
                       </div>
-                      <span className="text-xs font-bold text-white font-mono block">
-                        {formatTarget(m.targetValue, primaryQuest.goalType)}
-                      </span>
-                      <span className="text-[9px] text-amber-400/80 font-mono block mt-0.5">
-                        +{m.xpReward} XP {m.isReached && "✓"}
-                      </span>
+                    </div>
+
+                    <div className="space-y-4 pt-4">
+                      <p className="text-sm text-zinc-300">{craftauraQuest.description}</p>
+
+                      {craftauraQuest.isJoined && (
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-xs text-zinc-400 font-mono">
+                            <span>
+                              Progress: {craftauraQuest.currentValue} / {craftauraQuest.targetValue}{" "}
+                              {craftauraQuest.targetType}
+                            </span>
+                            <span>{craftauraQuest.progressPercent}%</span>
+                          </div>
+                          <div className="w-full bg-zinc-800 rounded-full h-2.5 overflow-hidden">
+                            <div
+                              className="bg-gradient-to-r from-maroon-600 to-amber-500 h-full rounded-full transition-all duration-500"
+                              style={{ width: `${craftauraQuest.progressPercent}%` }}
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {/* MYSTERY SURPRISE BOX */}
+                      <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 via-zinc-900 to-zinc-900 border border-amber-500/20 flex items-center gap-3.5">
+                        <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-300 shrink-0 text-xl">
+                          🎁
+                        </div>
+                        <div className="space-y-0.5">
+                          <div className="text-xs font-bold text-amber-300 uppercase tracking-wider">
+                            Mystery Surprise
+                          </div>
+                          <p className="text-xs text-zinc-300">
+                            {craftauraQuest.isCompleted
+                              ? "You completed the Craftaura Quest. Something special is waiting for you."
+                              : "Complete this month's challenge to unlock a special surprise reward."}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+                )}
+
+              </div>
+            )}
+
+          </div>
+        )}
+
+        {/* ----------------- TAB 2: MONTHLY LEADERBOARD ----------------- */}
+        {activeTab === "leaderboard" && (
+          <div className="space-y-6">
+            
+            {/* Champion Banner */}
+            <Card className="p-6 rounded-3xl bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-zinc-950 border border-amber-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-2xl shrink-0">
+                  🏆
+                </div>
+                <div>
+                  <h3 className="text-base font-bold font-heading text-white">
+                    {currentMonthName} Monthly Quest Champion
+                  </h3>
+                  <p className="text-xs text-zinc-400 mt-0.5">
+                    The top merchant by Quest Points at month end wins. The surprise will be revealed soon.
+                  </p>
+                </div>
+              </div>
+            </Card>
+
+            {/* Leaderboard Table */}
+            <Card className="overflow-hidden bg-zinc-900/90 border border-white/10 rounded-3xl shadow-xl">
+              <div className="p-5 border-b border-white/10 flex justify-between items-center">
+                <div>
+                  <h3 className="text-base font-bold font-heading text-white">{currentMonthName} Leaderboard</h3>
+                  <p className="text-xs text-zinc-400">Ranked safely by verified Quest Points earned from sales</p>
+                </div>
+              </div>
+
+              {leaderboard.length === 0 ? (
+                <div className="p-12 text-center text-zinc-500 text-sm">
+                  No activity recorded yet for this month. Place orders to score points!
+                </div>
+              ) : (
+                <div className="divide-y divide-white/5">
+                  {leaderboard.map((entry) => (
+                    <div
+                      key={entry.storeId}
+                      className={cn(
+                        "p-4 sm:px-6 flex items-center justify-between transition-colors",
+                        entry.isCurrentStore ? "bg-amber-500/10 border-l-4 border-amber-500" : "hover:bg-white/5"
+                      )}
+                    >
+                      <div className="flex items-center gap-4">
+                        {/* Rank Badge */}
+                        <div
+                          className={cn(
+                            "w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs font-mono shrink-0",
+                            entry.rank === 1
+                              ? "bg-amber-500 text-black shadow-md"
+                              : entry.rank === 2
+                              ? "bg-zinc-300 text-black"
+                              : entry.rank === 3
+                              ? "bg-amber-700 text-white"
+                              : "bg-zinc-800 text-zinc-400 border border-white/5"
+                          )}
+                        >
+                          {entry.rank}
+                        </div>
+
+                        {/* Store Info */}
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-semibold text-white">
+                              {entry.storeName}
+                            </span>
+                            {entry.isCurrentStore && (
+                              <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/40 text-[10px]">
+                                Your Store
+                              </Badge>
+                            )}
+                          </div>
+                          <span className="text-xs text-zinc-500">@{entry.storeSlug}</span>
+                        </div>
+                      </div>
+
+                      {/* Points */}
+                      <div className="text-right">
+                        <div className="text-sm font-bold font-mono text-amber-400">
+                          {entry.points.toLocaleString()} pts
+                        </div>
+                        <div className="text-[10px] text-zinc-500 uppercase tracking-wider">Quest Points</div>
+                      </div>
                     </div>
                   ))}
                 </div>
               )}
-            </div>
-          </Card>
+            </Card>
+          </div>
         )}
 
-        {/* 4. Tab Navigation Strip */}
-        <div className="flex items-center gap-2 border-b border-white/10 pb-3">
-          <button
-            onClick={() => setActiveTab("active")}
-            className={cn(
-              "px-4 py-2 text-xs font-bold font-heading rounded-xl transition-all cursor-pointer",
-              activeTab === "active"
-                ? "bg-maroon-800 text-white shadow-sm"
-                : "text-zinc-400 hover:text-white"
-            )}
-          >
-            Active Quests ({activeQuests.length})
-          </button>
-          <button
-            onClick={() => setActiveTab("achievements")}
-            className={cn(
-              "px-4 py-2 text-xs font-bold font-heading rounded-xl transition-all cursor-pointer",
-              activeTab === "achievements"
-                ? "bg-maroon-800 text-white shadow-sm"
-                : "text-zinc-400 hover:text-white"
-            )}
-          >
-            Achievements Showcase ({data?.achievements.filter((a) => a.isUnlocked).length || 0})
-          </button>
-          <button
-            onClick={() => setActiveTab("history")}
-            className={cn(
-              "px-4 py-2 text-xs font-bold font-heading rounded-xl transition-all cursor-pointer",
-              activeTab === "history"
-                ? "bg-maroon-800 text-white shadow-sm"
-                : "text-zinc-400 hover:text-white"
-            )}
-          >
-            Quest History ({completedQuests.length})
-          </button>
-        </div>
-
-        {/* Tab 1: Active Quests List */}
-        {activeTab === "active" && (
+        {/* ----------------- TAB 3: PAST QUESTS / HISTORY ----------------- */}
+        {activeTab === "history" && (
           <div className="space-y-6">
-            {activeQuests.length === 0 ? (
-              <Card className="p-12 text-center bg-[#151515] border-white/10 space-y-4 rounded-3xl">
-                <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-maroon-400 mx-auto">
-                  <Target className="w-6 h-6" />
+            <Card className="overflow-hidden bg-zinc-900/90 border border-white/10 rounded-3xl shadow-xl">
+              <div className="p-5 border-b border-white/10">
+                <h3 className="text-base font-bold font-heading text-white">Past Quests History</h3>
+                <p className="text-xs text-zinc-400">Review your past completed and archived monthly challenges</p>
+              </div>
+
+              {!data?.pastQuests || data.pastQuests.length === 0 ? (
+                <div className="p-12 text-center text-zinc-500 text-sm">
+                  No past quests recorded yet. When monthly quest periods conclude, their summaries will appear here.
                 </div>
-                <div className="space-y-1 max-w-md mx-auto">
-                  <h3 className="text-base font-bold font-heading text-white">No active goals currently</h3>
-                  <p className="text-xs text-zinc-400">
-                    Your Growth Quest starts with your first target. Choose a quick-start template or set a custom revenue goal.
-                  </p>
-                </div>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={() => setIsCreateModalOpen(true)}
-                  className="shadow-glow"
-                  leftIcon={<Plus className="w-4 h-4" />}
-                >
-                  Choose a Growth Quest Template
-                </Button>
-              </Card>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {activeQuests.map((quest) => (
-                  <Card key={quest.id} className="p-6 bg-[#151515] border-white/10 space-y-5 rounded-2xl">
-                    <div className="flex items-start justify-between gap-4">
+              ) : (
+                <div className="divide-y divide-white/5">
+                  {data.pastQuests.map((pq) => (
+                    <div key={pq.id} className="p-5 sm:px-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-maroon-400 font-heading">
-                            {quest.goalType.replace("_", " ")}
-                          </span>
-                          <span className="text-[10px] font-mono text-zinc-500">
-                            • {quest.daysRemaining} days left
-                          </span>
+                          <span className="text-xs font-mono uppercase text-zinc-400">{pq.monthName}</span>
+                          <Badge variant="outline" className="text-[10px] border-white/10 text-zinc-400 capitalize">
+                            {pq.status}
+                          </Badge>
                         </div>
-                        <h3 className="text-base font-bold font-heading text-white">{quest.title}</h3>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => handleOpenEdit(quest)}
-                          className="text-zinc-500 hover:text-white p-1.5 transition-colors"
-                          title="Edit Goal"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteGoal(quest.id)}
-                          className="text-zinc-600 hover:text-red-400 p-1.5 transition-colors"
-                          title="Delete Goal"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <div className="flex items-baseline justify-between text-xs">
-                        <span className="font-bold text-white font-mono">
-                          {formatTarget(quest.currentValue, quest.goalType)} / {formatTarget(quest.targetValue, quest.goalType)}
-                        </span>
-                        <span className="font-bold text-emerald-400 font-mono">{quest.progressPercent}%</span>
-                      </div>
-                      <div className="w-full h-2.5 bg-white/5 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-gradient-to-r from-maroon-700 to-maroon-500 rounded-full transition-all duration-500"
-                          style={{ width: `${Math.min(quest.progressPercent, 100)}%` }}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Milestones Checklist */}
-                    {quest.milestones.length > 0 && (
-                      <div className="space-y-1.5 pt-2 border-t border-white/5">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 font-heading block">
-                          Milestone Checkpoints
-                        </span>
-                        <div className="grid grid-cols-2 gap-2">
-                          {quest.milestones.map((m) => (
-                            <div
-                              key={m.id}
-                              className={cn(
-                                "p-2 rounded-lg border text-[11px] font-mono flex items-center justify-between",
-                                m.isReached
-                                  ? "bg-emerald-950/20 border-emerald-800/30 text-emerald-300 font-semibold"
-                                  : "bg-white/[0.02] border-white/5 text-zinc-500"
-                              )}
-                            >
-                              <span>{formatTarget(m.targetValue, quest.goalType)}</span>
-                              {m.isReached ? (
-                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                              ) : (
-                                <span className="text-[9px] text-zinc-600">+{m.xpReward} XP</span>
-                              )}
-                            </div>
-                          ))}
+                        <h4 className="text-sm font-bold text-white">{pq.questName}</h4>
+                        <div className="text-xs text-zinc-400">
+                          {pq.revenueTarget > 0 && `Revenue: ${formatCurrency(pq.currentRevenue)} / ${formatCurrency(pq.revenueTarget)} • `}
+                          {pq.ordersTarget > 0 && `Orders: ${pq.currentOrders} / ${pq.ordersTarget} • `}
+                          {pq.productsTarget > 0 && `Products: ${pq.currentProducts} / ${pq.productsTarget}`}
                         </div>
                       </div>
-                    )}
-                  </Card>
-                ))}
-              </div>
-            )}
 
-            {/* Smart Suggestions Bar */}
-            {data?.suggestedGoals && data.suggestedGoals.length > 0 && (
-              <div className="p-6 rounded-3xl bg-[#111111] border border-white/10 space-y-4">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-amber-400" />
-                  <h3 className="text-sm font-bold font-heading text-white">Smart Quest Suggestions</h3>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {data.suggestedGoals.map((sug, i) => (
-                    <div
-                      key={i}
-                      className="p-4 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-between gap-4"
-                    >
-                      <div className="space-y-1 text-left">
-                        <h4 className="text-xs font-bold text-white">{sug.title}</h4>
-                        <p className="text-[10px] text-zinc-400">{sug.reason}</p>
+                      <div className="flex items-center gap-6">
+                        <div className="text-right">
+                          <div className="text-sm font-bold text-white font-mono">{pq.progressPercent}%</div>
+                          <div className="text-[10px] text-zinc-500">Achieved</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-sm font-bold text-amber-400 font-mono">+{pq.pointsEarned}</div>
+                          <div className="text-[10px] text-zinc-500">Points</div>
+                        </div>
                       </div>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          setFormTitle(sug.title);
-                          setFormGoalType(sug.goalType);
-                          setFormTarget(sug.targetValue.toString());
-                          setFormPeriod(sug.periodType);
-                          setCreateMode("custom");
-                          setIsCreateModalOpen(true);
-                        }}
-                        className="text-xs shrink-0 border-white/10"
-                      >
-                        Adopt
-                      </Button>
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
+              )}
+            </Card>
           </div>
         )}
 
-        {/* Tab 2: Achievements Showcase */}
-        {activeTab === "achievements" && (
-          <div className="space-y-6">
-            {/* Category Filter Pills */}
-            <div className="flex flex-wrap gap-2">
-              {(["all", "orders", "revenue", "streaks", "goals"] as const).map((cat) => (
+        {/* ----------------- MODAL 1: TEMPLATE SELECTOR (3 DIFFICULTY LEVELS) ----------------- */}
+        {isTemplateModalOpen && (
+          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-zinc-900 border border-white/10 rounded-3xl max-w-2xl w-full p-6 space-y-6 shadow-2xl animate-in fade-in zoom-in duration-200">
+              
+              <div className="flex justify-between items-center border-b border-white/10 pb-4">
+                <div>
+                  <h3 className="text-lg font-bold font-heading text-white">Choose a Monthly Quest Template</h3>
+                  <p className="text-xs text-zinc-400">Select a realistic target designed for small and growing stores</p>
+                </div>
                 <button
-                  key={cat}
-                  onClick={() => setAchievementCategory(cat)}
-                  className={cn(
-                    "px-3 py-1.5 text-xs rounded-lg font-medium transition-colors capitalize",
-                    achievementCategory === cat
-                      ? "bg-maroon-800 text-white font-bold"
-                      : "bg-white/5 text-zinc-400 hover:text-white"
-                  )}
+                  onClick={() => setIsTemplateModalOpen(false)}
+                  className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-zinc-400 hover:text-white"
                 >
-                  {cat === "all" ? "All Badges" : cat}
+                  <X className="w-4 h-4" />
                 </button>
-              ))}
-            </div>
+              </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredAchievements.map((ach) => (
-                <Card
-                  key={ach.key}
-                  className={cn(
-                    "p-5 rounded-2xl border transition-all text-left space-y-3",
-                    ach.isUnlocked
-                      ? "bg-[#181818] border-amber-500/30 shadow-card"
-                      : "bg-[#111111] border-white/5 opacity-60"
-                  )}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-xl">
-                      {ach.icon}
-                    </div>
-                    <span className="text-[10px] font-mono font-bold text-amber-400">
-                      +{ach.xpReward} XP
-                    </span>
-                  </div>
-
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-sm font-bold font-heading text-white">{ach.title}</h3>
-                      {ach.isUnlocked ? (
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                      ) : (
-                        <Lock className="w-3 h-3 text-zinc-600 shrink-0" />
-                      )}
-                    </div>
-                    <p className="text-xs text-zinc-400 leading-relaxed">{ach.description}</p>
-                  </div>
-
-                  {ach.isUnlocked && ach.unlockedAt && (
-                    <span className="text-[9px] font-mono text-zinc-500 block pt-1 border-t border-white/5">
-                      Unlocked: {new Date(ach.unlockedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-                    </span>
-                  )}
-                </Card>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Tab 3: Quest History */}
-        {activeTab === "history" && (
-          <div className="space-y-4">
-            {completedQuests.length === 0 ? (
-              <Card className="p-12 text-center bg-[#151515] border-white/10 text-zinc-500 text-xs">
-                No past quests in archive yet. Completed or expired goals will archive here.
-              </Card>
-            ) : (
-              <div className="space-y-3">
-                {completedQuests.map((quest) => (
-                  <Card key={quest.id} className="p-5 bg-[#151515] border-white/10 flex items-center justify-between gap-4 rounded-2xl">
-                    <div className="space-y-1">
+              {/* 3 Template Cards */}
+              <div className="grid grid-cols-1 gap-4">
+                {templates.map((tpl) => (
+                  <div
+                    key={tpl.id}
+                    onClick={() => handleSelectTemplate(tpl)}
+                    className={cn(
+                      "p-5 rounded-2xl border transition-all cursor-pointer group flex flex-col sm:flex-row sm:items-center justify-between gap-4",
+                      tpl.difficulty === "easy"
+                        ? "bg-emerald-950/20 border-emerald-500/30 hover:border-emerald-400 hover:bg-emerald-950/30"
+                        : tpl.difficulty === "moderate"
+                        ? "bg-amber-950/20 border-amber-500/30 hover:border-amber-400 hover:bg-amber-950/30"
+                        : "bg-purple-950/20 border-purple-500/30 hover:border-purple-400 hover:bg-purple-950/30"
+                    )}
+                  >
+                    <div className="space-y-1.5">
                       <div className="flex items-center gap-2">
-                        <Badge variant={quest.status === "completed" ? "maroon" : "outline"} className="text-[10px]">
-                          {quest.status === "completed" ? "Completed ✓" : "Expired"}
+                        <Badge
+                          className={cn(
+                            "text-[10px] uppercase font-mono",
+                            tpl.difficulty === "easy"
+                              ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
+                              : tpl.difficulty === "moderate"
+                              ? "bg-amber-500/20 text-amber-300 border-amber-500/40"
+                              : "bg-purple-500/20 text-purple-300 border-purple-500/40"
+                          )}
+                        >
+                          {tpl.difficulty}
                         </Badge>
-                        <h4 className="text-sm font-bold font-heading text-white">{quest.title}</h4>
+                        <h4 className="text-base font-bold text-white font-heading">{tpl.name}</h4>
                       </div>
-                      <p className="text-xs font-mono text-zinc-400">
-                        {formatTarget(quest.currentValue, quest.goalType)} / {formatTarget(quest.targetValue, quest.goalType)} ({quest.progressPercent}%)
-                      </p>
+                      <p className="text-xs text-zinc-400">{tpl.description}</p>
                     </div>
-                    <span className="text-xs font-mono text-zinc-500">
-                      {new Date(quest.endDate).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
-                    </span>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
 
-      {/* 5. Create Goal Modal */}
-      {isCreateModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-          <div className="bg-[#151515] border border-white/10 rounded-3xl max-w-xl w-full p-6 sm:p-8 space-y-6 shadow-2xl text-left max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-4 border-b border-white/10">
-              <div>
-                <h3 className="text-lg font-bold font-heading text-white">Launch Growth Quest</h3>
-                <p className="text-xs text-zinc-400">Set a measurable target for real storefront orders.</p>
-              </div>
-              <button
-                onClick={() => setIsCreateModalOpen(false)}
-                className="text-zinc-500 hover:text-white p-1"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Template Selector vs Custom Switcher */}
-            <div className="flex items-center gap-2 bg-[#111111] p-1 rounded-xl border border-white/10">
-              <button
-                type="button"
-                onClick={() => setCreateMode("template")}
-                className={cn(
-                  "flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all",
-                  createMode === "template" ? "bg-maroon-800 text-white font-bold" : "text-zinc-400"
-                )}
-              >
-                Quick Templates
-              </button>
-              <button
-                type="button"
-                onClick={() => setCreateMode("custom")}
-                className={cn(
-                  "flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all",
-                  createMode === "custom" ? "bg-maroon-800 text-white font-bold" : "text-zinc-400"
-                )}
-              >
-                Custom Quest
-              </button>
-            </div>
-
-            {createMode === "template" ? (
-              <div className="space-y-3">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 font-heading block">
-                  Select a Proven Template
-                </span>
-                <div className="grid grid-cols-1 gap-3">
-                  {GOAL_TEMPLATES.map((tpl, i) => (
-                    <div
-                      key={i}
-                      onClick={() => handleApplyTemplate(tpl)}
-                      className="p-4 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/5 hover:border-maroon-700/50 transition-all cursor-pointer flex items-center justify-between gap-4 group"
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className="text-2xl">{tpl.icon}</span>
-                        <div className="space-y-0.5">
-                          <h4 className="text-xs font-bold text-white group-hover:text-maroon-300 transition-colors">
-                            {tpl.title}
-                          </h4>
-                          <p className="text-[11px] text-zinc-400">{tpl.description}</p>
+                    <div className="flex items-center gap-4">
+                      <div className="text-right space-y-0.5">
+                        <div className="text-sm font-bold text-white font-heading">
+                          {formatCurrency(tpl.revenueTarget)}
+                        </div>
+                        <div className="text-[11px] text-zinc-400 font-mono">
+                          {tpl.ordersTarget} orders • {tpl.productsTarget} units
                         </div>
                       </div>
-                      <ChevronRight className="w-4 h-4 text-zinc-600 group-hover:text-white transition-colors" />
+                      <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white group-hover:translate-x-1 transition-transform shrink-0">
+                        <ChevronRight className="w-4 h-4" />
+                      </div>
                     </div>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <form onSubmit={handleCreateGoal} className="space-y-4">
-                <Input
-                  label="Quest Title"
-                  placeholder="e.g. September Revenue Sprint"
-                  value={formTitle}
-                  onChange={(e) => setFormTitle(e.target.value)}
-                  required
-                />
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold font-heading text-zinc-400">Metric Type</label>
-                    <select
-                      value={formGoalType}
-                      onChange={(e) => setFormGoalType(e.target.value as GoalType)}
-                      className="w-full h-10 bg-[#111111] border border-white/10 rounded-xl px-3 text-xs text-white outline-none focus:border-maroon-600"
-                    >
-                      <option value="revenue">Total Revenue (₹)</option>
-                      <option value="orders_count">Order Count</option>
-                      <option value="units_sold">Product Units Sold</option>
-                      <option value="avg_order_value">Average Order Value (₹)</option>
-                      <option value="selling_streak">Selling Streak (Days)</option>
-                    </select>
                   </div>
+                ))}
+              </div>
 
+              <div className="flex justify-end pt-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setIsTemplateModalOpen(false);
+                    handleOpenCustomCreate();
+                  }}
+                  className="border-white/10 text-xs text-zinc-400 hover:text-white"
+                >
+                  Or set a custom quest instead
+                </Button>
+              </div>
+
+            </div>
+          </div>
+        )}
+
+        {/* ----------------- MODAL 2: CREATE / EDIT CUSTOM QUEST FORM ----------------- */}
+        {isFormModalOpen && (
+          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-zinc-900 border border-white/10 rounded-3xl max-w-lg w-full p-6 space-y-6 shadow-2xl animate-in fade-in zoom-in duration-200">
+              
+              <div className="flex justify-between items-center border-b border-white/10 pb-4">
+                <div>
+                  <h3 className="text-lg font-bold font-heading text-white">
+                    {formMode === "edit" ? "Edit Quest Targets" : "Configure Monthly Quest"}
+                  </h3>
+                  <p className="text-xs text-zinc-400">
+                    Define one or more targets for your monthly challenge
+                  </p>
+                </div>
+                <button
+                  onClick={() => setIsFormModalOpen(false)}
+                  className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-zinc-400 hover:text-white"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveQuest} className="space-y-4">
+                
+                {/* Quest Name */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-zinc-300">Quest Name</label>
                   <Input
-                    label="Target Number"
-                    type="number"
-                    value={formTarget}
-                    onChange={(e) => setFormTarget(e.target.value)}
-                    placeholder="10000"
+                    value={formQuestName}
+                    onChange={(e) => setFormQuestName(e.target.value)}
+                    placeholder="e.g. September Growth Quest"
+                    className="bg-black/50 border-white/10 text-white"
                     required
                   />
                 </div>
 
+                {/* Revenue Target */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold font-heading text-zinc-400">Goal Timeframe</label>
-                  <select
-                    value={formPeriod}
-                    onChange={(e) => setFormPeriod(e.target.value as GoalPeriod)}
-                    className="w-full h-10 bg-[#111111] border border-white/10 rounded-xl px-3 text-xs text-white outline-none focus:border-maroon-600"
-                  >
-                    <option value="month">This Month (Current Calendar Month)</option>
-                    <option value="3_months">3 Months Quarter</option>
-                    <option value="6_months">6 Months</option>
-                    <option value="year">Full Year</option>
-                    <option value="custom">Custom Date Range</option>
-                  </select>
+                  <label className="text-xs font-semibold text-zinc-300">Revenue Target (₹)</label>
+                  <Input
+                    type="number"
+                    value={formRevenueTarget}
+                    onChange={(e) => setFormRevenueTarget(e.target.value)}
+                    placeholder="e.g. 10000 (leave empty if not tracking revenue)"
+                    className="bg-black/50 border-white/10 text-white"
+                  />
                 </div>
 
-                {formPeriod === "custom" && (
-                  <div className="grid grid-cols-2 gap-4 pt-2">
-                    <Input
-                      label="Start Date"
-                      type="date"
-                      value={formStartDate}
-                      onChange={(e) => setFormStartDate(e.target.value)}
-                      required
-                    />
-                    <Input
-                      label="End Date"
-                      type="date"
-                      value={formEndDate}
-                      onChange={(e) => setFormEndDate(e.target.value)}
-                      required
-                    />
-                  </div>
-                )}
+                {/* Orders Target */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-zinc-300">Orders Target</label>
+                  <Input
+                    type="number"
+                    value={formOrdersTarget}
+                    onChange={(e) => setFormOrdersTarget(e.target.value)}
+                    placeholder="e.g. 15 (leave empty if not tracking orders)"
+                    className="bg-black/50 border-white/10 text-white"
+                  />
+                </div>
 
-                {/* Optional Milestones */}
-                <div className="space-y-2 pt-2 border-t border-white/5">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 font-heading block">
-                    Custom Milestones (Optional)
+                {/* Products Sold Target */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-zinc-300">Products Sold Target</label>
+                  <Input
+                    type="number"
+                    value={formProductsTarget}
+                    onChange={(e) => setFormProductsTarget(e.target.value)}
+                    placeholder="e.g. 20 (leave empty if not tracking units)"
+                    className="bg-black/50 border-white/10 text-white"
+                  />
+                </div>
+
+                <div className="p-3 rounded-xl bg-white/5 border border-white/5 text-xs text-zinc-400 flex items-start gap-2">
+                  <Info className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                  <span>
+                    You do not need to fill every target. Fill only what you want to track for this month.
                   </span>
-                  <div className="grid grid-cols-3 gap-2">
-                    <Input
-                      placeholder="25% (2500)"
-                      type="number"
-                      value={formMilestone1}
-                      onChange={(e) => setFormMilestone1(e.target.value)}
-                    />
-                    <Input
-                      placeholder="50% (5000)"
-                      type="number"
-                      value={formMilestone2}
-                      onChange={(e) => setFormMilestone2(e.target.value)}
-                    />
-                    <Input
-                      placeholder="75% (7500)"
-                      type="number"
-                      value={formMilestone3}
-                      onChange={(e) => setFormMilestone3(e.target.value)}
-                    />
-                  </div>
                 </div>
 
-                <div className="pt-4 flex items-center justify-end gap-3 border-t border-white/10">
+                <div className="flex justify-end gap-3 pt-4 border-t border-white/10">
                   <Button
                     type="button"
-                    variant="outline"
-                    onClick={() => setIsCreateModalOpen(false)}
-                    className="text-xs border-white/10"
+                    variant="ghost"
+                    onClick={() => setIsFormModalOpen(false)}
+                    className="text-zinc-400 hover:text-white"
                   >
                     Cancel
                   </Button>
                   <Button
                     type="submit"
-                    variant="primary"
                     disabled={isSubmitting}
-                    className="text-xs font-semibold shadow-glow"
-                    leftIcon={isSubmitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Target className="w-3.5 h-3.5" />}
+                    className="bg-maroon-700 hover:bg-maroon-600 text-white"
                   >
-                    {isSubmitting ? "Launching..." : "Launch Quest"}
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Saving...
+                      </>
+                    ) : formMode === "edit" ? (
+                      "Save Changes"
+                    ) : (
+                      "Activate Quest"
+                    )}
                   </Button>
                 </div>
+
               </form>
-            )}
-          </div>
-        </div>
-      )}
 
-      {/* 6. Edit Goal Modal */}
-      {editingGoal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-          <div className="bg-[#151515] border border-white/10 rounded-3xl max-w-lg w-full p-6 space-y-6 shadow-2xl text-left">
-            <div className="flex items-center justify-between pb-4 border-b border-white/10">
-              <div>
-                <h3 className="text-lg font-bold font-heading text-white">Edit Goal</h3>
-                <p className="text-xs text-zinc-400">Update quest target, title, or end date.</p>
-              </div>
-              <button onClick={() => setEditingGoal(null)} className="text-zinc-500 hover:text-white p-1">
-                <X className="w-5 h-5" />
-              </button>
             </div>
-
-            <form onSubmit={handleSaveEdit} className="space-y-4">
-              <Input
-                label="Goal Title"
-                value={editTitle}
-                onChange={(e) => setEditTitle(e.target.value)}
-                required
-              />
-
-              <Input
-                label="Target Number"
-                type="number"
-                value={editTarget}
-                onChange={(e) => setEditTarget(e.target.value)}
-                required
-              />
-
-              <Input
-                label="End Date"
-                type="date"
-                value={editEndDate}
-                onChange={(e) => setEditEndDate(e.target.value)}
-                required
-              />
-
-              <div className="pt-4 flex items-center justify-end gap-3 border-t border-white/10">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setEditingGoal(null)}
-                  className="text-xs border-white/10"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  variant="primary"
-                  disabled={isEditingSubmitting}
-                  className="text-xs font-semibold shadow-glow"
-                  leftIcon={isEditingSubmitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-                >
-                  {isEditingSubmitting ? "Saving..." : "Save Changes"}
-                </Button>
-              </div>
-            </form>
           </div>
-        </div>
-      )}
+        )}
+
+        {/* ----------------- MODAL 3: QUEST POINTS LOG & RULES ----------------- */}
+        {isPointsModalOpen && (
+          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-zinc-900 border border-white/10 rounded-3xl max-w-lg w-full p-6 space-y-6 shadow-2xl animate-in fade-in zoom-in duration-200 max-h-[85vh] flex flex-col">
+              
+              <div className="flex justify-between items-center border-b border-white/10 pb-4 shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400">
+                    <Sparkles className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold font-heading text-white">Quest Points Ledger</h3>
+                    <p className="text-xs text-zinc-400">Total Score: {totalPoints.toLocaleString()} Points</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setIsPointsModalOpen(false)}
+                  className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-zinc-400 hover:text-white"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Point Rules Explainer */}
+              <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 space-y-2 shrink-0">
+                <div className="text-xs font-bold text-amber-300 uppercase tracking-wider">How You Earn Points</div>
+                <div className="grid grid-cols-2 gap-2 text-xs text-zinc-300">
+                  <div>• Valid order: +{data?.pointRules.pointsPerOrder} pts</div>
+                  <div>• Every ₹100 earned: +{data?.pointRules.pointsPerRevenueUnit} pt</div>
+                  <div>• Product sold: +{data?.pointRules.pointsPerProductSold} pts</div>
+                  <div>• Milestones: +25 to +150 pts</div>
+                </div>
+              </div>
+
+              {/* Points History */}
+              <div className="overflow-y-auto space-y-2 pr-1 flex-1">
+                {!data?.recentPoints || data.recentPoints.length === 0 ? (
+                  <div className="p-8 text-center text-xs text-zinc-500">
+                    No points earned yet. Make sales in your store to earn Quest Points!
+                  </div>
+                ) : (
+                  data.recentPoints.map((p) => (
+                    <div
+                      key={p.id}
+                      className="p-3 rounded-xl bg-white/5 border border-white/5 flex items-center justify-between text-xs"
+                    >
+                      <div className="space-y-0.5">
+                        <div className="text-white font-medium">{p.description}</div>
+                        <div className="text-[10px] text-zinc-500">
+                          {new Date(p.createdAt).toLocaleDateString()}
+                        </div>
+                      </div>
+                      <div className="font-bold font-mono text-amber-400">+{p.points} pts</div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+            </div>
+          </div>
+        )}
+
+      </div>
     </DashboardLayout>
   );
 }

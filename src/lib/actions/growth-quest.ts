@@ -1,336 +1,250 @@
 "use server";
 
 import { createServerInstance } from "@/lib/supabase/server";
-import { GrowthQuestEngine, GoalType, GoalPeriod, GamificationSummary, GoalMilestone } from "@/lib/services/growth-quest-engine";
-import { isAdminUser } from "@/lib/services/admin-roles";
-import { randomUUID } from "crypto";
+import { revalidatePath } from "next/cache";
+import {
+  GrowthQuestService,
+  GrowthQuestOverview,
+  QuestTemplate,
+  LeaderboardRankItem,
+  QuestDifficulty,
+  QuestSourceType,
+} from "@/lib/services/growth-quest-service";
 
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-async function verifyStoreOwnership(supabase: any, storeId: string) {
+async function verifyStoreOwner(supabase: any, storeId: string) {
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Unauthorized");
+  if (!user) throw new Error("Unauthorized: Please log in to manage your Growth Quest.");
 
-  if (isAdminUser(user.email || "")) {
-    return { storeId, userId: user.id };
-  }
-
-  const { data: storeRow } = await (supabase.from("stores") as any)
+  const { data: store } = await supabase
+    .from("stores")
     .select("id, user_id")
     .eq("id", storeId)
-    .eq("user_id", user.id)
     .maybeSingle();
 
-  if (!storeRow) {
-    throw new Error("Access Denied: You do not own this store.");
+  if (!store || store.user_id !== user.id) {
+    throw new Error("Forbidden: You do not have permission to manage this store.");
   }
 
-  return { storeId, userId: user.id };
+  return { userId: user.id };
 }
 
-export async function getGrowthQuestDataAction(storeId: string): Promise<{
-  success: boolean;
-  data?: GamificationSummary;
-  error?: string;
-}> {
+export async function getGrowthQuestDataAction(
+  storeId: string
+): Promise<{ success: boolean; data?: GrowthQuestOverview; error?: string }> {
   try {
-    if (!storeId || !UUID_REGEX.test(storeId)) {
-      throw new Error("Invalid Store ID format.");
-    }
-
+    if (!storeId) return { success: false, error: "Store ID is required." };
     const supabase = await createServerInstance();
-    const { userId } = await verifyStoreOwnership(supabase, storeId);
+    const { userId } = await verifyStoreOwner(supabase, storeId);
 
-    const data = await GrowthQuestEngine.evaluateStoreGamification(storeId, userId, supabase);
-    return { success: true, data };
+    const overview = await GrowthQuestService.evaluateStoreQuest(storeId, userId, supabase);
+    return { success: true, data: overview };
   } catch (err: any) {
     console.error("Growth Quest fetch error:", err);
     return { success: false, error: err.message || "Failed to load Growth Quest data." };
   }
 }
 
-export interface CreateGoalPayload {
-  title: string;
-  description?: string;
-  goalType: GoalType;
-  targetValue: number;
-  periodType: GoalPeriod;
+export async function getQuestTemplatesAction(): Promise<{
+  success: boolean;
+  templates?: QuestTemplate[];
+  error?: string;
+}> {
+  try {
+    const supabase = await createServerInstance();
+    const templates = await GrowthQuestService.getTemplates(supabase);
+    return { success: true, templates };
+  } catch (err: any) {
+    return { success: false, error: err.message || "Failed to load quest templates." };
+  }
+}
+
+export interface CreateQuestPayload {
+  storeId: string;
+  questName: string;
+  sourceType: QuestSourceType;
+  templateId?: string;
+  difficulty?: QuestDifficulty;
+  revenueTarget?: number;
+  ordersTarget?: number;
+  productsTarget?: number;
   startDate?: string;
   endDate?: string;
-  milestones?: number[];
 }
 
-export async function createGoalAction(
-  storeId: string,
-  payload: CreateGoalPayload
-): Promise<{ success: boolean; goalId?: string; error?: string }> {
+export async function createMerchantQuestAction(
+  payload: CreateQuestPayload
+): Promise<{ success: boolean; questId?: string; error?: string }> {
   try {
-    if (!storeId || !UUID_REGEX.test(storeId)) {
-      throw new Error("Invalid Store ID format.");
-    }
-
-    const { title, goalType, targetValue, periodType } = payload;
-    if (!title || title.trim().length === 0) {
-      throw new Error("Goal title is required.");
-    }
-    if (!targetValue || isNaN(targetValue) || targetValue <= 0) {
-      throw new Error("Valid positive target value is required.");
-    }
-
     const supabase = await createServerInstance();
-    const { userId } = await verifyStoreOwnership(supabase, storeId);
+    const { userId } = await verifyStoreOwner(supabase, payload.storeId);
 
-    // Calculate start and end dates based on periodType
+    if (!payload.questName?.trim()) {
+      return { success: false, error: "Quest name is required." };
+    }
+
+    const revTarget = Math.max(0, Number(payload.revenueTarget || 0));
+    const ordTarget = Math.max(0, Number(payload.ordersTarget || 0));
+    const prodTarget = Math.max(0, Number(payload.productsTarget || 0));
+
+    if (revTarget <= 0 && ordTarget <= 0 && prodTarget <= 0) {
+      return { success: false, error: "Please define at least one target (Revenue, Orders, or Products sold)." };
+    }
+
     const now = new Date();
-    let start = new Date();
-    let end = new Date();
+    const defaultStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    const defaultEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999).toISOString();
 
-    if (periodType === "month") {
-      start = new Date(now.getFullYear(), now.getMonth(), 1);
-      end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
-    } else if (periodType === "3_months") {
-      start = new Date(now.getFullYear(), now.getMonth(), 1);
-      end = new Date(now.getFullYear(), now.getMonth() + 3, 0, 23, 59, 59);
-    } else if (periodType === "6_months") {
-      start = new Date(now.getFullYear(), now.getMonth(), 1);
-      end = new Date(now.getFullYear(), now.getMonth() + 6, 0, 23, 59, 59);
-    } else if (periodType === "year") {
-      start = new Date(now.getFullYear(), 0, 1);
-      end = new Date(now.getFullYear(), 11, 31, 23, 59, 59);
-    } else if (periodType === "custom") {
-      if (!payload.startDate || !payload.endDate) {
-        throw new Error("Custom date range requires start and end dates.");
-      }
-      start = new Date(payload.startDate);
-      end = new Date(payload.endDate);
-      if (end <= start) {
-        throw new Error("End date must be after start date.");
-      }
+    const startDate = payload.startDate ? new Date(payload.startDate).toISOString() : defaultStart;
+    const endDate = payload.endDate ? new Date(payload.endDate).toISOString() : defaultEnd;
+
+    // Archive or pause any existing active quest for this store
+    await (supabase.from("growth_quests") as any)
+      .update({ status: "archived", updated_at: new Date().toISOString() })
+      .eq("store_id", payload.storeId)
+      .eq("status", "active");
+
+    const insertData: any = {
+      merchant_id: userId,
+      store_id: payload.storeId,
+      quest_name: payload.questName.trim(),
+      source_type: payload.sourceType || "custom",
+      template_id: payload.templateId || null,
+      difficulty: payload.difficulty || "custom",
+      start_date: startDate,
+      end_date: endDate,
+      revenue_target: revTarget,
+      orders_target: ordTarget,
+      products_target: prodTarget,
+      status: "active",
+    };
+
+    const { data: newQuest, error } = await (supabase.from("growth_quests") as any)
+      .insert(insertData)
+      .select("id")
+      .single();
+
+    if (error || !newQuest) {
+      throw new Error(error?.message || "Failed to create quest in database.");
     }
 
-    let goalId = "";
-    let savedToPrimary = false;
+    // Trigger immediate evaluation to process any existing orders in period
+    await GrowthQuestService.evaluateStoreQuest(payload.storeId, userId, supabase);
 
-    // 1. Try primary merchant_goals table
-    try {
-      const { data: goalRow, error: goalError } = await (supabase.from("merchant_goals") as any)
-        .insert({
-          store_id: storeId,
-          user_id: userId,
-          title: title.trim(),
-          goal_type: goalType,
-          target_value: targetValue,
-          period_type: periodType,
-          start_date: start.toISOString(),
-          end_date: end.toISOString(),
-          status: "active",
-        })
-        .select()
-        .single();
-
-      if (!goalError && goalRow) {
-        goalId = goalRow.id;
-        savedToPrimary = true;
-      }
-    } catch {
-      savedToPrimary = false;
-    }
-
-    // Generate Milestone definitions
-    let milestoneValues = payload.milestones || [];
-    if (milestoneValues.length === 0) {
-      milestoneValues = [
-        Math.round(targetValue * 0.25),
-        Math.round(targetValue * 0.5),
-        Math.round(targetValue * 0.75),
-        targetValue,
-      ];
-    }
-
-    const uniqueValues = Array.from(new Set(milestoneValues)).filter((v) => v > 0).sort((a, b) => a - b);
-    const milestonePayloads: GoalMilestone[] = uniqueValues.map((v, idx) => {
-      const isFinal = v >= targetValue;
-      let label = `${idx + 1}. Checkpoint: ${goalType === "revenue" || goalType === "avg_order_value" ? `₹${v.toLocaleString()}` : `${v} ${goalType === "orders_count" ? "Orders" : goalType === "units_sold" ? "Units" : "Days"}`}`;
-      if (isFinal) label = "🏆 Goal Victory";
-
-      return {
-        id: randomUUID(),
-        goalId: goalId || `goal-${Date.now()}`,
-        storeId: storeId,
-        targetValue: v,
-        label,
-        xpReward: isFinal ? 150 : 50,
-        isReached: false,
-      };
-    });
-
-    if (savedToPrimary && goalId) {
-      try {
-        const dbPayloads = milestonePayloads.map((m) => ({
-          goal_id: goalId,
-          store_id: storeId,
-          target_value: m.targetValue,
-          label: m.label,
-          xp_reward: m.xpReward,
-          is_reached: false,
-        }));
-        await (supabase.from("goal_milestones") as any).insert(dbPayloads);
-      } catch (mErr) {
-        console.warn("Milestones insert error:", mErr);
-      }
-    }
-
-    // 2. Always persist / fallback to activity_logs for guaranteed zero-failure persistence
-    if (!goalId) {
-      goalId = `goal-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-    }
-
-    try {
-      await (supabase.from("activity_logs") as any).insert({
-        store_id: storeId,
-        user_id: userId,
-        action: `growth_quest_goal_${goalId}`,
-        details: {
-          id: goalId,
-          title: title.trim(),
-          description: payload.description,
-          goal_type: goalType,
-          target_value: targetValue,
-          period_type: periodType,
-          start_date: start.toISOString(),
-          end_date: end.toISOString(),
-          status: "active",
-          milestones: milestonePayloads,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-      });
-    } catch (logErr) {
-      console.warn("Failed to write goal backup to activity_logs:", logErr);
-    }
-
-    // Trigger instant evaluation
-    await GrowthQuestEngine.evaluateStoreGamification(storeId, userId, supabase);
-
-    return { success: true, goalId };
+    revalidatePath("/dashboard/goals");
+    return { success: true, questId: newQuest.id };
   } catch (err: any) {
-    console.error("Create Goal error:", err);
-    return { success: false, error: err.message || "Failed to create Growth Quest goal." };
+    console.error("Create quest error:", err);
+    return { success: false, error: err.message || "Failed to create quest." };
   }
 }
 
-export interface UpdateGoalPayload {
-  goalId: string;
-  title?: string;
-  targetValue?: number;
+export interface UpdateQuestPayload {
+  questId: string;
+  storeId: string;
+  questName: string;
+  revenueTarget?: number;
+  ordersTarget?: number;
+  productsTarget?: number;
   endDate?: string;
 }
 
-export async function updateGoalAction(
-  storeId: string,
-  payload: UpdateGoalPayload
+export async function updateMerchantQuestAction(
+  payload: UpdateQuestPayload
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    if (!storeId || !payload.goalId) throw new Error("Invalid parameters.");
-
     const supabase = await createServerInstance();
-    const { userId } = await verifyStoreOwnership(supabase, storeId);
+    const { userId } = await verifyStoreOwner(supabase, payload.storeId);
 
-    const updates: any = {
+    const updateData: any = {
+      quest_name: payload.questName.trim(),
+      revenue_target: Math.max(0, Number(payload.revenueTarget || 0)),
+      orders_target: Math.max(0, Number(payload.ordersTarget || 0)),
+      products_target: Math.max(0, Number(payload.productsTarget || 0)),
       updated_at: new Date().toISOString(),
     };
-    if (payload.title) updates.title = payload.title.trim();
-    if (payload.targetValue && payload.targetValue > 0) updates.target_value = payload.targetValue;
-    if (payload.endDate) updates.end_date = new Date(payload.endDate).toISOString();
 
-    // 1. Try primary table
-    try {
-      await (supabase.from("merchant_goals") as any)
-        .update(updates)
-        .eq("id", payload.goalId)
-        .eq("store_id", storeId);
-    } catch {}
+    if (payload.endDate) {
+      updateData.end_date = new Date(payload.endDate).toISOString();
+    }
 
-    // 2. Persist to activity_logs
-    try {
-      const { data: latestLog } = await (supabase.from("activity_logs") as any)
-        .select("*")
-        .eq("store_id", storeId)
-        .eq("action", `growth_quest_goal_${payload.goalId}`)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+    const { error } = await (supabase.from("growth_quests") as any)
+      .update(updateData)
+      .eq("id", payload.questId)
+      .eq("store_id", payload.storeId);
 
-      const existingDetails = latestLog?.details || {};
-      await (supabase.from("activity_logs") as any).insert({
-        store_id: storeId,
-        user_id: userId,
-        action: `growth_quest_goal_${payload.goalId}`,
-        details: {
-          ...existingDetails,
-          ...updates,
-          id: payload.goalId,
-        },
-      });
-    } catch {}
+    if (error) throw new Error(error.message);
 
-    await GrowthQuestEngine.evaluateStoreGamification(storeId, userId, supabase);
+    await GrowthQuestService.evaluateStoreQuest(payload.storeId, userId, supabase);
+    revalidatePath("/dashboard/goals");
     return { success: true };
   } catch (err: any) {
-    console.error("Update goal error:", err);
-    return { success: false, error: err.message || "Failed to update goal." };
+    console.error("Update quest error:", err);
+    return { success: false, error: err.message || "Failed to update quest." };
   }
 }
 
-export async function deleteGoalAction(
+export async function pauseOrArchiveQuestAction(
+  questId: string,
   storeId: string,
-  goalId: string
+  newStatus: "active" | "paused" | "archived"
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    if (!storeId || !goalId) throw new Error("Invalid parameters.");
-
     const supabase = await createServerInstance();
-    const { userId } = await verifyStoreOwnership(supabase, storeId);
+    const { userId } = await verifyStoreOwner(supabase, storeId);
 
-    // 1. Try primary table
-    try {
-      await (supabase.from("merchant_goals") as any)
-        .delete()
-        .eq("id", goalId)
-        .eq("store_id", storeId);
-    } catch {}
+    const { error } = await (supabase.from("growth_quests") as any)
+      .update({ status: newStatus, updated_at: new Date().toISOString() })
+      .eq("id", questId)
+      .eq("store_id", storeId);
 
-    // 2. Mark deleted in activity_logs
-    try {
-      await (supabase.from("activity_logs") as any).insert({
-        store_id: storeId,
-        user_id: userId,
-        action: `growth_quest_goal_${goalId}`,
-        details: {
-          id: goalId,
-          isDeleted: true,
-          deleted_at: new Date().toISOString(),
-        },
-      });
-    } catch {}
+    if (error) throw new Error(error.message);
 
-    await GrowthQuestEngine.evaluateStoreGamification(storeId, userId, supabase);
+    await GrowthQuestService.evaluateStoreQuest(storeId, userId, supabase);
+    revalidatePath("/dashboard/goals");
     return { success: true };
   } catch (err: any) {
-    console.error("Delete goal error:", err);
-    return { success: false, error: err.message || "Failed to delete goal." };
+    return { success: false, error: err.message || "Failed to change quest status." };
   }
 }
 
-export async function recalculateGrowthQuestAction(storeId: string): Promise<{ success: boolean; error?: string }> {
+export async function joinCraftauraQuestAction(
+  craftauraQuestId: string,
+  storeId: string
+): Promise<{ success: boolean; error?: string }> {
   try {
-    if (!storeId) throw new Error("Missing store ID.");
     const supabase = await createServerInstance();
-    const { userId } = await verifyStoreOwnership(supabase, storeId);
+    const { userId } = await verifyStoreOwner(supabase, storeId);
 
-    await GrowthQuestEngine.evaluateStoreGamification(storeId, userId, supabase);
+    const { error } = await (supabase.from("craftaura_quest_participants") as any)
+      .insert({
+        craftaura_quest_id: craftauraQuestId,
+        merchant_id: userId,
+        store_id: storeId,
+      })
+      .select("id")
+      .maybeSingle();
+
+    if (error && !error.message?.includes("duplicate key")) {
+      throw new Error(error.message);
+    }
+
+    await GrowthQuestService.evaluateStoreQuest(storeId, userId, supabase);
+    revalidatePath("/dashboard/goals");
     return { success: true };
   } catch (err: any) {
-    return { success: false, error: err.message || "Failed to recalculate." };
+    return { success: false, error: err.message || "Failed to join Craftaura Quest." };
+  }
+}
+
+export async function getLeaderboardAction(
+  month?: number,
+  year?: number
+): Promise<{ success: boolean; leaderboard?: LeaderboardRankItem[]; error?: string }> {
+  try {
+    const supabase = await createServerInstance();
+    const leaderboard = await GrowthQuestService.getMonthlyLeaderboard(supabase, undefined, month, year);
+    return { success: true, leaderboard };
+  } catch (err: any) {
+    return { success: false, error: err.message || "Failed to fetch leaderboard." };
   }
 }
