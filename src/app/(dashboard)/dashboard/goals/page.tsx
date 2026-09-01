@@ -1,15 +1,13 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import {
   Target,
-  Trophy,
   Sparkles,
   Plus,
   CheckCircle2,
   TrendingUp,
-  Calendar,
   Zap,
   Trash2,
   Edit2,
@@ -25,6 +23,8 @@ import {
   History,
   Info,
   Award,
+  Calendar,
+  BarChart3,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -54,7 +54,7 @@ export default function GrowthQuestPage() {
   const [data, setData] = useState<GrowthQuestOverview | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [activeTab, setActiveTab] = useState<"quest" | "leaderboard" | "history">("quest");
+  const [activeTab, setActiveTab] = useState<"quest" | "history">("quest");
 
   // Template Selection Modal
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
@@ -83,10 +83,10 @@ export default function GrowthQuestPage() {
       if (res.success && res.data) {
         setData(res.data);
       } else {
-        toast.error("Error", res.error || "Failed to load Growth Quest.");
+        toast.error("Error", res.error || "Failed to load Growth Quest data.");
       }
     } catch (err: any) {
-      toast.error("Error", err.message || "Failed to load Growth Quest.");
+      toast.error("Error", err.message || "Failed to load Growth Quest data.");
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -97,7 +97,7 @@ export default function GrowthQuestPage() {
     loadData();
   }, [loadData]);
 
-  // Realtime subscription for instant updates on new orders & quests
+  // Realtime subscription for automatic updates on orders and quests
   useEffect(() => {
     if (!activeStore?.id) return;
     const supabase = createClient();
@@ -212,7 +212,7 @@ export default function GrowthQuestPage() {
         });
 
         if (res.success) {
-          toast.success("Quest Updated", "Your monthly quest targets have been updated.");
+          toast.success("Quest Updated", "Your monthly quest targets have been saved.");
           setIsFormModalOpen(false);
           await loadData(true);
         } else {
@@ -231,7 +231,7 @@ export default function GrowthQuestPage() {
         });
 
         if (res.success) {
-          toast.success("Quest Activated!", "Your new monthly growth quest is now active.");
+          toast.success("Quest Activated!", "Your new monthly Growth Quest is now active and tracking.");
           setIsFormModalOpen(false);
           await loadData(true);
         } else {
@@ -248,12 +248,12 @@ export default function GrowthQuestPage() {
   // Pause / Archive Quest
   const handleArchiveQuest = async (questId: string) => {
     if (!activeStore?.id) return;
-    if (!confirm("Are you sure you want to end this quest? Your points will remain in your monthly score.")) return;
+    if (!confirm("Are you sure you want to end this quest? Your points will be preserved in your history.")) return;
 
     try {
       const res = await pauseOrArchiveQuestAction(questId, activeStore.id, "archived");
       if (res.success) {
-        toast.success("Quest Ended", "Your quest has been archived.");
+        toast.success("Quest Archived", "Your quest has been safely archived.");
         await loadData(true);
       } else {
         toast.error("Error", res.error || "Failed to archive quest.");
@@ -269,7 +269,7 @@ export default function GrowthQuestPage() {
     try {
       const res = await joinCraftauraQuestAction(questId, activeStore.id);
       if (res.success) {
-        toast.success("Challenge Joined! 🎯", "You are now participating in this month's Craftaura challenge.");
+        toast.success("Challenge Joined! 🎯", "You are now participating in this month's Craftaura Quest.");
         await loadData(true);
       } else {
         toast.error("Error", res.error || "Failed to join challenge.");
@@ -279,17 +279,28 @@ export default function GrowthQuestPage() {
     }
   };
 
+  // Chart metrics computation
+  const chartPoints = useMemo(() => {
+    return data?.dailyProgress || [];
+  }, [data?.dailyProgress]);
+
+  const maxRevenue = useMemo(() => {
+    const target = data?.activeQuest?.revenueTarget || 10000;
+    const maxProg = chartPoints.length > 0 ? Math.max(...chartPoints.map((p) => p.cumulativeRevenue)) : 0;
+    return Math.max(target, maxProg, 1000);
+  }, [chartPoints, data?.activeQuest?.revenueTarget]);
+
   if (isLoading) {
     return (
       <DashboardLayout breadcrumbs={[{ label: "Overview", href: "/dashboard" }, { label: "Growth Quest" }]}>
-        <div className="space-y-6 max-w-6xl mx-auto pb-12">
+        <div className="space-y-6 max-w-5xl mx-auto pb-12">
           <div className="flex justify-between items-center">
             <Skeleton className="h-10 w-48 bg-white/5" />
             <Skeleton className="h-10 w-32 bg-white/5" />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Skeleton className="h-64 rounded-2xl bg-white/5" />
-            <Skeleton className="h-64 rounded-2xl bg-white/5" />
+            <Skeleton className="h-64 rounded-3xl bg-white/5" />
+            <Skeleton className="h-64 rounded-3xl bg-white/5" />
           </div>
         </div>
       </DashboardLayout>
@@ -300,8 +311,15 @@ export default function GrowthQuestPage() {
   const progress = data?.progress;
   const craftauraQuest = data?.craftauraQuest;
   const templates = data?.templates || [];
-  const leaderboard = data?.leaderboard || [];
   const totalPoints = data?.totalPoints || 0;
+  const pointsBreakdown = data?.pointsBreakdown || {
+    ordersPoints: 0,
+    revenuePoints: 0,
+    productsPoints: 0,
+    milestonesPoints: 0,
+    craftauraPoints: 0,
+    totalPoints: 0,
+  };
   const currentMonthName = data?.currentMonthName || "This Month";
 
   return (
@@ -312,30 +330,32 @@ export default function GrowthQuestPage() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-6">
           <div>
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400">
+              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400 shadow-sm">
                 <Target className="w-5 h-5" />
               </div>
               <div>
                 <h1 className="text-2xl font-bold font-heading text-white tracking-tight">Growth Quest</h1>
-                <p className="text-xs text-zinc-400">Simple, practical monthly business targets for your store</p>
+                <p className="text-xs text-zinc-400">Simple, motivating monthly business targets for your store</p>
               </div>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Quest Points Badge */}
+            {/* My Quest Points Badge */}
             <button
               onClick={() => setIsPointsModalOpen(true)}
-              className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 hover:bg-amber-500/20 transition-all cursor-pointer shadow-sm group"
+              className="flex items-center gap-2.5 px-4 py-2 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 hover:bg-amber-500/20 transition-all cursor-pointer shadow-sm group"
             >
               <Sparkles className="w-4 h-4 text-amber-400 group-hover:rotate-12 transition-transform" />
               <div className="text-left">
-                <span className="text-[10px] uppercase tracking-wider text-amber-400/80 block font-semibold leading-none">Quest Points</span>
+                <span className="text-[10px] uppercase tracking-wider text-amber-400/80 block font-semibold leading-none">
+                  My Quest Points
+                </span>
                 <span className="text-sm font-bold font-heading text-white">{totalPoints.toLocaleString()}</span>
               </div>
             </button>
 
-            {/* Refresh Button */}
+            {/* Sync Button */}
             <Button
               variant="outline"
               size="sm"
@@ -344,7 +364,7 @@ export default function GrowthQuestPage() {
                 loadData(true);
               }}
               disabled={isRefreshing}
-              className="border-white/10 bg-white/5 hover:bg-white/10 text-zinc-300 h-9"
+              className="border-white/10 bg-white/5 hover:bg-white/10 text-zinc-300 h-9 rounded-xl"
             >
               <RefreshCw className={cn("w-3.5 h-3.5 mr-1.5", isRefreshing && "animate-spin text-amber-400")} />
               Sync
@@ -352,49 +372,36 @@ export default function GrowthQuestPage() {
           </div>
         </div>
 
-        {/* Navigation Tabs */}
+        {/* Navigation Tabs (Strictly Private - No Leaderboard) */}
         <div className="flex gap-2 border-b border-white/10 pb-2">
           <button
             onClick={() => setActiveTab("quest")}
             className={cn(
-              "px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2",
+              "px-4 py-2 rounded-xl text-sm font-medium transition-all flex items-center gap-2",
               activeTab === "quest"
                 ? "bg-maroon-700/80 text-white border border-maroon-600/50 shadow-md"
                 : "text-zinc-400 hover:text-white hover:bg-white/5"
             )}
           >
             <Target className="w-4 h-4" />
-            Active Quest
-          </button>
-
-          <button
-            onClick={() => setActiveTab("leaderboard")}
-            className={cn(
-              "px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2",
-              activeTab === "leaderboard"
-                ? "bg-maroon-700/80 text-white border border-maroon-600/50 shadow-md"
-                : "text-zinc-400 hover:text-white hover:bg-white/5"
-            )}
-          >
-            <Trophy className="w-4 h-4 text-amber-400" />
-            Monthly Leaderboard
+            My Active Quest
           </button>
 
           <button
             onClick={() => setActiveTab("history")}
             className={cn(
-              "px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2",
+              "px-4 py-2 rounded-xl text-sm font-medium transition-all flex items-center gap-2",
               activeTab === "history"
                 ? "bg-maroon-700/80 text-white border border-maroon-600/50 shadow-md"
                 : "text-zinc-400 hover:text-white hover:bg-white/5"
             )}
           >
             <History className="w-4 h-4 text-zinc-400" />
-            Past Quests
+            My Quest History
           </button>
         </div>
 
-        {/* ----------------- TAB 1: ACTIVE QUEST ----------------- */}
+        {/* ----------------- TAB 1: MY ACTIVE QUEST ----------------- */}
         {activeTab === "quest" && (
           <div className="space-y-8">
             
@@ -402,9 +409,9 @@ export default function GrowthQuestPage() {
             {!activeQuest ? (
               <div className="space-y-6 pt-4">
                 <div className="text-center max-w-md mx-auto space-y-2">
-                  <h2 className="text-xl font-bold font-heading text-white">Your first quest starts here.</h2>
+                  <h2 className="text-xl font-bold font-heading text-white">Start Your Quest for {currentMonthName}</h2>
                   <p className="text-sm text-zinc-400">
-                    Choose how you would like to set your monthly business target for {currentMonthName}.
+                    Set a practical sales target to keep your store focused and earn Quest Points.
                   </p>
                 </div>
 
@@ -413,10 +420,10 @@ export default function GrowthQuestPage() {
                   {/* CARD 1: CREATE YOUR OWN QUEST */}
                   <Card
                     onClick={handleOpenCustomCreate}
-                    className="relative overflow-hidden bg-gradient-to-br from-zinc-900/90 to-zinc-950/90 border border-white/10 hover:border-amber-500/50 p-6 rounded-2xl cursor-pointer group transition-all duration-300 hover:shadow-xl hover:-translate-y-1"
+                    className="relative overflow-hidden bg-gradient-to-br from-zinc-900/90 via-zinc-900 to-zinc-950 border border-white/10 hover:border-amber-500/50 p-6 rounded-3xl cursor-pointer group transition-all duration-300 hover:shadow-xl hover:-translate-y-1"
                   >
                     <div className="space-y-4">
-                      <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 group-hover:scale-110 transition-transform">
+                      <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 group-hover:scale-110 transition-transform">
                         <Plus className="w-6 h-6" />
                       </div>
                       <div>
@@ -424,11 +431,11 @@ export default function GrowthQuestPage() {
                           Create Your Own Quest
                         </h3>
                         <p className="text-sm text-zinc-400 mt-1">
-                          Set your own monthly business target.
+                          Define your custom Revenue, Orders, and Products sold targets.
                         </p>
                       </div>
                       <div className="pt-2 flex items-center text-xs font-semibold text-amber-400 gap-1 group-hover:translate-x-1 transition-transform">
-                        <span>Get Started</span>
+                        <span>Set Custom Target</span>
                         <ArrowRight className="w-3.5 h-3.5" />
                       </div>
                     </div>
@@ -437,10 +444,10 @@ export default function GrowthQuestPage() {
                   {/* CARD 2: USE A TEMPLATE */}
                   <Card
                     onClick={handleOpenTemplatePicker}
-                    className="relative overflow-hidden bg-gradient-to-br from-zinc-900/90 to-zinc-950/90 border border-white/10 hover:border-maroon-500/50 p-6 rounded-2xl cursor-pointer group transition-all duration-300 hover:shadow-xl hover:-translate-y-1"
+                    className="relative overflow-hidden bg-gradient-to-br from-zinc-900/90 via-zinc-900 to-zinc-950 border border-white/10 hover:border-maroon-500/50 p-6 rounded-3xl cursor-pointer group transition-all duration-300 hover:shadow-xl hover:-translate-y-1"
                   >
                     <div className="space-y-4">
-                      <div className="w-12 h-12 rounded-xl bg-maroon-500/10 border border-maroon-500/30 flex items-center justify-center text-maroon-400 group-hover:scale-110 transition-transform">
+                      <div className="w-12 h-12 rounded-2xl bg-maroon-500/10 border border-maroon-500/30 flex items-center justify-center text-maroon-400 group-hover:scale-110 transition-transform">
                         <Layers className="w-6 h-6" />
                       </div>
                       <div>
@@ -448,7 +455,7 @@ export default function GrowthQuestPage() {
                           Use a Template
                         </h3>
                         <p className="text-sm text-zinc-400 mt-1">
-                          Start with a practical monthly challenge.
+                          Choose from Easy, Moderate, or Difficult starter targets.
                         </p>
                       </div>
                       <div className="pt-2 flex items-center text-xs font-semibold text-maroon-400 gap-1 group-hover:translate-x-1 transition-transform">
@@ -465,7 +472,6 @@ export default function GrowthQuestPage() {
                 
                 {/* 1. PRIMARY PROGRESS CARD */}
                 <Card className="relative overflow-hidden bg-gradient-to-br from-zinc-900 via-zinc-900/95 to-black border border-white/10 p-6 sm:p-8 rounded-3xl shadow-xl">
-                  {/* Decorative background glow */}
                   <div className="absolute top-0 right-0 w-80 h-80 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
 
                   <div className="relative space-y-6">
@@ -496,7 +502,7 @@ export default function GrowthQuestPage() {
                           variant="outline"
                           size="sm"
                           onClick={() => handleOpenEdit(activeQuest)}
-                          className="border-white/10 bg-white/5 hover:bg-white/10 text-zinc-300 h-8 text-xs"
+                          className="border-white/10 bg-white/5 hover:bg-white/10 text-zinc-300 h-8 text-xs rounded-lg"
                         >
                           <Edit2 className="w-3.5 h-3.5 mr-1" />
                           Edit Quest
@@ -505,14 +511,14 @@ export default function GrowthQuestPage() {
                           variant="ghost"
                           size="sm"
                           onClick={() => handleArchiveQuest(activeQuest.id)}
-                          className="text-zinc-500 hover:text-red-400 hover:bg-red-500/10 h-8 text-xs"
+                          className="text-zinc-500 hover:text-red-400 hover:bg-red-500/10 h-8 text-xs rounded-lg"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </Button>
                       </div>
                     </div>
 
-                    {/* Big Numbers Display */}
+                    {/* Big Numbers & Main Progress Bar */}
                     {activeQuest.revenueTarget > 0 ? (
                       <div className="space-y-3">
                         <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-1">
@@ -527,11 +533,11 @@ export default function GrowthQuestPage() {
                           <div className="text-sm font-semibold text-amber-400 font-mono">
                             {progress?.revenueRemaining === 0
                               ? "Target Reached! 🚀"
-                              : `${formatCurrency(progress?.revenueRemaining || 0)} to go`}
+                              : `${formatCurrency(progress?.revenueRemaining || 0)} remaining`}
                           </div>
                         </div>
 
-                        {/* Animated Progress Bar */}
+                        {/* Progress Bar */}
                         <div className="w-full bg-zinc-800/80 rounded-full h-4 p-0.5 border border-white/5 overflow-hidden">
                           <div
                             className="bg-gradient-to-r from-amber-500 via-orange-500 to-emerald-400 h-full rounded-full transition-all duration-700 ease-out shadow-sm"
@@ -545,7 +551,7 @@ export default function GrowthQuestPage() {
                         </div>
                       </div>
                     ) : (
-                      /* If only orders or products target was set */
+                      /* Orders target primary view */
                       <div className="space-y-3">
                         <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-1">
                           <div className="flex items-baseline gap-2">
@@ -553,11 +559,11 @@ export default function GrowthQuestPage() {
                               {progress?.currentOrders || 0} Orders
                             </span>
                             <span className="text-sm text-zinc-400 font-medium">
-                              of {activeQuest.ordersTarget} Orders Target
+                              of {activeQuest.ordersTarget} Target
                             </span>
                           </div>
                           <div className="text-sm font-semibold text-amber-400 font-mono">
-                            {progress?.ordersRemaining === 0 ? "Target Reached! 🚀" : `${progress?.ordersRemaining} orders to go`}
+                            {progress?.ordersRemaining === 0 ? "Target Reached! 🚀" : `${progress?.ordersRemaining} orders remaining`}
                           </div>
                         </div>
 
@@ -570,7 +576,7 @@ export default function GrowthQuestPage() {
                       </div>
                     )}
 
-                    {/* 2. YOUR TARGETS BREAKDOWN */}
+                    {/* 2. YOUR TARGETS BREAKDOWN CARDS */}
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
                       
                       {/* Revenue Target Card */}
@@ -631,7 +637,7 @@ export default function GrowthQuestPage() {
                       )}
                     </div>
 
-                    {/* 3. NEXT MILESTONE & MOTIVATION */}
+                    {/* 3. NEXT MILESTONE */}
                     <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 via-orange-500/5 to-transparent border border-amber-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                       <div className="space-y-1">
                         <div className="text-xs uppercase tracking-wider text-amber-400 font-semibold flex items-center gap-1.5">
@@ -665,17 +671,80 @@ export default function GrowthQuestPage() {
                   </div>
                 </Card>
 
-                {/* 4. CRAFTAURA PLATFORM-WIDE CHALLENGE */}
+                {/* 2. PERSONAL PROGRESS GRAPH */}
+                <Card className="p-6 rounded-3xl bg-zinc-900/90 border border-white/10 shadow-xl space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/10 pb-3">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <BarChart3 className="w-4 h-4 text-emerald-400" />
+                        <h3 className="text-base font-bold font-heading text-white">Your Progress Over Time</h3>
+                      </div>
+                      <p className="text-xs text-zinc-400">Cumulative sales and order milestones during this quest</p>
+                    </div>
+
+                    <div className="text-xs font-mono text-zinc-400">
+                      Total Earned: <span className="text-emerald-400 font-bold">{formatCurrency(progress?.currentRevenue || 0)}</span>
+                    </div>
+                  </div>
+
+                  {/* SVG Chart */}
+                  <div className="pt-2">
+                    {chartPoints.length === 0 ? (
+                      <div className="p-8 text-center text-xs text-zinc-500">
+                        No orders recorded yet during this quest period. As you make sales, your real progress will chart here.
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="h-44 w-full flex items-end gap-1 sm:gap-2 pt-6 pb-2 px-2 overflow-x-auto">
+                          {chartPoints.map((pt, idx) => {
+                            const heightPct = maxRevenue > 0 ? Math.max(8, Math.round((pt.cumulativeRevenue / maxRevenue) * 100)) : 8;
+                            return (
+                              <div
+                                key={idx}
+                                className="flex-1 min-w-[28px] max-w-[48px] h-full flex flex-col justify-end items-center group relative cursor-pointer"
+                              >
+                                {/* Tooltip */}
+                                <div className="absolute -top-12 bg-zinc-800 text-white text-[10px] py-1 px-2 rounded-md border border-white/10 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-20 pointer-events-none shadow-lg">
+                                  <div className="font-bold">{pt.label}</div>
+                                  <div>Rev: {formatCurrency(pt.cumulativeRevenue)}</div>
+                                  <div>Orders: {pt.cumulativeOrders}</div>
+                                </div>
+
+                                {/* Bar */}
+                                <div
+                                  className="w-full rounded-t-lg bg-gradient-to-t from-maroon-700 via-amber-500 to-emerald-400 group-hover:brightness-125 transition-all"
+                                  style={{ height: `${heightPct}%` }}
+                                />
+                                
+                                <span className="text-[9px] text-zinc-500 font-mono mt-1 group-hover:text-zinc-300">
+                                  {pt.label.split(" ")[1] || pt.label}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        <div className="flex justify-between items-center text-[11px] text-zinc-500 font-mono px-2">
+                          <span>Quest Start</span>
+                          <span>Cumulative Revenue Growth</span>
+                          <span>Today</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </Card>
+
+                {/* 3. CRAFTAURA PLATFORM QUEST & MYSTERY SURPRISE */}
                 {craftauraQuest && (
                   <Card className="relative overflow-hidden bg-gradient-to-br from-zinc-900/90 to-zinc-950 border border-maroon-500/30 p-6 rounded-3xl shadow-lg">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-maroon-500/20 border border-maroon-500/30 flex items-center justify-center text-maroon-400">
-                          <Trophy className="w-5 h-5" />
+                        <div className="w-10 h-10 rounded-2xl bg-maroon-500/20 border border-maroon-500/30 flex items-center justify-center text-maroon-400">
+                          <Gift className="w-5 h-5" />
                         </div>
                         <div>
                           <div className="text-[10px] uppercase font-mono tracking-widest text-maroon-400 font-semibold">
-                            Platform Challenge
+                            Monthly Platform Challenge
                           </div>
                           <h3 className="text-lg font-bold font-heading text-white">{craftauraQuest.name}</h3>
                         </div>
@@ -691,9 +760,9 @@ export default function GrowthQuestPage() {
                           <Button
                             size="sm"
                             onClick={() => handleJoinCraftauraQuest(craftauraQuest.id)}
-                            className="bg-maroon-700 hover:bg-maroon-600 text-white text-xs h-8"
+                            className="bg-maroon-700 hover:bg-maroon-600 text-white text-xs h-8 rounded-xl"
                           >
-                            Join Challenge (+{craftauraQuest.pointsReward} pts)
+                            Join Quest (+{craftauraQuest.pointsReward} pts)
                           </Button>
                         )}
                       </div>
@@ -720,9 +789,9 @@ export default function GrowthQuestPage() {
                         </div>
                       )}
 
-                      {/* MYSTERY SURPRISE BOX */}
+                      {/* MYSTERY SURPRISE BOX (No winner or ranking leaked) */}
                       <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 via-zinc-900 to-zinc-900 border border-amber-500/20 flex items-center gap-3.5">
-                        <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-300 shrink-0 text-xl">
+                        <div className="w-10 h-10 rounded-2xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-300 shrink-0 text-xl">
                           🎁
                         </div>
                         <div className="space-y-0.5">
@@ -731,8 +800,8 @@ export default function GrowthQuestPage() {
                           </div>
                           <p className="text-xs text-zinc-300">
                             {craftauraQuest.isCompleted
-                              ? "You completed the Craftaura Quest. Something special is waiting for you."
-                              : "Complete this month's challenge to unlock a special surprise reward."}
+                              ? "🎉 Quest Complete! You completed this month's Craftaura Quest. Something special is waiting for you."
+                              : "Complete this month's Craftaura Quest for something special."}
                           </p>
                         </div>
                       </div>
@@ -746,110 +815,18 @@ export default function GrowthQuestPage() {
           </div>
         )}
 
-        {/* ----------------- TAB 2: MONTHLY LEADERBOARD ----------------- */}
-        {activeTab === "leaderboard" && (
-          <div className="space-y-6">
-            
-            {/* Champion Banner */}
-            <Card className="p-6 rounded-3xl bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-zinc-950 border border-amber-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-2xl shrink-0">
-                  🏆
-                </div>
-                <div>
-                  <h3 className="text-base font-bold font-heading text-white">
-                    {currentMonthName} Monthly Quest Champion
-                  </h3>
-                  <p className="text-xs text-zinc-400 mt-0.5">
-                    The top merchant by Quest Points at month end wins. The surprise will be revealed soon.
-                  </p>
-                </div>
-              </div>
-            </Card>
-
-            {/* Leaderboard Table */}
-            <Card className="overflow-hidden bg-zinc-900/90 border border-white/10 rounded-3xl shadow-xl">
-              <div className="p-5 border-b border-white/10 flex justify-between items-center">
-                <div>
-                  <h3 className="text-base font-bold font-heading text-white">{currentMonthName} Leaderboard</h3>
-                  <p className="text-xs text-zinc-400">Ranked safely by verified Quest Points earned from sales</p>
-                </div>
-              </div>
-
-              {leaderboard.length === 0 ? (
-                <div className="p-12 text-center text-zinc-500 text-sm">
-                  No activity recorded yet for this month. Place orders to score points!
-                </div>
-              ) : (
-                <div className="divide-y divide-white/5">
-                  {leaderboard.map((entry) => (
-                    <div
-                      key={entry.storeId}
-                      className={cn(
-                        "p-4 sm:px-6 flex items-center justify-between transition-colors",
-                        entry.isCurrentStore ? "bg-amber-500/10 border-l-4 border-amber-500" : "hover:bg-white/5"
-                      )}
-                    >
-                      <div className="flex items-center gap-4">
-                        {/* Rank Badge */}
-                        <div
-                          className={cn(
-                            "w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs font-mono shrink-0",
-                            entry.rank === 1
-                              ? "bg-amber-500 text-black shadow-md"
-                              : entry.rank === 2
-                              ? "bg-zinc-300 text-black"
-                              : entry.rank === 3
-                              ? "bg-amber-700 text-white"
-                              : "bg-zinc-800 text-zinc-400 border border-white/5"
-                          )}
-                        >
-                          {entry.rank}
-                        </div>
-
-                        {/* Store Info */}
-                        <div className="space-y-0.5">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-semibold text-white">
-                              {entry.storeName}
-                            </span>
-                            {entry.isCurrentStore && (
-                              <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/40 text-[10px]">
-                                Your Store
-                              </Badge>
-                            )}
-                          </div>
-                          <span className="text-xs text-zinc-500">@{entry.storeSlug}</span>
-                        </div>
-                      </div>
-
-                      {/* Points */}
-                      <div className="text-right">
-                        <div className="text-sm font-bold font-mono text-amber-400">
-                          {entry.points.toLocaleString()} pts
-                        </div>
-                        <div className="text-[10px] text-zinc-500 uppercase tracking-wider">Quest Points</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </Card>
-          </div>
-        )}
-
-        {/* ----------------- TAB 3: PAST QUESTS / HISTORY ----------------- */}
+        {/* ----------------- TAB 2: PAST QUESTS / HISTORY ----------------- */}
         {activeTab === "history" && (
           <div className="space-y-6">
             <Card className="overflow-hidden bg-zinc-900/90 border border-white/10 rounded-3xl shadow-xl">
               <div className="p-5 border-b border-white/10">
-                <h3 className="text-base font-bold font-heading text-white">Past Quests History</h3>
+                <h3 className="text-base font-bold font-heading text-white">Your Past Quests</h3>
                 <p className="text-xs text-zinc-400">Review your past completed and archived monthly challenges</p>
               </div>
 
               {!data?.pastQuests || data.pastQuests.length === 0 ? (
                 <div className="p-12 text-center text-zinc-500 text-sm">
-                  No past quests recorded yet. When monthly quest periods conclude, their summaries will appear here.
+                  No past quests recorded yet. When your monthly quests conclude, their summaries will appear here.
                 </div>
               ) : (
                 <div className="divide-y divide-white/5">
@@ -875,10 +852,6 @@ export default function GrowthQuestPage() {
                           <div className="text-sm font-bold text-white font-mono">{pq.progressPercent}%</div>
                           <div className="text-[10px] text-zinc-500">Achieved</div>
                         </div>
-                        <div className="text-right">
-                          <div className="text-sm font-bold text-amber-400 font-mono">+{pq.pointsEarned}</div>
-                          <div className="text-[10px] text-zinc-500">Points</div>
-                        </div>
                       </div>
                     </div>
                   ))}
@@ -895,8 +868,8 @@ export default function GrowthQuestPage() {
               
               <div className="flex justify-between items-center border-b border-white/10 pb-4">
                 <div>
-                  <h3 className="text-lg font-bold font-heading text-white">Choose a Monthly Quest Template</h3>
-                  <p className="text-xs text-zinc-400">Select a realistic target designed for small and growing stores</p>
+                  <h3 className="text-lg font-bold font-heading text-white">Choose a Quest Template</h3>
+                  <p className="text-xs text-zinc-400">Select a template to customize your targets</p>
                 </div>
                 <button
                   onClick={() => setIsTemplateModalOpen(false)}
@@ -964,7 +937,7 @@ export default function GrowthQuestPage() {
                     setIsTemplateModalOpen(false);
                     handleOpenCustomCreate();
                   }}
-                  className="border-white/10 text-xs text-zinc-400 hover:text-white"
+                  className="border-white/10 text-xs text-zinc-400 hover:text-white rounded-xl"
                 >
                   Or set a custom quest instead
                 </Button>
@@ -1005,7 +978,7 @@ export default function GrowthQuestPage() {
                     value={formQuestName}
                     onChange={(e) => setFormQuestName(e.target.value)}
                     placeholder="e.g. September Growth Quest"
-                    className="bg-black/50 border-white/10 text-white"
+                    className="bg-black/50 border-white/10 text-white rounded-xl"
                     required
                   />
                 </div>
@@ -1017,8 +990,8 @@ export default function GrowthQuestPage() {
                     type="number"
                     value={formRevenueTarget}
                     onChange={(e) => setFormRevenueTarget(e.target.value)}
-                    placeholder="e.g. 10000 (leave empty if not tracking revenue)"
-                    className="bg-black/50 border-white/10 text-white"
+                    placeholder="e.g. 10000"
+                    className="bg-black/50 border-white/10 text-white rounded-xl"
                   />
                 </div>
 
@@ -1029,27 +1002,27 @@ export default function GrowthQuestPage() {
                     type="number"
                     value={formOrdersTarget}
                     onChange={(e) => setFormOrdersTarget(e.target.value)}
-                    placeholder="e.g. 15 (leave empty if not tracking orders)"
-                    className="bg-black/50 border-white/10 text-white"
+                    placeholder="e.g. 15"
+                    className="bg-black/50 border-white/10 text-white rounded-xl"
                   />
                 </div>
 
                 {/* Products Sold Target */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-zinc-300">Products Sold Target</label>
+                  <label className="text-xs font-semibold text-zinc-300">Products Sold Target (Units)</label>
                   <Input
                     type="number"
                     value={formProductsTarget}
                     onChange={(e) => setFormProductsTarget(e.target.value)}
-                    placeholder="e.g. 20 (leave empty if not tracking units)"
-                    className="bg-black/50 border-white/10 text-white"
+                    placeholder="e.g. 20"
+                    className="bg-black/50 border-white/10 text-white rounded-xl"
                   />
                 </div>
 
                 <div className="p-3 rounded-xl bg-white/5 border border-white/5 text-xs text-zinc-400 flex items-start gap-2">
                   <Info className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
                   <span>
-                    You do not need to fill every target. Fill only what you want to track for this month.
+                    You may fill one, two, or all applicable targets. Your progress updates automatically from real orders.
                   </span>
                 </div>
 
@@ -1058,24 +1031,24 @@ export default function GrowthQuestPage() {
                     type="button"
                     variant="ghost"
                     onClick={() => setIsFormModalOpen(false)}
-                    className="text-zinc-400 hover:text-white"
+                    className="text-zinc-400 hover:text-white rounded-xl"
                   >
                     Cancel
                   </Button>
                   <Button
                     type="submit"
                     disabled={isSubmitting}
-                    className="bg-maroon-700 hover:bg-maroon-600 text-white"
+                    className="bg-maroon-700 hover:bg-maroon-600 text-white rounded-xl font-semibold"
                   >
                     {isSubmitting ? (
                       <>
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Saving...
+                        Saving to Supabase...
                       </>
                     ) : formMode === "edit" ? (
                       "Save Changes"
                     ) : (
-                      "Activate Quest"
+                      "Save Quest"
                     )}
                   </Button>
                 </div>
@@ -1086,18 +1059,18 @@ export default function GrowthQuestPage() {
           </div>
         )}
 
-        {/* ----------------- MODAL 3: QUEST POINTS LOG & RULES ----------------- */}
+        {/* ----------------- MODAL 3: MY QUEST POINTS & BREAKDOWN ----------------- */}
         {isPointsModalOpen && (
           <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
             <div className="bg-zinc-900 border border-white/10 rounded-3xl max-w-lg w-full p-6 space-y-6 shadow-2xl animate-in fade-in zoom-in duration-200 max-h-[85vh] flex flex-col">
               
               <div className="flex justify-between items-center border-b border-white/10 pb-4 shrink-0">
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400">
+                  <div className="w-10 h-10 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400">
                     <Sparkles className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="text-base font-bold font-heading text-white">Quest Points Ledger</h3>
+                    <h3 className="text-base font-bold font-heading text-white">My Quest Points</h3>
                     <p className="text-xs text-zinc-400">Total Score: {totalPoints.toLocaleString()} Points</p>
                   </div>
                 </div>
@@ -1109,10 +1082,30 @@ export default function GrowthQuestPage() {
                 </button>
               </div>
 
-              {/* Point Rules Explainer */}
-              <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 space-y-2 shrink-0">
-                <div className="text-xs font-bold text-amber-300 uppercase tracking-wider">How You Earn Points</div>
-                <div className="grid grid-cols-2 gap-2 text-xs text-zinc-300">
+              {/* Breakdown Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 shrink-0">
+                <div className="p-3 rounded-xl bg-white/5 border border-white/5 text-center">
+                  <div className="text-[10px] text-zinc-400 font-semibold uppercase">Orders</div>
+                  <div className="text-sm font-bold font-mono text-amber-400">+{pointsBreakdown.ordersPoints}</div>
+                </div>
+                <div className="p-3 rounded-xl bg-white/5 border border-white/5 text-center">
+                  <div className="text-[10px] text-zinc-400 font-semibold uppercase">Revenue</div>
+                  <div className="text-sm font-bold font-mono text-emerald-400">+{pointsBreakdown.revenuePoints}</div>
+                </div>
+                <div className="p-3 rounded-xl bg-white/5 border border-white/5 text-center">
+                  <div className="text-[10px] text-zinc-400 font-semibold uppercase">Products</div>
+                  <div className="text-sm font-bold font-mono text-orange-400">+{pointsBreakdown.productsPoints}</div>
+                </div>
+                <div className="p-3 rounded-xl bg-white/5 border border-white/5 text-center">
+                  <div className="text-[10px] text-zinc-400 font-semibold uppercase">Milestones</div>
+                  <div className="text-sm font-bold font-mono text-purple-400">+{pointsBreakdown.milestonesPoints}</div>
+                </div>
+              </div>
+
+              {/* Point Rules */}
+              <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 space-y-1.5 shrink-0 text-xs text-zinc-300">
+                <div className="font-bold text-amber-300 uppercase tracking-wider text-[11px]">How Points Are Earned</div>
+                <div className="grid grid-cols-2 gap-1 text-[11px]">
                   <div>• Valid order: +{data?.pointRules.pointsPerOrder} pts</div>
                   <div>• Every ₹100 earned: +{data?.pointRules.pointsPerRevenueUnit} pt</div>
                   <div>• Product sold: +{data?.pointRules.pointsPerProductSold} pts</div>
@@ -1124,7 +1117,7 @@ export default function GrowthQuestPage() {
               <div className="overflow-y-auto space-y-2 pr-1 flex-1">
                 {!data?.recentPoints || data.recentPoints.length === 0 ? (
                   <div className="p-8 text-center text-xs text-zinc-500">
-                    No points earned yet. Make sales in your store to earn Quest Points!
+                    No points earned yet. Place orders in your store to earn Quest Points!
                   </div>
                 ) : (
                   data.recentPoints.map((p) => (

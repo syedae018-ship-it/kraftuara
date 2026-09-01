@@ -1,7 +1,7 @@
 -- ============================================================================
 -- Migration: 20260901120000_rebuild_growth_quest_system.sql
 -- Description: Rebuild Growth Quest System - Simple, Practical, Gamified
--- Backed by real Supabase store orders, idempotent point engine, and monthly leaderboards.
+-- Backed by real Supabase store orders, idempotent point engine, and Super Admin leaderboards.
 -- ============================================================================
 
 -- 1. GROWTH QUEST TEMPLATES
@@ -139,7 +139,7 @@ CREATE TABLE IF NOT EXISTS public.craftaura_quest_participants (
 );
 CREATE INDEX IF NOT EXISTS idx_cq_participants_store ON public.craftaura_quest_participants(store_id);
 
--- 7. GROWTH QUEST MONTHLY RESULTS (Historical Immutable Snapshot)
+-- 7. GROWTH QUEST MONTHLY RESULTS (Historical Immutable Snapshot - Super Admin Only)
 CREATE TABLE IF NOT EXISTS public.growth_quest_monthly_results (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     month INT NOT NULL CHECK (month BETWEEN 1 AND 12),
@@ -222,9 +222,6 @@ CREATE POLICY "Users can join craftaura quests" ON public.craftaura_quest_partic
         store_id IN (SELECT id FROM public.stores WHERE user_id = auth.uid()) OR public.is_admin()
     );
 
--- 8.7. growth_quest_monthly_results
-CREATE POLICY "Anyone can view monthly results for leaderboard" ON public.growth_quest_monthly_results
-    FOR SELECT USING (true);
-
-CREATE POLICY "Admins can manage monthly results" ON public.growth_quest_monthly_results
+-- 8.7. growth_quest_monthly_results (Super Admin Only access)
+CREATE POLICY "Admins can view and manage monthly results" ON public.growth_quest_monthly_results
     FOR ALL USING (public.is_admin());
