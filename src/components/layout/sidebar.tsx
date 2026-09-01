@@ -91,7 +91,7 @@ export function Sidebar({ collapsed = false, onToggleCollapse, onNavigate, class
   return (
     <aside
       className={cn(
-        "relative flex flex-col bg-[#111111] border-r border-white/10 h-screen transition-all duration-300 ease-in-out select-none z-30 shrink-0",
+        "relative flex flex-col bg-[#111111] border-r border-white/10 h-full overflow-hidden transition-all duration-300 ease-in-out select-none z-30 shrink-0",
         collapsed ? "w-[72px]" : "w-[260px]",
         className
       )}

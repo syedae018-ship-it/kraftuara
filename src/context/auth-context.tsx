@@ -54,7 +54,7 @@ type AuthContextType = {
     termsAccepted?: boolean,
     termsVersion?: string
   ) => Promise<{ user: any; hasSession: boolean }>;
-  login: (email: string, password: string) => Promise<LoginResult>;
+  login: (email: string, password: string, rememberMe?: boolean) => Promise<LoginResult>;
   createStore: (
     storeName: string,
     storeSlug: string,
@@ -324,18 +324,30 @@ export function DummyAuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const login = async (email: string, password: string): Promise<LoginResult> => {
+  const login = async (email: string, password: string, rememberMe?: boolean): Promise<LoginResult> => {
     setIsLoading(true);
     try {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
 
       if (typeof window !== "undefined") {
-        const rememberMe = localStorage.getItem("symar_remember_me") === "true";
-        if (rememberMe) {
+        const isRemembered = rememberMe !== undefined ? rememberMe : localStorage.getItem("symar_remember_me") === "true";
+        const isSecure = window.location.protocol === "https:";
+        
+        if (isRemembered) {
+          localStorage.setItem("symar_remember_me", "true");
           localStorage.setItem("symar_session_login_time", Date.now().toString());
+          // 8 Days in ms = 691,200,000 ms, 691,200 seconds
+          const expiryTime = Date.now() + 8 * 24 * 60 * 60 * 1000;
+          document.cookie = `kraftaura_session_expiry=${expiryTime}; path=/; max-age=691200; SameSite=Lax; ${isSecure ? "Secure;" : ""}`;
+          document.cookie = `kraftaura_remember_me=true; path=/; max-age=691200; SameSite=Lax; ${isSecure ? "Secure;" : ""}`;
         } else {
+          localStorage.removeItem("symar_remember_me");
           localStorage.removeItem("symar_session_login_time");
+          // Standard 24-hour session
+          const expiryTime = Date.now() + 24 * 60 * 60 * 1000;
+          document.cookie = `kraftaura_session_expiry=${expiryTime}; path=/; max-age=86400; SameSite=Lax; ${isSecure ? "Secure;" : ""}`;
+          document.cookie = `kraftaura_remember_me=; path=/; max-age=0; SameSite=Lax;`;
         }
       }
 
@@ -361,6 +373,10 @@ export function DummyAuthProvider({ children }: { children: React.ReactNode }) {
         localStorage.removeItem("symar_selected_plan");
         localStorage.removeItem("symar_selected_template");
         localStorage.removeItem("symar_pending_store_name");
+        localStorage.removeItem("symar_remember_me");
+        localStorage.removeItem("symar_session_login_time");
+        document.cookie = `kraftaura_session_expiry=; path=/; max-age=0; SameSite=Lax;`;
+        document.cookie = `kraftaura_remember_me=; path=/; max-age=0; SameSite=Lax;`;
       }
       setUser(null as any);
       setStores([]);

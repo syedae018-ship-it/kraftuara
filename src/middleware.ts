@@ -38,13 +38,16 @@ export async function middleware(request: NextRequest) {
     const subdomain = extractSubdomainFromHostname(hostname, rootDomain);
     const isAlreadyRewritten = pathname.startsWith(`/store/`);
 
-    // Allow API routes and static metadata files to pass directly without store rewriting
+    // Allow API routes, static assets, and metadata files to pass directly without store rewriting
     const isSystemOrApiRoute =
       pathname.startsWith("/api") ||
       pathname.startsWith("/_next") ||
       pathname === "/favicon.ico" ||
       pathname === "/robots.txt" ||
-      pathname === "/sitemap.xml";
+      pathname === "/sitemap.xml" ||
+      pathname === "/manifest.webmanifest" ||
+      pathname === "/sw.js" ||
+      pathname.startsWith("/icon");
 
     if (subdomain && !isSystemOrApiRoute) {
       // Tenant Isolation: Block access to platform management from merchant subdomains
@@ -188,6 +191,31 @@ export async function middleware(request: NextRequest) {
       }
     }
 
+    // 5. Enforce 8-Day Session Expiry Security for Remember-Me & Active Sessions
+    const sessionExpiryRaw = request.cookies.get("kraftaura_session_expiry")?.value;
+    let isSessionExpired = false;
+    if (sessionExpiryRaw) {
+      const expiryTimestamp = parseInt(sessionExpiryRaw, 10);
+      if (!isNaN(expiryTimestamp) && expiryTimestamp < Date.now()) {
+        isSessionExpired = true;
+      }
+    }
+
+    // If session has expired, cleanly sign out and redirect to login with notification
+    if (user && isSessionExpired) {
+      if (supabase) {
+        try {
+          await supabase.auth.signOut();
+        } catch {
+          // ignore
+        }
+      }
+      const expiredRedirect = NextResponse.redirect(new URL("/login?expired=true", request.url));
+      expiredRedirect.cookies.delete("kraftaura_session_expiry");
+      expiredRedirect.cookies.delete("kraftaura_remember_me");
+      return withCookies(expiredRedirect);
+    }
+
     const isLoggedIn = isSupabaseConfigured && supabase ? !!user : true;
 
     const adminEmails = (process.env.ADMIN_EMAILS || "syed.ae018@gmail.com")
@@ -197,7 +225,7 @@ export async function middleware(request: NextRequest) {
     const isUserAdmin = !!userEmail && adminEmails.includes(userEmail);
 
     // Redirect logged-in users away from login/signup
-    if (isAuthRoute && user) {
+    if (isAuthRoute && user && !isSessionExpired) {
       return withCookies(NextResponse.redirect(new URL(isUserAdmin ? "/admin" : "/dashboard", request.url)));
     }
 

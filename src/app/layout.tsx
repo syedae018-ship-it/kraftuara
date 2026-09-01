@@ -1,8 +1,9 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans, Inter } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
 import Providers from "./providers";
+import { PwaRegister } from "@/components/pwa/pwa-register";
 
 const headingFont = Plus_Jakarta_Sans({
   subsets: ["latin"],
@@ -18,14 +19,33 @@ const bodyFont = Inter({
   display: "swap",
 });
 
+export const viewport: Viewport = {
+  themeColor: "#080808",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
+  viewportFit: "cover",
+};
+
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.kraftaura.in"),
+  applicationName: "Kraftaura",
   title: {
     default: "Kraftaura – Online Store Builder for Small Businesses in India",
     template: "%s | Kraftaura",
   },
   description:
     "Create your online store in minutes with Kraftaura. Sell through WhatsApp, accept online payments, manage products and grow your small business in India.",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Kraftaura",
+  },
+  formatDetection: {
+    telephone: true,
+  },
   openGraph: {
     siteName: "Kraftaura",
     locale: "en_IN",
@@ -64,12 +84,11 @@ export default function RootLayout({
         </Script>
       </head>
       <body
-        className={`${headingFont.variable} ${bodyFont.variable} [--font-brand:var(--font-heading)] bg-[#080808] text-white antialiased min-h-screen selection:bg-maroon-800/80 selection:text-white`}
+        className={`${headingFont.variable} ${bodyFont.variable} [--font-brand:var(--font-heading)] bg-[#080808] text-white antialiased min-h-screen selection:bg-maroon-800/80 selection:text-white overflow-x-hidden`}
       >
+        <PwaRegister />
         <Providers>{children}</Providers>
       </body>
     </html>
   );
 }
-
-

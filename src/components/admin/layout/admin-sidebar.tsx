@@ -59,12 +59,12 @@ export function AdminSidebar({ onNavigate, hideCollapseButton = false }: AdminSi
   return (
     <aside
       className={cn(
-        "relative z-30 h-screen bg-[#080808] border-r border-white/10 flex flex-col justify-between transition-all duration-300 font-body select-none shrink-0",
+        "h-full bg-[#080808] border-r border-white/10 flex flex-col justify-between transition-all duration-300 font-body select-none shrink-0 overflow-hidden",
         collapsed ? "w-16" : "w-64"
       )}
     >
       {/* Top Header & Logo */}
-      <div className="p-4 space-y-4">
+      <div className="p-4 border-b border-white/10 shrink-0">
         <div className="flex items-center justify-between">
           <Link href="/admin" onClick={onNavigate} className="flex items-center gap-2.5 overflow-hidden">
             <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-maroon-800 to-maroon-950 border border-maroon-600/50 flex items-center justify-center text-white shrink-0 shadow-glow">
@@ -84,47 +84,49 @@ export function AdminSidebar({ onNavigate, hideCollapseButton = false }: AdminSi
             <button
               onClick={() => setCollapsed(!collapsed)}
               className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/5 transition-colors"
+              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
             >
               {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
             </button>
           )}
         </div>
+      </div>
 
-        {/* Navigation Items */}
-        <nav className="space-y-1 pt-2">
-          {navItems.map((item) => {
-            const isActive = pathname === item.href || (item.href !== "/admin" && pathname.startsWith(item.href));
-            const Icon = item.icon;
+      {/* Navigation Items - Scrollable independently if viewport height is constrained */}
+      <div className="flex-1 overflow-y-auto p-3 space-y-1">
+        {navItems.map((item) => {
+          const isActive = pathname === item.href || (item.href !== "/admin" && pathname.startsWith(item.href));
+          const Icon = item.icon;
 
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={onNavigate}
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all group relative",
-                  isActive
-                    ? "bg-maroon-950/80 text-white font-semibold border border-maroon-600/40 shadow-glow"
-                    : "text-zinc-400 hover:text-white hover:bg-white/5"
-                )}
-                title={collapsed ? item.label : undefined}
-              >
-                <Icon className={cn("w-4 h-4 shrink-0", isActive ? "text-maroon-300" : "text-zinc-500 group-hover:text-zinc-200")} />
-                {!collapsed && <span className="truncate flex-1">{item.label}</span>}
-                {!collapsed && item.badge && (
-                  <Badge variant="maroon" className="text-[9px] px-1.5 py-0 font-mono">
-                    {item.badge}
-                  </Badge>
-                )}
-              </Link>
-            );
-          })}
-        </nav>
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              onClick={onNavigate}
+              className={cn(
+                "flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all group relative min-h-[38px]",
+                isActive
+                  ? "bg-maroon-950/80 text-white font-semibold border border-maroon-600/40 shadow-glow"
+                  : "text-zinc-400 hover:text-white hover:bg-white/5",
+                collapsed && "justify-center px-0"
+              )}
+              title={collapsed ? item.label : undefined}
+            >
+              <Icon className={cn("w-4 h-4 shrink-0", isActive ? "text-maroon-300" : "text-zinc-500 group-hover:text-zinc-200")} />
+              {!collapsed && <span className="truncate flex-1">{item.label}</span>}
+              {!collapsed && item.badge && (
+                <Badge variant="maroon" className="text-[9px] px-1.5 py-0 font-mono">
+                  {item.badge}
+                </Badge>
+              )}
+            </Link>
+          );
+        })}
       </div>
 
       {/* Footer System Badge */}
       {!collapsed && (
-        <div className="p-4 border-t border-white/10 font-mono text-[11px] text-zinc-500">
+        <div className="p-4 border-t border-white/10 font-mono text-[11px] text-zinc-500 shrink-0">
           Platform Version 2.4.0 • <span className="text-emerald-400">Optimal</span>
         </div>
       )}

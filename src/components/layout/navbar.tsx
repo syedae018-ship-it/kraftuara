@@ -35,10 +35,10 @@ export function Navbar({
       <div className="flex items-center gap-3">
         <button
           onClick={onOpenMobileMenu}
-          className="lg:hidden p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-white/5 transition-colors border border-white/10"
+          className="lg:hidden w-11 h-11 rounded-xl text-zinc-400 hover:text-white hover:bg-white/5 transition-colors border border-white/10 flex items-center justify-center shrink-0"
           aria-label="Open mobile navigation"
         >
-          <Menu className="w-4 h-4" />
+          <Menu className="w-5 h-5" />
         </button>
 
         {/* Breadcrumb Trail */}
@@ -53,12 +53,12 @@ export function Navbar({
                     {item.label}
                   </span>
                 ) : (
-                  <a
+                  <Link
                     href={item.href}
                     className="text-zinc-400 hover:text-white transition-colors"
                   >
                     {item.label}
-                  </a>
+                  </Link>
                 )}
               </React.Fragment>
             );

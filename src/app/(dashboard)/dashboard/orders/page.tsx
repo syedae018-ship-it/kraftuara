@@ -84,7 +84,7 @@ export default function MerchantOrdersPage() {
 
   useEffect(() => {
     fetchOrders();
-  }, [activeStore]);
+  }, [activeStore?.id]);
 
   // Open slide-over drawer and load complete details
   const handleOpenDrawer = async (row: any) => {
@@ -242,7 +242,7 @@ export default function MerchantOrdersPage() {
           </div>
 
           {/* Status Tabs */}
-          <div className="flex items-center overflow-x-auto gap-1.5 p-1 bg-white/[0.02] border border-white/5 rounded-xl self-start">
+          <div className="flex items-center overflow-x-auto gap-1.5 p-1 bg-white/[0.02] border border-white/5 rounded-xl self-start max-w-full">
             {[
               { id: "all", label: "All", count: counts.all },
               { id: "pending", label: "Pending", count: counts.pending },
@@ -274,8 +274,61 @@ export default function MerchantOrdersPage() {
           </div>
         </div>
 
-        {/* Orders Table */}
-        <Card className="bg-[#111111] border-white/10 overflow-hidden">
+        {/* Mobile View: Stacked Cards (< md) */}
+        <div className="block md:hidden space-y-3">
+          {isLoading ? (
+            <div className="p-8 text-center bg-[#111111] border border-white/10 rounded-2xl">
+              <Loader2 className="w-6 h-6 animate-spin text-maroon-500 mx-auto mb-2" />
+              <p className="text-xs text-zinc-500">Loading orders...</p>
+            </div>
+          ) : filteredOrders.length === 0 ? (
+            <div className="p-8 text-center bg-[#111111] border border-white/10 rounded-2xl text-xs text-zinc-500">
+              No orders match your filter criteria.
+            </div>
+          ) : (
+            filteredOrders.map((o) => (
+              <Card key={o.rawId} className="bg-[#111111] border-white/10 p-4 space-y-3 rounded-2xl">
+                <div className="flex items-center justify-between">
+                  <span className="font-mono font-bold text-xs text-white">{o.id}</span>
+                  <span className={cn(
+                    "px-2 py-0.5 rounded text-[10px] font-semibold tracking-wider uppercase font-heading",
+                    o.status === "pending" && "bg-amber-950/80 border border-amber-700/50 text-amber-400",
+                    o.status === "confirmed" && "bg-blue-950/80 border border-blue-700/50 text-blue-400",
+                    o.status === "processing" && "bg-purple-950/80 border border-purple-700/50 text-purple-400",
+                    o.status === "shipped" && "bg-cyan-950/80 border border-cyan-700/50 text-cyan-400",
+                    o.status === "delivered" && "bg-emerald-950/80 border border-emerald-700/50 text-emerald-400",
+                    o.status === "cancelled" && "bg-rose-950/80 border border-rose-700/50 text-rose-400"
+                  )}>
+                    {o.status}
+                  </span>
+                </div>
+
+                <div className="space-y-1 text-xs">
+                  <div className="font-semibold text-zinc-200">{o.customer}</div>
+                  <div className="text-[11px] text-zinc-400 truncate">{o.items}</div>
+                </div>
+
+                <div className="flex items-center justify-between pt-2 border-t border-white/5">
+                  <div>
+                    <div className="text-sm font-bold font-mono text-emerald-400">{o.total}</div>
+                    <div className="text-[10px] text-zinc-500 font-mono">{o.date}</div>
+                  </div>
+                  <Button
+                    onClick={() => handleOpenDrawer(o)}
+                    variant="outline"
+                    className="h-9 px-4 text-xs font-semibold flex items-center gap-1.5 border-white/10 bg-white/5 hover:bg-white/10 rounded-xl"
+                  >
+                    <Eye className="w-3.5 h-3.5 text-zinc-400" />
+                    Details
+                  </Button>
+                </div>
+              </Card>
+            ))
+          )}
+        </div>
+
+        {/* Desktop View: Full Table (>= md) */}
+        <Card className="hidden md:block bg-[#111111] border-white/10 overflow-hidden rounded-2xl">
           <div className="p-4 border-b border-white/10 flex items-center justify-between bg-[#151515]">
             <span className="text-xs font-semibold font-heading text-white">Recent Transactions</span>
           </div>
@@ -335,7 +388,7 @@ export default function MerchantOrdersPage() {
                           <Button
                             onClick={() => handleOpenDrawer(o)}
                             variant="outline"
-                            className="px-2 h-7 text-[10px] font-semibold flex items-center gap-1"
+                            className="px-2.5 h-8 text-[11px] font-semibold flex items-center gap-1 rounded-lg"
                           >
                             <Eye className="w-3.5 h-3.5 text-zinc-400" />
                             View

@@ -134,27 +134,27 @@ export default function Header({ store, isSubdomain = false }: { store: StoreDat
 
             <button
               onClick={toggleMobileMenu}
-              className="md:hidden p-2 rounded-full hover:bg-bloom-secondary transition-colors"
+              className="md:hidden w-11 h-11 rounded-full hover:bg-bloom-secondary transition-colors flex items-center justify-center shrink-0"
               aria-label="Toggle navigation menu"
               aria-expanded={isMobileOpen}
             >
               {isMobileOpen ? (
-                <X className="h-6 w-6 text-bloom-foreground" />
+                <X className="h-5 w-5 text-bloom-foreground" />
               ) : (
-                <Menu className="h-6 w-6 text-bloom-foreground" />
+                <Menu className="h-5 w-5 text-bloom-foreground" />
               )}
             </button>
 
             <Link
               href={cartLink}
-              className="relative p-2 rounded-full hover:bg-bloom-secondary transition-all duration-200 group"
+              className="relative w-11 h-11 rounded-full hover:bg-bloom-secondary transition-all duration-200 group flex items-center justify-center shrink-0"
               aria-label={`Shopping cart with ${cartCount} items`}
             >
-              <ShoppingCart className="h-6 w-6 text-bloom-foreground group-hover:text-bloom-primary transition-colors" />
+              <ShoppingCart className="h-5 w-5 text-bloom-foreground group-hover:text-bloom-primary transition-colors" />
               {cartCount > 0 && (
                 <span
                   style={{ backgroundColor: "var(--color-cta)", color: "var(--color-cta-foreground)" }}
-                  className="absolute -top-1 -right-1 text-xs font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1 shadow-sm"
+                  className="absolute 0 top-0.5 right-0.5 text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 shadow-sm"
                 >
                   {cartCount > 99 ? "99+" : cartCount}
                 </span>

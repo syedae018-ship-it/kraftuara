@@ -84,36 +84,33 @@ export default function DashboardOverview() {
       setShowSkeletons(true);
       setFetchError(null);
       try {
-        // 1. Fetch products
-        const { products: pList } = await productRepository.getAll(activeStore.id);
-        setProducts(pList);
+        const [
+          productsRes,
+          categoriesList,
+          creativeList,
+          ordersList,
+          analyticsRes
+        ] = await Promise.all([
+          productRepository.getAll(activeStore.id).catch(() => ({ products: [] })),
+          categoryRepository.getAll(activeStore.id).catch(() => []),
+          creativeRepository.getOrders().catch(() => []),
+          orderRepository.getAll(activeStore.id).catch(() => []),
+          getStoreAnalyticsAction(activeStore.id, timeRange).catch(() => ({ success: false, analytics: null })),
+        ]);
 
-        // 2. Fetch categories
-        const cList = await categoryRepository.getAll(activeStore.id);
-        setCategoriesCount(cList.length);
+        setProducts(productsRes.products || []);
+        setCategoriesCount(categoriesList.length || 0);
 
-        // 3. Fetch creative orders
-        const oList = await creativeRepository.getOrders();
-        const activeCreative = oList.filter((o) => o.status !== "completed");
+        const activeCreative = (creativeList || []).filter((o: any) => o.status !== "completed");
         setCreativeOrdersCount(activeCreative.length);
 
-        // 4. Fetch real storefront orders & revenue from order repository
-        const ordersList = await orderRepository.getAll(activeStore.id);
-        const ordersCount = ordersList.length;
-        const totalRevenue = ordersList.reduce((sum, ord) => sum + (ord.totalAmount || 0), 0);
+        const ordersCount = (ordersList || []).length;
+        const totalRevenue = (ordersList || []).reduce((sum: number, ord: any) => sum + (ord.totalAmount || 0), 0);
 
-        // 5. Fetch storefront analytics aggregates
         let viewsCount = 0;
-        let dataSummary = null;
-        
-        const res = await getStoreAnalyticsAction(activeStore.id, timeRange);
-        if (res.success && res.analytics) {
-          dataSummary = res.analytics;
-        }
-
-        if (dataSummary) {
-          setAnalyticsData(dataSummary);
-          viewsCount = dataSummary.views;
+        if (analyticsRes?.success && analyticsRes.analytics) {
+          setAnalyticsData(analyticsRes.analytics);
+          viewsCount = analyticsRes.analytics.views || 0;
         }
 
         setAnalytics({ views: viewsCount, orders: ordersCount, revenue: totalRevenue });
@@ -125,7 +122,7 @@ export default function DashboardOverview() {
       }
     }
     loadMetrics();
-  }, [activeStore, timeRange]);
+  }, [activeStore?.id, timeRange]);
 
   if (isLoading || !activeStore) {
     return (

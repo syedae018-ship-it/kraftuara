@@ -72,7 +72,7 @@ export default function MerchantAnalyticsPage() {
       }
     }
     loadAnalytics();
-  }, [activeStore, timeRange]);
+  }, [activeStore?.id, timeRange]);
 
   if (!activeStore) {
     return (

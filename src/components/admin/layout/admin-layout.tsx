@@ -15,9 +15,9 @@ export function AdminLayout({ children, className }: AdminLayoutProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-[#080808] text-white flex overflow-hidden font-body selection:bg-maroon-800 selection:text-white">
-      {/* Desktop Sidebar */}
-      <div className="hidden md:block">
+    <div className="h-screen h-[100dvh] max-h-screen w-full bg-[#080808] text-white flex overflow-hidden font-body selection:bg-maroon-800 selection:text-white">
+      {/* Fixed Desktop / Large Tablet Sidebar (Stationary left edge, full viewport height) */}
+      <div className="hidden md:flex flex-col h-full shrink-0 z-30">
         <AdminSidebar />
       </div>
 
@@ -48,10 +48,10 @@ export function AdminLayout({ children, className }: AdminLayoutProps) {
         )}
       </AnimatePresence>
 
-      {/* Main Workspace Area */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
+      {/* Main Independent Scroll Container */}
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-y-auto overflow-x-hidden">
         <AdminNavbar onOpenMobileMenu={() => setMobileMenuOpen(true)} />
-        <main className={cn("p-4 sm:p-6 max-w-7xl w-full mx-auto space-y-6 flex-1", className)}>
+        <main className={cn("p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto space-y-6 flex-1", className)}>
           {children}
         </main>
       </div>

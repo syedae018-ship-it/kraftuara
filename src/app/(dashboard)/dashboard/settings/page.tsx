@@ -90,7 +90,7 @@ export default function MerchantSettingsPage() {
 
       loadStoreSettings();
     }
-  }, [activeStore]);
+  }, [activeStore?.id]);
 
   if (!activeStore) {
     return (

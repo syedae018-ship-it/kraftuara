@@ -7,20 +7,32 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/context/auth-context";
 import { toast } from "@/hooks/use-toast";
-import { Mail, Lock, LogIn } from "lucide-react";
+import { Mail, Lock, LogIn, AlertCircle } from "lucide-react";
 
 function LoginFormContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { login } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
+  const [isSessionExpired, setIsSessionExpired] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
   useEffect(() => {
     const template = searchParams.get("template");
     if (template) {
       localStorage.setItem("symar_selected_template", template);
+    }
+
+    const expired = searchParams.get("expired");
+    if (expired === "true") {
+      setIsSessionExpired(true);
+      toast.error("Session Expired", "Your session has expired. Please log in again.");
+    }
+
+    const savedRemember = localStorage.getItem("symar_remember_me");
+    if (savedRemember !== null) {
+      setRememberMe(savedRemember === "true");
     }
   }, [searchParams]);
 
@@ -44,15 +56,9 @@ function LoginFormContent() {
     }
 
     try {
-      const result = await login(email, password);
+      const result = await login(email, password, rememberMe);
 
       toast.success("Login Successful", `Signed in as ${email}`);
-
-      if (rememberMe) {
-        localStorage.setItem("symar_remember_me", "true");
-      } else {
-        localStorage.removeItem("symar_remember_me");
-      }
 
       if (result.role === "admin") {
         router.push("/admin");
@@ -83,6 +89,13 @@ function LoginFormContent() {
           Enter your credentials to access your catalog stores
         </p>
       </div>
+
+      {isSessionExpired && (
+        <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-center gap-2.5 text-amber-300 text-xs">
+          <AlertCircle className="w-4 h-4 shrink-0 text-amber-400" />
+          <span>Your session has expired. Please log in again to continue.</span>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
@@ -123,10 +136,10 @@ function LoginFormContent() {
             id="rememberMe"
             checked={rememberMe}
             onChange={(e) => setRememberMe(e.target.checked)}
-            className="w-3.5 h-3.5 accent-maroon-600 rounded bg-[#111111] border-white/10"
+            className="w-4 h-4 accent-maroon-600 rounded bg-[#111111] border-white/10 cursor-pointer"
           />
           <label htmlFor="rememberMe" className="text-xs text-zinc-400 font-body cursor-pointer hover:text-white transition-colors">
-            Remember Me
+            Remember Me (Keep me logged in for 8 days)
           </label>
         </div>
 

@@ -31,21 +31,13 @@ export default function ProductListPage() {
     if (!activeStore?.id) return;
     setIsLoading(true);
     try {
-      const { products: data } = await productRepository.getAll(activeStore.id);
-      setProducts(data);
-    } catch (err) {
-      console.error("Failed to fetch products:", err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const fetchCategories = async () => {
-    if (!activeStore?.id) return;
-    try {
-      const list = await categoryRepository.getAll(activeStore.id);
+      const [{ products: data }, list] = await Promise.all([
+        productRepository.getAll(activeStore.id),
+        categoryRepository.getAll(activeStore.id),
+      ]);
+      setProducts(data || []);
       setCategories(
-        list.map((c) => ({
+        (list || []).map((c) => ({
           id: c.id,
           name: c.name,
           slug: c.slug,
@@ -53,15 +45,15 @@ export default function ProductListPage() {
         }))
       );
     } catch (err) {
-      console.error("Failed to fetch categories:", err);
+      console.error("Failed to fetch products and categories:", err);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  // Sync state on activeStore change
   React.useEffect(() => {
     fetchProducts();
-    fetchCategories();
-  }, [activeStore]);
+  }, [activeStore?.id]);
 
   const [filters, setFilters] = useState<ProductFilterState>({
     search: "",
