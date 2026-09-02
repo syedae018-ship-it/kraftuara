@@ -134,6 +134,39 @@ class SubscriptionEngine {
         if (upsertedSub) {
           subRow = upsertedSub;
         }
+      } else if (userId) {
+        // Persist unlinked user subscription
+        if (subRow?.id) {
+          const { data: updatedSub } = await (supabase.from("subscriptions") as any)
+            .update({
+              plan: recoveredPaymentPlan,
+              status: "active",
+              razorpay_subscription_id: recoveredRzpSubId || subRow?.razorpay_subscription_id || null,
+              amount: recoveredAmount,
+              updated_at: now.toISOString(),
+            })
+            .eq("id", subRow.id)
+            .select()
+            .maybeSingle();
+          if (updatedSub) subRow = updatedSub;
+        } else {
+          const { data: insertedSub } = await (supabase.from("subscriptions") as any)
+            .insert({
+              store_id: null,
+              user_id: userId,
+              plan: recoveredPaymentPlan,
+              status: "active",
+              razorpay_subscription_id: recoveredRzpSubId || null,
+              current_period_start: now.toISOString(),
+              current_period_end: trialEndStr,
+              amount: recoveredAmount,
+              currency: "INR",
+              updated_at: now.toISOString(),
+            })
+            .select()
+            .maybeSingle();
+          if (insertedSub) subRow = insertedSub;
+        }
       }
     }
 
@@ -265,29 +298,49 @@ class SubscriptionEngine {
       const canonicalPlan = normalizePlanTier(userSub.plan);
       const planConfig = PLANS[canonicalPlan] || PLANS.startup;
 
-      await (supabase.from("subscriptions") as any)
-        .upsert({
-          store_id: storeId,
-          user_id: userId,
-          plan: canonicalPlan,
-          status: userSub.status || "active",
-          razorpay_subscription_id: userSub.razorpay_subscription_id,
-          razorpay_signature: userSub.razorpay_signature,
-          current_period_start: userSub.current_period_start || now.toISOString(),
-          current_period_end: userSub.current_period_end || new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-          trial_start: null,
-          trial_end: null,
-          next_billing_date: userSub.next_billing_date || userSub.current_period_end,
-          amount: userSub.amount || planConfig.priceMonthly,
-          currency: "INR",
-          updated_at: now.toISOString(),
-        }, { onConflict: "store_id" });
+      if (!userSub.store_id) {
+        // Transfer existing unlinked subscription row directly to the store
+        await (supabase.from("subscriptions") as any)
+          .update({
+            store_id: storeId,
+            plan: canonicalPlan,
+            status: userSub.status || "active",
+            updated_at: now.toISOString(),
+          })
+          .eq("id", userSub.id);
+      } else {
+        await (supabase.from("subscriptions") as any)
+          .upsert({
+            store_id: storeId,
+            user_id: userId,
+            plan: canonicalPlan,
+            status: userSub.status || "active",
+            razorpay_subscription_id: userSub.razorpay_subscription_id,
+            razorpay_signature: userSub.razorpay_signature,
+            current_period_start: userSub.current_period_start || now.toISOString(),
+            current_period_end: userSub.current_period_end || new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+            trial_start: null,
+            trial_end: null,
+            next_billing_date: userSub.next_billing_date || userSub.current_period_end,
+            amount: userSub.amount || planConfig.priceMonthly,
+            currency: "INR",
+            updated_at: now.toISOString(),
+          }, { onConflict: "store_id" });
+      }
 
       // Also link any unlinked payment records
       await (supabase.from("payments") as any)
         .update({ store_id: storeId })
         .eq("user_id", userId)
         .is("store_id", null);
+
+      // Mark onboarding completed in profiles
+      await (supabase.from("profiles") as any)
+        .update({
+          onboarding_status: "completed",
+          updated_at: now.toISOString(),
+        })
+        .eq("id", userId);
     }
 
     return this.getAuthoritativeSubscription(storeId, userId, supabase);

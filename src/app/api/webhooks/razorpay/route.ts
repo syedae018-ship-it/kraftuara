@@ -156,21 +156,55 @@ export async function POST(request: NextRequest) {
           { onConflict: "store_id" }
         );
       } else if (userIdFromNotes) {
-        await (supabase as any).from("subscriptions").insert({
-          user_id: userIdFromNotes,
-          store_id: null,
-          plan: targetPlan,
-          status: "active",
-          razorpay_subscription_id: subEntity.id,
-          current_period_start: newPeriodStart,
-          current_period_end: newPeriodEnd,
-          trial_start: null,
-          trial_end: null,
-          next_billing_date: nextBillingDate,
-          amount: chargedAmount,
-          currency: "INR",
-          updated_at: new Date().toISOString(),
-        });
+        const { data: existingUserSub } = await (supabase as any)
+          .from("subscriptions")
+          .select("id")
+          .eq("user_id", userIdFromNotes)
+          .is("store_id", null)
+          .maybeSingle();
+
+        if (existingUserSub) {
+          await (supabase as any)
+            .from("subscriptions")
+            .update({
+              plan: targetPlan,
+              status: "active",
+              razorpay_subscription_id: subEntity.id,
+              current_period_start: newPeriodStart,
+              current_period_end: newPeriodEnd,
+              trial_start: null,
+              trial_end: null,
+              next_billing_date: nextBillingDate,
+              amount: chargedAmount,
+              currency: "INR",
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", existingUserSub.id);
+        } else {
+          await (supabase as any).from("subscriptions").insert({
+            user_id: userIdFromNotes,
+            store_id: null,
+            plan: targetPlan,
+            status: "active",
+            razorpay_subscription_id: subEntity.id,
+            current_period_start: newPeriodStart,
+            current_period_end: newPeriodEnd,
+            trial_start: null,
+            trial_end: null,
+            next_billing_date: nextBillingDate,
+            amount: chargedAmount,
+            currency: "INR",
+            updated_at: new Date().toISOString(),
+          });
+        }
+
+        // Also update profiles onboarding status
+        await (supabase.from("profiles") as any)
+          .update({
+            onboarding_status: "payment_successful",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", userIdFromNotes);
       }
 
       // 2. Insert payment record idempotently
@@ -368,6 +402,15 @@ export async function POST(request: NextRequest) {
             currency: paymentEntity.currency || "INR",
             status: "failed",
           });
+        }
+
+        if (userId && !storeId) {
+          await (supabase.from("profiles") as any)
+            .update({
+              onboarding_status: "payment_failed",
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", userId);
         }
       }
     }

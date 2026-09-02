@@ -1,6 +1,7 @@
 "use server";
 
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { errorResponse, successResponse, getErrorMessage } from "@/lib/api-response";
 import { ActionResponse, TenantStore } from "@/types";
 import { revalidatePath } from "next/cache";
@@ -726,6 +727,74 @@ export async function resolveOgImageAction(url: string): Promise<ActionResponse<
   } catch (err) {
     console.error("Failed to resolve OG image:", err);
     return successResponse({ imageUrl: null }, "Failed to fetch webpage or parse metadata.");
+  }
+}
+
+/**
+ * Persists onboarding draft state and active wizard step server-side
+ */
+export async function saveOnboardingDraftAction(
+  step: number,
+  draftData: any
+): Promise<ActionResponse<void>> {
+  try {
+    const supabase = await createServerSupabaseClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return errorResponse("Unauthorized: Session required.");
+    }
+
+    const adminSupabase = createAdminClient();
+    await (adminSupabase.from("profiles") as any)
+      .update({
+        onboarding_step: step,
+        onboarding_data: draftData,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", user.id);
+
+    return successResponse(undefined, "Onboarding progress saved.");
+  } catch (err) {
+    return errorResponse(getErrorMessage(err));
+  }
+}
+
+/**
+ * Retrieves the persisted onboarding draft state and step for the authenticated merchant
+ */
+export async function getOnboardingDraftAction(): Promise<
+  ActionResponse<{
+    step: number;
+    draftData: any;
+    onboardingStatus: string;
+  }>
+> {
+  try {
+    const supabase = await createServerSupabaseClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return errorResponse("Unauthorized: Session required.");
+    }
+
+    const adminSupabase = createAdminClient();
+    const { data: profile } = await (adminSupabase.from("profiles") as any)
+      .select("onboarding_step, onboarding_data, onboarding_status")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    return successResponse({
+      step: profile?.onboarding_step || 1,
+      draftData: profile?.onboarding_data || {},
+      onboardingStatus: profile?.onboarding_status || "account_created",
+    });
+  } catch (err) {
+    return errorResponse(getErrorMessage(err));
   }
 }
 

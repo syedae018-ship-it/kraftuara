@@ -347,6 +347,14 @@ export async function verifySubscriptionPaymentAction(payload: {
           status: "successful",
         });
       }
+
+      // Update merchant profile onboarding lifecycle state
+      await (adminSupabase.from("profiles") as any)
+        .update({
+          onboarding_status: "payment_successful",
+          updated_at: now.toISOString(),
+        })
+        .eq("id", user.id);
     }
 
     // Trigger decoupled customer receipt & admin notification
@@ -530,5 +538,77 @@ export async function activatePlatformSubscriptionAction(
   } catch (err: any) {
     console.error("Subscription activation error:", err);
     return errorResponse(err.message || "Failed to activate subscription.");
+  }
+}
+
+/**
+ * Authoritatively checks if the current authenticated user has an active subscription or successful payment.
+ * Used for post-payment onboarding continuation, preventing double-charging, and resume flows.
+ */
+export async function checkUserActiveSubscriptionAction(): Promise<
+  ActionResponse<{
+    hasActiveSubscription: boolean;
+    plan: PlanTier;
+    status: string;
+    amount: number;
+    nextBillingDate: string | null;
+    hasStores: boolean;
+    storeName?: string;
+    storeSlug?: string;
+    onboardingStatus: string;
+    onboardingStep: number;
+  }>
+> {
+  try {
+    const supabase = await createServerSupabaseClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return errorResponse("Unauthorized: Session required.");
+    }
+
+    // 1. Check user stores
+    const { data: stores } = await (supabase.from("stores") as any)
+      .select("id, name, slug")
+      .eq("user_id", user.id);
+
+    const hasStores = Boolean(stores && stores.length > 0);
+    const primaryStore = stores?.[0];
+
+    // 2. Check profile onboarding status & step
+    const { data: profile } = await (supabase.from("profiles") as any)
+      .select("onboarding_status, onboarding_step")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    const onboardingStatus = profile?.onboarding_status || (hasStores ? "completed" : "account_created");
+    const onboardingStep = profile?.onboarding_step || 1;
+
+    // 3. Resolve authoritative subscription using subscription engine
+    const { subscriptionEngine } = await import("@/lib/services/subscription-engine");
+    const sub = await subscriptionEngine.getAuthoritativeSubscription(
+      primaryStore?.id || "",
+      user.id,
+      supabase
+    );
+
+    const isActive = sub.status === "active" || sub.status === "trialing";
+
+    return successResponse({
+      hasActiveSubscription: isActive,
+      plan: sub.plan,
+      status: sub.status,
+      amount: sub.amount,
+      nextBillingDate: sub.nextBillingDate,
+      hasStores,
+      storeName: primaryStore?.name,
+      storeSlug: primaryStore?.slug,
+      onboardingStatus,
+      onboardingStep,
+    });
+  } catch (err: any) {
+    return errorResponse(err.message || "Failed to check subscription status.");
   }
 }

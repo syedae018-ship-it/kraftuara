@@ -38,6 +38,7 @@ export type LoginResult = {
   role: "admin" | "merchant";
   hasStores: boolean;
   user: DummyUser | null;
+  hasActiveSubscription?: boolean;
 };
 
 type AuthContextType = {
@@ -178,7 +179,18 @@ export function DummyAuthProvider({ children }: { children: React.ReactNode }) {
             setIsLoading(false);
             return { user: profile, stores: mappedStores, activeStore: currentStore };
           } else {
-            profile.plan = "startup";
+            // Check if user has an active unlinked subscription or recent payment
+            try {
+              const { subscriptionEngine } = await import("@/lib/services/subscription-engine");
+              const userSub = await subscriptionEngine.getAuthoritativeSubscription("", u.id, supabase);
+              profile.plan = userSub.plan || "startup";
+              if (userSub.status === "active" || userSub.status === "trialing") {
+                profile.onboardingComplete = false;
+              }
+            } catch (subErr) {
+              console.warn("User sub check in getSession error:", subErr);
+              profile.plan = "startup";
+            }
             setStores([]);
             setActiveStore(null as any);
             setUser(profile);
@@ -277,7 +289,11 @@ export function DummyAuthProvider({ children }: { children: React.ReactNode }) {
     const isAdmin = user && isAdminUser(user.email);
     if (user && stores.length === 0 && !isAdmin) {
       if (pathname && pathname.startsWith("/dashboard")) {
-        router.push("/choose-plan");
+        if (user.plan && user.plan !== "startup") {
+          router.push("/create-store");
+        } else {
+          router.push("/choose-plan");
+        }
       }
     }
   }, [user, stores, pathname, isLoading, router]);
@@ -353,11 +369,13 @@ export function DummyAuthProvider({ children }: { children: React.ReactNode }) {
 
       const sessionData = await getSession();
       const isAdmin = isAdminUser(email);
+      const isPaid = sessionData?.user?.plan && sessionData.user.plan !== "startup";
 
       return {
         role: (isAdmin ? "admin" : "merchant") as "admin" | "merchant",
         hasStores: (sessionData?.stores?.length ?? 0) > 0,
         user: sessionData?.user ?? null,
+        hasActiveSubscription: !!isPaid,
       };
     } finally {
       setIsLoading(false);

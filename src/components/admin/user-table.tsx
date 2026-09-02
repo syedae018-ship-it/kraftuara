@@ -7,7 +7,7 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell, Badge } 
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { useAuth } from "@/context/auth-context";
-import { LogIn, Eye, Trash2, ShieldAlert, AlertTriangle } from "lucide-react";
+import { LogIn, Eye, Trash2, ShieldAlert, AlertTriangle, KeyRound } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { deleteUserAccountAction } from "@/lib/actions/admin";
 import { getPlanDisplayName } from "@/lib/feature-gating";
@@ -23,6 +23,24 @@ export function UserTable({ users, onToggleStatus, onUserDeleted }: UserTablePro
   const [userToDelete, setUserToDelete] = useState<AdminUser | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [suspendTarget, setSuspendTarget] = useState<AdminUser | null>(null);
+  const [isSendingReset, setIsSendingReset] = useState<string | null>(null);
+
+  const handleSendPasswordReset = async (u: AdminUser) => {
+    setIsSendingReset(u.id);
+    try {
+      const { sendMerchantPasswordResetAction } = await import("@/lib/actions/admin");
+      const res = await sendMerchantPasswordResetAction(u.id);
+      if (res.success) {
+        toast.success("Password Reset Sent", `Password reset email sent to ${u.email}.`);
+      } else {
+        toast.error("Failed to Send Reset", res.error || "Could not send password reset email.");
+      }
+    } catch (err: any) {
+      toast.error("Error", err.message || "Failed to trigger password reset.");
+    } finally {
+      setIsSendingReset(null);
+    }
+  };
 
   const handleDeleteUser = async () => {
     if (!userToDelete) return;
@@ -98,6 +116,17 @@ export function UserTable({ users, onToggleStatus, onUserDeleted }: UserTablePro
                 Joined {new Date(u.createdAt).toLocaleDateString()}
               </span>
               <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 px-2 text-[10px]"
+                  isLoading={isSendingReset === u.id}
+                  disabled={isSendingReset === u.id}
+                  onClick={() => handleSendPasswordReset(u)}
+                  title="Send Password Reset Email"
+                >
+                  <KeyRound className="w-3 h-3 mr-1" /> Reset Pass
+                </Button>
                 <Button
                   variant="outline"
                   size="sm"
@@ -178,6 +207,17 @@ export function UserTable({ users, onToggleStatus, onUserDeleted }: UserTablePro
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex items-center justify-end gap-1.5">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      isLoading={isSendingReset === u.id}
+                      disabled={isSendingReset === u.id}
+                      onClick={() => handleSendPasswordReset(u)}
+                      title="Send Password Reset Email to Merchant"
+                      className="text-xs"
+                    >
+                      <KeyRound className="w-3.5 h-3.5 mr-1" /> Send Reset
+                    </Button>
                     <Button
                       variant="outline"
                       size="sm"

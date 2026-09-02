@@ -63,7 +63,11 @@ function LoginFormContent() {
       if (result.role === "admin") {
         router.push("/admin");
       } else if (!result.hasStores) {
-        router.push("/choose-plan");
+        if (result.hasActiveSubscription) {
+          router.push("/create-store");
+        } else {
+          router.push("/choose-plan");
+        }
       } else {
         router.push("/dashboard");
       }

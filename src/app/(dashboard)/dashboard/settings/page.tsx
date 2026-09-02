@@ -15,6 +15,9 @@ import {
   AlertCircle,
   ExternalLink,
   Trash2,
+  Lock,
+  KeyRound,
+  ShieldCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,6 +47,12 @@ export default function MerchantSettingsPage() {
   const [freeShippingThreshold, setFreeShippingThreshold] = useState<number | string>(0);
   const [shippingFee, setShippingFee] = useState<number | string>(50);
   const [isSavingShipping, setIsSavingShipping] = useState(false);
+
+  // Password Change State
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
 
   const [isLoadingSettings, setIsLoadingSettings] = useState(true);
   const [isSavingWhatsApp, setIsSavingWhatsApp] = useState(false);
@@ -238,6 +247,48 @@ export default function MerchantSettingsPage() {
       toast.error("Error", "An unexpected error occurred.");
     } finally {
       setIsSavingShipping(false);
+    }
+  };
+
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!newPassword || !confirmPassword) {
+      toast.error("Validation Error", "Please fill in all password fields.");
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      toast.error("Validation Error", "New passwords do not match. Please verify.");
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      toast.error("Validation Error", "New password must be at least 6 characters long.");
+      return;
+    }
+
+    setIsUpdatingPassword(true);
+    try {
+      const { changePasswordAction } = await import("@/lib/actions/auth");
+      const formData = new FormData();
+      formData.append("currentPassword", currentPassword);
+      formData.append("newPassword", newPassword);
+      formData.append("confirmPassword", confirmPassword);
+
+      const res = await changePasswordAction(formData);
+      if (res.success) {
+        toast.success("Password Updated", "Your account password has been updated successfully.");
+        setCurrentPassword("");
+        setNewPassword("");
+        setConfirmPassword("");
+      } else {
+        toast.error("Password Update Failed", res.error || "Failed to update password.");
+      }
+    } catch (err: any) {
+      toast.error("Error", err.message || "An unexpected error occurred.");
+    } finally {
+      setIsUpdatingPassword(false);
     }
   };
 
@@ -544,6 +595,83 @@ export default function MerchantSettingsPage() {
                 leftIcon={<Save className="w-4 h-4" />}
               >
                 Save Shipping Settings
+              </Button>
+            </div>
+          </form>
+        </Card>
+
+        {/* 4. Account Security & Password Card */}
+        <Card className="bg-[#111111] border-white/10 p-6 sm:p-8 space-y-6">
+          <div className="pb-4 border-b border-white/10 flex items-center gap-3 text-left">
+            <div className="w-10 h-10 rounded-xl bg-maroon-950/80 border border-maroon-700/50 flex items-center justify-center text-maroon-400 shrink-0 shadow-glow">
+              <Lock className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold font-heading text-white">Account Security &amp; Password</h2>
+              <p className="text-xs text-zinc-400 font-body">
+                Update your account password. Supabase Auth manages your credentials securely.
+              </p>
+            </div>
+          </div>
+
+          <form onSubmit={handleUpdatePassword} className="space-y-4 text-left">
+            <div>
+              <label className="text-xs font-semibold text-zinc-300 font-heading block mb-1.5">
+                Current Password
+              </label>
+              <Input
+                type="password"
+                placeholder="Enter current password (if known)"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                leftIcon={<KeyRound className="w-4 h-4 text-zinc-500" />}
+              />
+              <p className="text-[11px] text-zinc-500 font-body mt-1">
+                Leave blank if you signed in via a direct recovery session or OAuth.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-semibold text-zinc-300 font-heading block mb-1.5">
+                  New Password *
+                </label>
+                <Input
+                  type="password"
+                  required
+                  placeholder="At least 6 characters"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  leftIcon={<Lock className="w-4 h-4 text-zinc-500" />}
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-zinc-300 font-heading block mb-1.5">
+                  Confirm New Password *
+                </label>
+                <Input
+                  type="password"
+                  required
+                  placeholder="Re-enter new password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  leftIcon={<ShieldCheck className="w-4 h-4 text-zinc-500" />}
+                />
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-white/10">
+              <Button
+                type="submit"
+                variant="primary"
+                size="sm"
+                className="shadow-glow"
+                isLoading={isUpdatingPassword}
+                disabled={isUpdatingPassword}
+                leftIcon={<ShieldCheck className="w-4 h-4" />}
+              >
+                Change Password
               </Button>
             </div>
           </form>

@@ -111,6 +111,61 @@ export default function CreateStoreWizard() {
   const [instagram, setInstagram] = useState("");
   const [facebook, setFacebook] = useState("");
 
+  // Load saved onboarding draft from server on mount
+  useEffect(() => {
+    async function loadDraft() {
+      try {
+        const { getOnboardingDraftAction } = await import("@/lib/actions/store");
+        const res = await getOnboardingDraftAction();
+        if (res.success && res.data) {
+          const { step: savedStep, draftData } = res.data;
+          if (draftData) {
+            if (draftData.storeName) setStoreName(draftData.storeName);
+            if (draftData.businessName) setBusinessName(draftData.businessName);
+            if (draftData.tagline) setTagline(draftData.tagline);
+            if (draftData.aboutText) setAboutText(draftData.aboutText);
+            if (draftData.category) setCategory(draftData.category);
+            if (draftData.logoUrl) setLogoUrl(draftData.logoUrl);
+            if (draftData.phone) setPhone(draftData.phone);
+            if (draftData.whatsapp) setWhatsapp(draftData.whatsapp);
+            if (draftData.supportEmail) setSupportEmail(draftData.supportEmail);
+            if (draftData.address) setAddress(draftData.address);
+            if (draftData.instagram) setInstagram(draftData.instagram);
+            if (draftData.facebook) setFacebook(draftData.facebook);
+          }
+          if (savedStep && savedStep >= 1 && savedStep <= 3) {
+            setStep(savedStep);
+          }
+        }
+      } catch (e) {
+        console.warn("Draft load error:", e);
+      }
+    }
+    loadDraft();
+  }, []);
+
+  const persistDraft = async (targetStep: number) => {
+    try {
+      const { saveOnboardingDraftAction } = await import("@/lib/actions/store");
+      await saveOnboardingDraftAction(targetStep, {
+        storeName,
+        businessName,
+        tagline,
+        aboutText,
+        category,
+        logoUrl,
+        phone,
+        whatsapp,
+        supportEmail,
+        address,
+        instagram,
+        facebook,
+      });
+    } catch (e) {
+      console.warn("Draft save error:", e);
+    }
+  };
+
   const previewSlug = normalizeSlug(storeName);
 
   const handleNextStep = () => {
@@ -118,11 +173,15 @@ export default function CreateStoreWizard() {
       toast.error("Store Name Required", "Please enter a valid store name.");
       return;
     }
-    setStep((prev) => Math.min(prev + 1, 3));
+    const nextStep = Math.min(step + 1, 3);
+    setStep(nextStep);
+    persistDraft(nextStep);
   };
 
   const handlePrevStep = () => {
-    setStep((prev) => Math.max(prev - 1, 1));
+    const prevStep = Math.max(step - 1, 1);
+    setStep(prevStep);
+    persistDraft(prevStep);
   };
 
   const handleFinishSetup = async () => {

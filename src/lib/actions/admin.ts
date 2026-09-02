@@ -5,8 +5,9 @@ import { assertAdminSession } from "@/lib/admin/admin-auth";
 import { errorResponse, successResponse, getErrorMessage } from "@/lib/api-response";
 import { ActionResponse } from "@/types";
 import { PlatformStats, AdminUser, AdminStore, AdminPayment, Coupon, Template } from "@/types/admin";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { revalidatePath } from "next/cache";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { PLANS } from "@/lib/feature-gating";
 import { getAllPlans } from "@/lib/services/plan-service";
 
@@ -116,7 +117,7 @@ export async function getAdminUsersAction(): Promise<ActionResponse<AdminUser[]>
   try {
     const { supabase } = await assertAdminSession();
 
-    // Fetch profiles joined with stores
+    // Fetch profiles joined with stores and store-level subscriptions
     const { data: profiles, error: pErr } = await supabase
       .from("profiles")
       .select(`
@@ -124,6 +125,7 @@ export async function getAdminUsersAction(): Promise<ActionResponse<AdminUser[]>
         email,
         full_name,
         avatar_url,
+        onboarding_status,
         created_at,
         stores (
           id,
@@ -140,11 +142,38 @@ export async function getAdminUsersAction(): Promise<ActionResponse<AdminUser[]>
 
     if (pErr) throw pErr;
 
+    // Also fetch all user-level subscriptions (including unlinked subscriptions where store is not created yet)
+    const { data: allUserSubs } = await (supabase.from("subscriptions") as any)
+      .select("id, user_id, store_id, plan, status, updated_at")
+      .not("user_id", "is", null)
+      .order("updated_at", { ascending: false });
+
+    const userSubMap = new Map<string, any>();
+    (allUserSubs || []).forEach((s: any) => {
+      if (s.user_id && (!userSubMap.has(s.user_id) || s.status === "active")) {
+        userSubMap.set(s.user_id, s);
+      }
+    });
+
     const users: AdminUser[] = (profiles || []).map((p: any) => {
       const primaryStore = p.stores?.[0];
-      const sub = primaryStore?.subscriptions?.[0];
-      const planName = sub?.plan ? `${sub.plan.toUpperCase()} Plan` : "Startup Plan";
+      const storeSub = primaryStore?.subscriptions?.[0];
+      const userSub = userSubMap.get(p.id);
+
+      // Prefer store subscription if available, fallback to user-level subscription
+      const effectiveSub = storeSub || userSub;
+      const rawPlan = effectiveSub?.plan || "startup";
+      const planName = `${rawPlan.toUpperCase()} Plan`;
       const isSuspended = primaryStore?.status === "suspended";
+
+      let storeDisplay = primaryStore?.name;
+      if (!storeDisplay) {
+        if (effectiveSub && effectiveSub.status === "active") {
+          storeDisplay = "Store Setup Pending";
+        } else {
+          storeDisplay = "Not Created";
+        }
+      }
 
       return {
         id: p.id,
@@ -152,7 +181,7 @@ export async function getAdminUsersAction(): Promise<ActionResponse<AdminUser[]>
         email: p.email || "",
         avatar: p.avatar_url || undefined,
         plan: planName,
-        storeName: primaryStore?.name || "No Store",
+        storeName: storeDisplay,
         storeSlug: primaryStore?.slug || "",
         createdAt: p.created_at,
         status: isSuspended ? "suspended" : "active",
@@ -160,6 +189,59 @@ export async function getAdminUsersAction(): Promise<ActionResponse<AdminUser[]>
     });
 
     return successResponse(users);
+  } catch (err) {
+    return errorResponse(getErrorMessage(err));
+  }
+}
+
+/**
+ * Super Admin Action: Send Password Reset Email to Merchant
+ * Never reveals, displays, stores, or generates plaintext passwords.
+ */
+export async function sendMerchantPasswordResetAction(
+  targetEmailOrId: string
+): Promise<ActionResponse<void>> {
+  try {
+    await assertAdminSession();
+
+    let email = targetEmailOrId;
+    const adminSupabase = createAdminClient();
+
+    // If a UUID was passed, resolve merchant email from profiles
+    if (targetEmailOrId.includes("-") && !targetEmailOrId.includes("@")) {
+      const { data: prof } = await (adminSupabase.from("profiles") as any)
+        .select("email")
+        .eq("id", targetEmailOrId)
+        .maybeSingle();
+
+      if (prof?.email) {
+        email = prof.email;
+      }
+    }
+
+    if (!email || !email.includes("@")) {
+      return errorResponse("Valid merchant email address is required.");
+    }
+
+    let origin = process.env.NEXT_PUBLIC_SITE_URL || "https://kraftaura.in";
+    try {
+      const headersList = await headers();
+      const host = headersList.get("host") || "kraftaura.in";
+      const proto = headersList.get("x-forwarded-proto") || (host.includes("localhost") ? "http" : "https");
+      origin = process.env.NEXT_PUBLIC_SITE_URL || `${proto}://${host}`;
+    } catch {
+      // Fallback if called outside HTTP request context
+    }
+
+    const { error } = await adminSupabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${origin}/callback?next=/reset-password`,
+    });
+
+    if (error) {
+      return errorResponse(error.message);
+    }
+
+    return successResponse(undefined, "Password reset email sent.");
   } catch (err) {
     return errorResponse(getErrorMessage(err));
   }

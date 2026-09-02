@@ -141,40 +141,63 @@ export async function signInWithGoogleAction(): Promise<ActionResponse<{ url: st
 
 /**
  * Request password reset email
+ * Uses Supabase Auth password recovery mechanism with generic confirmation to prevent account enumeration.
  */
 export async function forgotPasswordAction(formData: FormData): Promise<ActionResponse<void>> {
-  const email = formData.get("email") as string;
+  const email = (formData.get("email") as string)?.trim().toLowerCase();
 
   if (!email) {
     return errorResponse("Email address is required.");
   }
 
   try {
-    const headersList = await headers();
-    const origin = headersList.get("origin") || "http://localhost:3000";
+    let origin = process.env.NEXT_PUBLIC_SITE_URL || "https://kraftaura.in";
+    try {
+      const headersList = await headers();
+      const host = headersList.get("host") || "kraftaura.in";
+      const proto = headersList.get("x-forwarded-proto") || (host.includes("localhost") ? "http" : "https");
+      origin = process.env.NEXT_PUBLIC_SITE_URL || `${proto}://${host}`;
+    } catch {
+      // Fallback if called outside HTTP request context
+    }
     const supabase = await createServerSupabaseClient();
 
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${origin}/reset-password`,
+    // Use dedicated callback to exchange code for session and land on reset-password
+    await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${origin}/callback?next=/reset-password`,
     });
 
-    if (error) {
-      return errorResponse(error.message);
-    }
-
-    return successResponse(undefined, "Password reset instructions sent to your email.");
+    // Always show generic confirmation to prevent account enumeration
+    return successResponse(
+      undefined,
+      "If an account exists for this email, we've sent you a password reset link."
+    );
   } catch (err) {
-    return errorResponse(getErrorMessage(err));
+    // Log internally but do not leak details to client
+    console.error("forgotPasswordAction error:", err);
+    return successResponse(
+      undefined,
+      "If an account exists for this email, we've sent you a password reset link."
+    );
   }
 }
 
 /**
- * Reset user password with token session
+ * Reset user password using active recovery session
  */
 export async function resetPasswordAction(formData: FormData): Promise<ActionResponse<void>> {
   const password = formData.get("password") as string;
+  const confirmPassword = formData.get("confirmPassword") as string;
 
-  if (!password || password.length < 6) {
+  if (!password) {
+    return errorResponse("New password is required.");
+  }
+
+  if (confirmPassword !== undefined && password !== confirmPassword) {
+    return errorResponse("Passwords do not match. Please ensure both fields are identical.");
+  }
+
+  if (password.length < 6) {
     return errorResponse("Password must be at least 6 characters long.");
   }
 
@@ -186,6 +209,60 @@ export async function resetPasswordAction(formData: FormData): Promise<ActionRes
 
     if (error) {
       return errorResponse(error.message);
+    }
+
+    return successResponse(undefined, "Password updated successfully.");
+  } catch (err) {
+    return errorResponse(getErrorMessage(err));
+  }
+}
+
+/**
+ * Change password for authenticated merchant in dashboard
+ */
+export async function changePasswordAction(formData: FormData): Promise<ActionResponse<void>> {
+  const currentPassword = formData.get("currentPassword") as string;
+  const newPassword = formData.get("newPassword") as string;
+  const confirmPassword = formData.get("confirmPassword") as string;
+
+  if (!newPassword || !confirmPassword) {
+    return errorResponse("New password and confirmation are required.");
+  }
+
+  if (newPassword !== confirmPassword) {
+    return errorResponse("New passwords do not match.");
+  }
+
+  if (newPassword.length < 6) {
+    return errorResponse("Password must be at least 6 characters long.");
+  }
+
+  try {
+    const supabase = await createServerSupabaseClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user || !user.email) {
+      return errorResponse("Unauthorized: Active session required.");
+    }
+
+    // Verify current password if provided
+    if (currentPassword) {
+      const { error: signInErr } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: currentPassword,
+      });
+
+      if (signInErr) {
+        return errorResponse("Incorrect current password.");
+      }
+    }
+
+    const { error: updateErr } = await supabase.auth.updateUser({
+      password: newPassword,
+    });
+
+    if (updateErr) {
+      return errorResponse(updateErr.message);
     }
 
     return successResponse(undefined, "Password updated successfully.");

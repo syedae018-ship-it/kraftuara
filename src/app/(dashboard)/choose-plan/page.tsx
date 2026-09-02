@@ -33,6 +33,26 @@ export default function ChoosePlanPage() {
   const router = useRouter();
   const [billingInterval, setBillingInterval] = useState<BillingInterval>("monthly");
   const [plans, setPlans] = useState<PlanConfig[]>([]);
+  const [activePlanInfo, setActivePlanInfo] = useState<any>(null);
+  const [isCheckingActive, setIsCheckingActive] = useState(true);
+
+  // Authoritative server-side active subscription check
+  useEffect(() => {
+    async function checkExistingSubscription() {
+      try {
+        const { checkUserActiveSubscriptionAction } = await import("@/lib/actions/payment");
+        const res = await checkUserActiveSubscriptionAction();
+        if (res.success && res.data?.hasActiveSubscription) {
+          setActivePlanInfo(res.data);
+        }
+      } catch (e) {
+        console.warn("Existing subscription check failed:", e);
+      } finally {
+        setIsCheckingActive(false);
+      }
+    }
+    checkExistingSubscription();
+  }, []);
 
   // Dynamically load Razorpay SDK checkout script and fetch latest plans
   useEffect(() => {
@@ -174,7 +194,53 @@ export default function ChoosePlanPage() {
       {/* Subtle Ambient Red Glow */}
       <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[400px] bg-maroon-900/15 blur-[160px] pointer-events-none rounded-full" />
 
-      <div className="relative z-10 w-full max-w-6xl space-y-8 my-8 text-center">
+      {isCheckingActive ? (
+        <div className="relative z-10 flex flex-col items-center justify-center min-h-[360px] space-y-3">
+          <div className="w-8 h-8 border-2 border-maroon-500 border-t-transparent rounded-full animate-spin" />
+          <p className="text-xs text-zinc-400 font-body">Verifying account entitlement...</p>
+        </div>
+      ) : activePlanInfo?.hasActiveSubscription ? (
+        <div className="relative z-10 w-full max-w-xl my-12 text-center bg-[#111111] border border-maroon-600/50 p-8 sm:p-10 rounded-3xl shadow-glow space-y-6">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-maroon-800 to-maroon-950 border border-maroon-500/50 flex items-center justify-center mx-auto text-emerald-400 shadow-glow mb-2">
+            <CheckCircle2 className="w-7 h-7" />
+          </div>
+          <Badge variant="maroon" className="gap-1 text-[11px] uppercase tracking-wider">
+            <Sparkles className="w-3 h-3 text-maroon-300" /> Plan Already Active
+          </Badge>
+          <div className="space-y-2">
+            <h1 className="text-2xl sm:text-3xl font-extrabold font-heading text-white">
+              Welcome back.
+            </h1>
+            <p className="text-base text-zinc-200 font-body">
+              Your <span className="text-emerald-400 font-bold">{getPlanDisplayName(activePlanInfo.plan)}</span> is already active.
+            </p>
+            <p className="text-xs sm:text-sm text-zinc-400 max-w-md mx-auto leading-relaxed">
+              Your payment was successful and verified. Let&apos;s finish setting up your store.
+            </p>
+          </div>
+
+          <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <Button
+              onClick={() => router.push("/create-store")}
+              variant="primary"
+              size="lg"
+              className="w-full sm:w-auto px-8 shadow-glow font-bold text-xs uppercase tracking-wider"
+              rightIcon={<ArrowRight className="w-4 h-4" />}
+            >
+              Continue Store Setup
+            </Button>
+            <Button
+              onClick={() => router.push("/choose-template")}
+              variant="outline"
+              size="lg"
+              className="w-full sm:w-auto text-xs font-semibold border-white/10"
+            >
+              Browse Themes
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="relative z-10 w-full max-w-6xl space-y-8 my-8 text-center">
         {/* Header Section */}
         <div className="space-y-3">
           <Badge variant="maroon" className="gap-1 text-[11px] uppercase tracking-wider">
@@ -312,6 +378,7 @@ export default function ChoosePlanPage() {
           <span className="flex items-center gap-1.5"><Zap className="w-4 h-4 text-emerald-400" /> Instant Activation</span>
         </div>
       </div>
+      )}
     </div>
   );
 }

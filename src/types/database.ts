@@ -15,6 +15,9 @@ export type Database = {
           email: string;
           full_name: string | null;
           avatar_url: string | null;
+          onboarding_status?: string | null;
+          onboarding_step?: number | null;
+          onboarding_data?: Json | null;
           created_at: string;
           updated_at: string;
         };
@@ -23,6 +26,9 @@ export type Database = {
           email: string;
           full_name?: string | null;
           avatar_url?: string | null;
+          onboarding_status?: string | null;
+          onboarding_step?: number | null;
+          onboarding_data?: Json | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -31,6 +37,9 @@ export type Database = {
           email?: string;
           full_name?: string | null;
           avatar_url?: string | null;
+          onboarding_status?: string | null;
+          onboarding_step?: number | null;
+          onboarding_data?: Json | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -322,37 +331,67 @@ export type Database = {
       subscriptions: {
         Row: {
           id: string;
-          store_id: string;
+          store_id: string | null;
+          user_id: string | null;
           plan: string;
           status: string;
           stripe_customer_id: string | null;
           stripe_subscription_id: string | null;
+          razorpay_customer_id?: string | null;
+          razorpay_subscription_id?: string | null;
+          razorpay_order_id?: string | null;
+          razorpay_signature?: string | null;
           current_period_start: string | null;
           current_period_end: string | null;
+          trial_start?: string | null;
+          trial_end?: string | null;
+          next_billing_date?: string | null;
+          amount?: number | null;
+          currency?: string | null;
           created_at: string;
           updated_at: string;
         };
         Insert: {
           id?: string;
-          store_id: string;
+          store_id?: string | null;
+          user_id?: string | null;
           plan?: string;
           status?: string;
           stripe_customer_id?: string | null;
           stripe_subscription_id?: string | null;
+          razorpay_customer_id?: string | null;
+          razorpay_subscription_id?: string | null;
+          razorpay_order_id?: string | null;
+          razorpay_signature?: string | null;
           current_period_start?: string | null;
           current_period_end?: string | null;
+          trial_start?: string | null;
+          trial_end?: string | null;
+          next_billing_date?: string | null;
+          amount?: number | null;
+          currency?: string | null;
           created_at?: string;
           updated_at?: string;
         };
         Update: {
           id?: string;
-          store_id?: string;
+          store_id?: string | null;
+          user_id?: string | null;
           plan?: string;
           status?: string;
           stripe_customer_id?: string | null;
           stripe_subscription_id?: string | null;
+          razorpay_customer_id?: string | null;
+          razorpay_subscription_id?: string | null;
+          razorpay_order_id?: string | null;
+          razorpay_signature?: string | null;
           current_period_start?: string | null;
           current_period_end?: string | null;
+          trial_start?: string | null;
+          trial_end?: string | null;
+          next_billing_date?: string | null;
+          amount?: number | null;
+          currency?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -365,6 +404,51 @@ export type Database = {
             referencedColumns: ["id"];
           }
         ];
+      };
+      payments: {
+        Row: {
+          id: string;
+          store_id: string | null;
+          user_id: string | null;
+          plan: string;
+          razorpay_payment_id: string | null;
+          razorpay_order_id: string | null;
+          razorpay_subscription_id: string | null;
+          amount: number;
+          currency: string;
+          status: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          store_id?: string | null;
+          user_id?: string | null;
+          plan: string;
+          razorpay_payment_id?: string | null;
+          razorpay_order_id?: string | null;
+          razorpay_subscription_id?: string | null;
+          amount: number;
+          currency?: string;
+          status: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          store_id?: string | null;
+          user_id?: string | null;
+          plan?: string;
+          razorpay_payment_id?: string | null;
+          razorpay_order_id?: string | null;
+          razorpay_subscription_id?: string | null;
+          amount?: number;
+          currency?: string;
+          status?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
       };
       creative_orders: {
         Row: {
