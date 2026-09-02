@@ -228,6 +228,7 @@ export const DEMO_STORE_DATA: StoreData = {
   id: "demo-craft-classic-id",
   name: "Kraftaura Classic",
   slug: "demo",
+  plan: "growth",
   appearance: {
     themeId: "bloom",
     branding: {

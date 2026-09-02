@@ -31,6 +31,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/table";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import {
+  HeroStorefrontShowcase,
+  TemplateStorefrontShowcase,
+} from "./storefront-showcase-preview";
 
 // Kraftaura Classic Template for Landing Showcase
 const craftStoreClassicTemplate = {
@@ -38,8 +42,6 @@ const craftStoreClassicTemplate = {
   name: "Kraftaura Classic",
   tag: "Modern Storefront & Product Catalog Layout",
   desc: "Clean, high-converting storefront layout designed for boutique stores, artisan makers, retail businesses, and modern Indian brands.",
-  desktopImg: "https://images.unsplash.com/photo-1612196808214-b8e1d6145a8c?w=1400",
-  mobileImg: "https://images.unsplash.com/photo-1594035910387-fea47794261f?w=600",
   accent: "from-amber-500/20 to-maroon-900/30",
 };
 
@@ -228,60 +230,8 @@ export function LandingPage({ initialPlans }: LandingPageProps) {
         </div>
 
         {/* Hero Device Mockup Previews (Desktop & Mobile) */}
-        <div className="pt-10 max-w-6xl mx-auto relative z-10 flex items-end justify-center">
-          {/* Desktop Mockup */}
-          <div className="relative rounded-2xl sm:rounded-3xl p-2 sm:p-4 bg-[#111111]/80 border border-white/10 shadow-2xl backdrop-blur-2xl overflow-hidden maroon-gradient-border z-10 hidden md:block md:w-[800px]">
-            <div className="flex items-center justify-between px-3 py-2 border-b border-white/10 bg-[#080808]/60 rounded-xl mb-3">
-              <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-red-500/80 inline-block" />
-                <span className="w-3 h-3 rounded-full bg-amber-500/80 inline-block" />
-                <span className="w-3 h-3 rounded-full bg-emerald-500/80 inline-block" />
-              </div>
-              <div className="px-4 py-1 rounded-lg bg-[#151515] border border-white/10 text-[11px] font-mono text-zinc-400">
-                craft-store.kraftaura.in
-              </div>
-              <div className="text-[10px] text-emerald-400 font-mono flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> Live Store
-              </div>
-            </div>
-
-            <div className="relative aspect-[16/9] rounded-xl overflow-hidden group">
-              <img
-                src={craftStoreClassicTemplate.desktopImg}
-                alt="Kraftaura Classic online store showcase on desktop"
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#080808] via-transparent to-black/30 flex items-end p-6 sm:p-10 text-left">
-                <div className="space-y-2">
-                  <Badge variant="maroon" className="text-xs uppercase tracking-widest font-heading">
-                    Kraftaura Classic
-                  </Badge>
-                  <h3 className="text-xl sm:text-3xl font-bold font-heading text-white">
-                    Artisan Living & Modern Essentials
-                  </h3>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Mobile Mockup */}
-          <div className="relative md:absolute md:-right-8 md:-bottom-8 z-20 w-[260px] sm:w-[300px] rounded-[36px] border-4 border-zinc-700 bg-black p-2.5 shadow-[0_20px_50px_rgba(0,0,0,0.8)] overflow-hidden">
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-6 bg-zinc-700 rounded-b-3xl z-30"></div>
-            <div className="relative w-full h-[450px] sm:h-[550px] rounded-[24px] overflow-hidden bg-[#111111]">
-              <img
-                src={craftStoreClassicTemplate.mobileImg}
-                alt="Kraftaura Classic online store mobile view with WhatsApp buy button"
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute bottom-4 left-0 w-full px-4">
-                 <Link href="/demo">
-                   <Button variant="primary" className="w-full text-[10px] h-10 shadow-glow" leftIcon={<ShoppingBag className="w-3.5 h-3.5" />}>
-                     Buy Now on WhatsApp
-                   </Button>
-                 </Link>
-              </div>
-            </div>
-          </div>
+        <div className="pt-8 sm:pt-10 w-full relative z-10">
+          <HeroStorefrontShowcase />
         </div>
       </section>
 
@@ -352,6 +302,10 @@ export function LandingPage({ initialPlans }: LandingPageProps) {
                   <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
                   Direct online checkout & WhatsApp ordering
                 </div>
+                <div className="flex items-center gap-2 text-xs text-zinc-300 font-body">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                  Live Order Tracking for customers
+                </div>
               </div>
 
               <div className="flex items-center gap-3 pt-4">
@@ -379,39 +333,18 @@ export function LandingPage({ initialPlans }: LandingPageProps) {
             </div>
 
             {/* Live Responsive Frame */}
-            <div className="lg:col-span-7 flex justify-center items-center">
+            <div className="lg:col-span-7 flex justify-center items-center w-full">
               <AnimatePresence mode="wait">
-                {activeDevice === "desktop" ? (
-                  <motion.div
-                    key="desktop"
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    transition={{ duration: 0.2 }}
-                    className="w-full rounded-2xl border border-white/10 bg-[#151515] p-2 shadow-2xl overflow-hidden"
-                  >
-                    <img
-                      src={craftStoreClassicTemplate.desktopImg}
-                      alt={`${craftStoreClassicTemplate.name} boutique storefront layout preview on desktop`}
-                      className="w-full h-[320px] sm:h-[400px] object-cover rounded-xl"
-                    />
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    key="mobile"
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    transition={{ duration: 0.2 }}
-                    className="w-[280px] sm:w-[320px] rounded-[36px] border-4 border-zinc-700 bg-black p-3 shadow-2xl overflow-hidden"
-                  >
-                    <img
-                      src={craftStoreClassicTemplate.mobileImg}
-                      alt={`${craftStoreClassicTemplate.name} mobile responsive storefront preview`}
-                      className="w-full h-[450px] object-cover rounded-[24px]"
-                    />
-                  </motion.div>
-                )}
+                <motion.div
+                  key={activeDevice}
+                  initial={{ opacity: 0, scale: 0.98 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.98 }}
+                  transition={{ duration: 0.2 }}
+                  className="w-full flex justify-center"
+                >
+                  <TemplateStorefrontShowcase mode={activeDevice} />
+                </motion.div>
               </AnimatePresence>
             </div>
           </div>
