@@ -3,11 +3,31 @@ import { PlanTier, PLANS, BillingInterval, normalizePlanTier } from "@/lib/featu
 import { getAuthoritativePlan } from "@/lib/services/plan-service";
 
 /**
- * Verified canonical Razorpay Plan mappings for test mode.
- * In live mode, these can be overridden via corresponding environment variables:
- * RAZORPAY_PLAN_<TIER>_<INTERVAL>
+ * Verified canonical Razorpay Plan mappings for Live Mode.
  */
-export const CANONICAL_RAZORPAY_PLANS: Record<PlanTier, Record<BillingInterval, string>> = {
+export const CANONICAL_LIVE_PLANS: Record<PlanTier, Record<BillingInterval, string>> = {
+  startup: {
+    monthly: "plan_TX9IK58wPSNFyB", // ₹99 / month
+    annual: "plan_TX9IKH4yPTcaJW",  // ₹990 / year
+  },
+  growth: {
+    monthly: "plan_TX9IKeiNfzSh4C", // ₹299 / month
+    annual: "plan_TX9IKqUhDOOm0d",  // ₹2,990 / year
+  },
+  pro: {
+    monthly: "plan_TX9IL3qmI8sBYX", // ₹499 / month
+    annual: "plan_TX9ILTPlWO2TxZ",  // ₹4,990 / year
+  },
+  premium_ai: {
+    monthly: "plan_TX9ILgHaAswiSb", // ₹1,499 / month
+    annual: "plan_TX9ILrJCuCEt2t",  // ₹14,990 / year
+  },
+};
+
+/**
+ * Verified canonical Razorpay Plan mappings for Test Mode.
+ */
+export const CANONICAL_TEST_PLANS: Record<PlanTier, Record<BillingInterval, string>> = {
   startup: {
     monthly: "plan_TWpn3FCsdzfD86", // ₹99 / month
     annual: "plan_TVy2QxIxImiUjL",  // ₹990 / year
@@ -26,6 +46,16 @@ export const CANONICAL_RAZORPAY_PLANS: Record<PlanTier, Record<BillingInterval, 
   },
 };
 
+export const getCanonicalPlans = (): Record<PlanTier, Record<BillingInterval, string>> => {
+  const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "";
+  if (keyId.startsWith("rzp_live_")) {
+    return CANONICAL_LIVE_PLANS;
+  }
+  return CANONICAL_TEST_PLANS;
+};
+
+export const CANONICAL_RAZORPAY_PLANS = getCanonicalPlans();
+
 export const getOrCreateRazorpayPlan = async (
   razorpay: Razorpay,
   planTier: PlanTier,
@@ -42,8 +72,9 @@ export const getOrCreateRazorpayPlan = async (
     return process.env[envKey] as string;
   }
 
-  // 2. Check canonical pre-configured plan mapping
-  const canonicalId = CANONICAL_RAZORPAY_PLANS[planTier]?.[interval];
+  // 2. Check canonical pre-configured plan mapping for active environment
+  const canonicalPlans = getCanonicalPlans();
+  const canonicalId = canonicalPlans[planTier]?.[interval];
   if (canonicalId) {
     return canonicalId;
   }
@@ -82,7 +113,7 @@ export const getOrCreateRazorpayPlan = async (
 
 /**
  * Authoritatively resolves the Kraftaura plan tier from a Razorpay subscription entity.
- * Checks notes, plan_id, and exact amount.
+ * Checks notes, plan_id, and exact amount across both live and test registries.
  */
 export const resolvePlanFromRazorpay = (
   subDetails: any,
@@ -97,12 +128,14 @@ export const resolvePlanFromRazorpay = (
     return normalizePlanTier(String(planFromNotes));
   }
 
-  // 2. Check plan ID from known mappings
+  // 2. Check plan ID against both Live and Test canonical registries
   const planId = subDetails.plan_id;
   if (planId && typeof planId === "string") {
-    for (const [tier, intervals] of Object.entries(CANONICAL_RAZORPAY_PLANS)) {
-      if (intervals.monthly === planId || intervals.annual === planId) {
-        return tier as PlanTier;
+    for (const registry of [CANONICAL_LIVE_PLANS, CANONICAL_TEST_PLANS]) {
+      for (const [tier, intervals] of Object.entries(registry)) {
+        if (intervals.monthly === planId || intervals.annual === planId) {
+          return tier as PlanTier;
+        }
       }
     }
 
@@ -161,9 +194,11 @@ export const resolveIntervalFromRazorpay = (
 
   const planId = subDetails.plan_id;
   if (planId && typeof planId === "string") {
-    for (const intervals of Object.values(CANONICAL_RAZORPAY_PLANS)) {
-      if (intervals.annual === planId) return "annual";
-      if (intervals.monthly === planId) return "monthly";
+    for (const registry of [CANONICAL_LIVE_PLANS, CANONICAL_TEST_PLANS]) {
+      for (const intervals of Object.values(registry)) {
+        if (intervals.annual === planId) return "annual";
+        if (intervals.monthly === planId) return "monthly";
+      }
     }
   }
 
