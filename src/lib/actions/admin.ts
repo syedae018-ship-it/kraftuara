@@ -467,6 +467,7 @@ export async function getAdminPaymentsAction(): Promise<ActionResponse<AdminPaym
         plan,
         status,
         razorpay_payment_id,
+        razorpay_subscription_id,
         created_at,
         stores (
           name,
@@ -493,6 +494,7 @@ export async function getAdminPaymentsAction(): Promise<ActionResponse<AdminPaym
         storeName: storeName,
         amount: Number(row.amount || 0),
         planName: `${(row.plan || "startup").toUpperCase()} Plan`,
+        subscriptionId: row.razorpay_subscription_id || null,
         status: row.status === "successful" || row.status === "succeeded" ? "succeeded" : (row.status === "failed" ? "failed" : "pending"),
         createdAt: row.created_at,
       };

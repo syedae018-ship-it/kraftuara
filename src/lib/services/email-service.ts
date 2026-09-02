@@ -18,6 +18,7 @@ export interface PaymentEmailPayload {
   customerName?: string;
   planTier: PlanTier;
   planName: string;
+  billingInterval?: "monthly" | "annual";
   amount: number;
   currency: string;
   paymentId: string;
@@ -219,9 +220,10 @@ export function renderCustomerConfirmationHtml(payload: PaymentEmailPayload): st
     year: "numeric",
   });
 
+  const intervalLabel = payload.billingInterval === "annual" ? "Annual (Yearly)" : "Monthly";
   const renewalNotice = payload.nextBillingDate
-    ? `Next scheduled renewal: <strong>${new Date(payload.nextBillingDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</strong>`
-    : "Billed monthly. Cancel anytime from your merchant dashboard.";
+    ? `Next scheduled ${payload.billingInterval === "annual" ? "annual" : "monthly"} renewal: <strong>${new Date(payload.nextBillingDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</strong>`
+    : `Billed ${payload.billingInterval === "annual" ? "annually" : "monthly"}. Cancel anytime from your merchant dashboard.`;
 
   return `
 <!DOCTYPE html>
@@ -271,6 +273,10 @@ export function renderCustomerConfirmationHtml(payload: PaymentEmailPayload): st
           <tr style="border-bottom: 1px solid #27272a;">
             <td style="padding: 8px 0; color: #a1a1aa; font-size: 13px;">Purchased Plan</td>
             <td style="padding: 8px 0; color: #ffffff; font-weight: 700; text-align: right; font-size: 13px;">${payload.planName}</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #27272a;">
+            <td style="padding: 8px 0; color: #a1a1aa; font-size: 13px;">Billing Cycle</td>
+            <td style="padding: 8px 0; color: #ffffff; font-weight: 600; text-align: right; font-size: 13px;">${intervalLabel}</td>
           </tr>
           <tr style="border-bottom: 1px solid #27272a;">
             <td style="padding: 8px 0; color: #a1a1aa; font-size: 13px;">Amount Paid</td>
@@ -478,6 +484,7 @@ export async function dispatchPaymentNotifications(params: {
   paymentId: string;
   subscriptionId?: string | null;
   planTier: PlanTier;
+  billingInterval?: "monthly" | "annual";
   amount?: number;
   currency?: string;
   purchaseDate?: string;
@@ -509,6 +516,7 @@ export async function dispatchPaymentNotifications(params: {
         customerName: customerAccount.name,
         planTier: params.planTier,
         planName,
+        billingInterval: params.billingInterval || "monthly",
         amount,
         currency,
         paymentId: params.paymentId,

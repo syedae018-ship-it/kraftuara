@@ -111,6 +111,8 @@ export type AdminPayment = {
   storeName: string;
   amount: number;
   planName: string;
+  subscriptionId?: string | null;
+  billingInterval?: "monthly" | "annual";
   status: "succeeded" | "pending" | "failed";
   createdAt: string;
 };

@@ -111,7 +111,12 @@ export default function AdminPaymentsPage() {
             ) : (
               payments.map((p) => (
                 <TableRow key={p.id}>
-                  <TableCell className="font-mono text-xs text-maroon-300 font-bold">{p.invoiceNumber}</TableCell>
+                  <TableCell>
+                    <div className="font-mono text-xs text-maroon-300 font-bold">{p.invoiceNumber}</div>
+                    {p.subscriptionId && (
+                      <div className="font-mono text-[10px] text-zinc-500 truncate max-w-[140px]">{p.subscriptionId}</div>
+                    )}
+                  </TableCell>
                   <TableCell className="font-semibold text-white text-xs">{p.customerName}</TableCell>
                   <TableCell className="text-zinc-300 text-xs">{p.storeName}</TableCell>
                   <TableCell><Badge variant="maroon" className="font-mono text-[10px]">{p.planName}</Badge></TableCell>

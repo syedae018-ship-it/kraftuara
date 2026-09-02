@@ -146,30 +146,7 @@ export default function MerchantBillingPage() {
       const { subscriptionId, keyId, isSimulated } = res.data;
 
       if (isSimulated) {
-        toast.warning(
-          "Test Mode Sandbox Simulation",
-          "Sandbox environment fallback activated."
-        );
-        
-        const { verifySubscriptionPaymentAction } = await import("@/lib/actions/payment");
-        const verRes = await verifySubscriptionPaymentAction({
-          storeId: activeStore.id,
-          paymentId: `pay_mock_${Date.now()}`,
-          subscriptionId,
-          signature: "mock_signature",
-          planId: planId,
-        });
-
-        const targetPlanConfig = PLANS_CATALOG.find((p) => p.id === planId) || PLANS_CATALOG[0];
-
-        if (verRes.success) {
-          toast.success("Upgrade Successful", `Store upgraded to ${targetPlanConfig.name}.`);
-          await fetchSubscription();
-          await fetchPayments();
-          await notifyStateChange();
-        } else {
-          toast.error("Verification Failed", verRes.error || "Mock verification mismatch.");
-        }
+        toast.info("Sandbox Mode", "Live Razorpay credentials not configured in this environment.");
         setProcessingUpgrade(null);
         return;
       }
@@ -180,7 +157,7 @@ export default function MerchantBillingPage() {
         key: keyId,
         subscription_id: subscriptionId,
         name: "Kraftaura Platform Upgrade",
-        description: `Upgrade to ${targetPlanConfig.name}`,
+        description: `Upgrade to ${targetPlanConfig.name} (${billingInterval === "annual" ? "Annual" : "Monthly"})`,
         image: "https://api.dicebear.com/7.x/initials/svg?seed=Kraftaura",
         modal: {
           ondismiss: function () {
@@ -200,7 +177,18 @@ export default function MerchantBillingPage() {
           });
 
           if (verRes.success) {
-            toast.success("Upgrade Successful", `Payment verified. Store upgraded to ${targetPlanConfig.name}!`);
+            const nextDateFormatted = verRes.data?.nextBillingDate
+              ? new Date(verRes.data.nextBillingDate).toLocaleDateString("en-IN", {
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric",
+                })
+              : null;
+
+            toast.success(
+              "Payment Successful!",
+              `Payment verified. Store upgraded to ${targetPlanConfig.name}!${nextDateFormatted ? ` Next renewal: ${nextDateFormatted}` : ""}`
+            );
             await fetchSubscription();
             await fetchPayments();
             await notifyStateChange();
@@ -297,6 +285,7 @@ export default function MerchantBillingPage() {
                     subscription.status === "active" && "bg-emerald-950/80 border border-emerald-700/50 text-emerald-400",
                     subscription.status === "trialing" && "bg-blue-950/80 border border-blue-700/50 text-blue-400",
                     subscription.status === "expired" && "bg-rose-950/80 border border-rose-700/50 text-rose-400",
+                    subscription.status === "halted" && "bg-rose-950/80 border border-rose-700/50 text-rose-400",
                     subscription.status === "cancelled" && "bg-zinc-800/80 border border-zinc-700 text-zinc-400",
                     (subscription.status === "pending" || subscription.status === "payment_pending") && "bg-amber-950/80 border border-amber-700/50 text-amber-400"
                   )}
@@ -309,9 +298,21 @@ export default function MerchantBillingPage() {
                 <div className="flex items-center gap-1">
                   <Calendar className="w-3.5 h-3.5 text-zinc-500" />
                   <span>
-                    {subscription.expiresAt ? (
+                    {(subscription.nextBillingDate || subscription.expiresAt) ? (
                       <>
-                        Renewal/Expiry Date: <span className="font-mono text-white">{new Date(subscription.expiresAt).toLocaleDateString()}</span>
+                        Next Renewal / Billing Date:{" "}
+                        <span className="font-mono text-white font-semibold">
+                          {new Date(subscription.nextBillingDate || subscription.expiresAt!).toLocaleDateString("en-IN", {
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric",
+                          })}
+                        </span>
+                        {subscription.amount ? (
+                          <span className="font-mono text-emerald-400 font-semibold ml-1.5">
+                            (₹{subscription.amount})
+                          </span>
+                        ) : null}
                       </>
                     ) : (
                       "No billing period defined"

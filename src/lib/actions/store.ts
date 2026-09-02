@@ -291,28 +291,42 @@ export async function createCompleteStoreAction(
       }
     }
 
-    await (supabase.from("subscriptions") as any).insert({
+    await (supabase.from("subscriptions") as any).upsert({
       store_id: store.id,
+      user_id: user.id,
       plan: subscriptionPlan,
       status: subscriptionStatus,
       razorpay_subscription_id: payload.razorpaySubscriptionId || null,
       razorpay_signature: payload.razorpaySignature || null,
       current_period_start: subscriptionStatus === "active" ? start.toISOString() : null,
       current_period_end: subscriptionStatus === "active" ? end.toISOString() : null,
-    });
+      next_billing_date: subscriptionStatus === "active" ? end.toISOString() : null,
+    }, { onConflict: "store_id" });
 
-    // Create successful payment log record if paid
-    if (subscriptionStatus === "active") {
-      const planConfig = PLANS[subscriptionPlan as "startup" | "growth" | "pro"];
-      await (supabase.from("payments") as any).insert({
-        store_id: store.id,
-        plan: subscriptionPlan,
-        razorpay_payment_id: payload.razorpayPaymentId || `pay_mock_${Date.now()}`,
-        razorpay_subscription_id: payload.razorpaySubscriptionId || "mock_sub_id",
-        amount: planConfig?.priceMonthly || 0,
-        currency: "INR",
-        status: "successful",
-      });
+    // Link or record payment if paid
+    if (subscriptionStatus === "active" && payload.razorpayPaymentId) {
+      const { data: existingPay } = await (supabase.from("payments") as any)
+        .select("id")
+        .eq("razorpay_payment_id", payload.razorpayPaymentId)
+        .maybeSingle();
+
+      if (existingPay) {
+        await (supabase.from("payments") as any)
+          .update({ store_id: store.id })
+          .eq("id", existingPay.id);
+      } else {
+        const planConfig = PLANS[subscriptionPlan as "startup" | "growth" | "pro"];
+        await (supabase.from("payments") as any).insert({
+          store_id: store.id,
+          user_id: user.id,
+          plan: subscriptionPlan,
+          razorpay_payment_id: payload.razorpayPaymentId,
+          razorpay_subscription_id: payload.razorpaySubscriptionId || null,
+          amount: planConfig?.priceMonthly || 0,
+          currency: "INR",
+          status: "successful",
+        });
+      }
     }
 
     revalidatePath("/dashboard");

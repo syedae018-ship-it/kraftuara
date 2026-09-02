@@ -10,9 +10,12 @@ export interface StoreSubscription {
   storeId: string;
   plan: PlanTier;
   selectedPlan?: PlanTier;
-  status: "active" | "trialing" | "expired" | "cancelled" | "pending" | "payment_pending";
+  status: "active" | "trialing" | "expired" | "cancelled" | "pending" | "payment_pending" | "halted";
+  amount?: number;
+  currency?: string;
   expiresAt: string | null;
   startsAt: string | null;
+  nextBillingDate?: string | null;
   daysRemaining: number | null;
 }
 
@@ -47,8 +50,11 @@ export async function getStoreSubscriptionAction(storeId: string) {
         plan: authSub.plan,
         selectedPlan: authSub.plan,
         status: authSub.status,
+        amount: authSub.amount,
+        currency: authSub.currency,
         expiresAt: authSub.currentPeriodEnd,
         startsAt: authSub.currentPeriodStart,
+        nextBillingDate: authSub.nextBillingDate,
         daysRemaining: authSub.daysRemaining,
       } as StoreSubscription,
     };

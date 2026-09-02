@@ -5,7 +5,7 @@ export interface AuthoritativeSubscription {
   storeId: string;
   userId: string | null;
   plan: PlanTier;
-  status: "active" | "trialing" | "expired" | "cancelled" | "pending" | "payment_pending";
+  status: "active" | "trialing" | "expired" | "cancelled" | "pending" | "payment_pending" | "halted";
   amount: number;
   currency: string;
   currentPeriodStart: string | null;
@@ -169,6 +169,8 @@ class SubscriptionEngine {
         status = "cancelled";
       } else if (rawStatus === "expired") {
         status = "expired";
+      } else if (rawStatus === "halted") {
+        status = "halted";
       } else if (rawStatus === "pending" || rawStatus === "payment_pending") {
         status = "payment_pending";
       } else {
@@ -181,15 +183,15 @@ class SubscriptionEngine {
         const diffMs = expiryDate.getTime() - now.getTime();
         daysRemaining = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
 
-        if (diffMs < 0 && (status === "active" || status === "trialing")) {
+        if (diffMs < 0 && (status === "active" || status === "trialing" || status === "payment_pending")) {
           status = "expired";
         }
       }
     }
 
-    // Downgrade resolved runtime plan to startup only if genuinely expired or cancelled with expired period
+    // Downgrade resolved runtime plan to startup only if genuinely expired or cancelled/halted with expired period
     const isExpired = daysRemaining !== null ? daysRemaining <= 0 : false;
-    if (status === "expired" || (status === "cancelled" && isExpired)) {
+    if (status === "expired" || ((status === "cancelled" || status === "halted") && isExpired)) {
       canonicalPlan = "startup";
     } else if (!subRow && recoveredPaymentPlan) {
       canonicalPlan = recoveredPaymentPlan;
@@ -273,9 +275,9 @@ class SubscriptionEngine {
           razorpay_signature: userSub.razorpay_signature,
           current_period_start: userSub.current_period_start || now.toISOString(),
           current_period_end: userSub.current_period_end || new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-          trial_start: userSub.trial_start,
-          trial_end: userSub.trial_end,
-          next_billing_date: userSub.next_billing_date,
+          trial_start: null,
+          trial_end: null,
+          next_billing_date: userSub.next_billing_date || userSub.current_period_end,
           amount: userSub.amount || planConfig.priceMonthly,
           currency: "INR",
           updated_at: now.toISOString(),

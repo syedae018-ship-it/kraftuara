@@ -94,29 +94,8 @@ export default function ChoosePlanPage() {
       const { subscriptionId, keyId, isSimulated } = res.data;
 
       if (isSimulated) {
-        toast.warning(
-          "Test Mode Sandbox Simulation",
-          "Sandbox environment fallback activated."
-        );
-        // Automatically simulate success in local development environment
-        setTimeout(() => {
-          const mockSubId = `sub_mock_${Date.now()}`;
-          const mockPayId = `pay_mock_${Date.now()}`;
-          const mockSig = `sig_mock_${Date.now()}`;
-          
-          selectPlan(plan.planName, "active");
-          localStorage.setItem("symar_selected_plan", plan.planName);
-          localStorage.setItem("symar_checkout_subscription_id", mockSubId);
-          localStorage.setItem("symar_checkout_payment_id", mockPayId);
-          localStorage.setItem("symar_checkout_signature", mockSig);
-
-          toast.success(
-            `${plan.name} Activated!`,
-            `Payment verified. Continuing to template selection...`
-          );
-          router.push("/choose-template");
-          setProcessingPayment(false);
-        }, 1000);
+        toast.info("Sandbox Mode", "Live Razorpay credentials not configured in this environment.");
+        setProcessingPayment(false);
         return;
       }
 
@@ -145,14 +124,24 @@ export default function ChoosePlanPage() {
           if (verRes.success) {
             const activePlan = verRes.data?.verifiedPlan || plan.planName;
             selectPlan(activePlan, "active");
-            localStorage.setItem("symar_selected_plan", activePlan);
-            localStorage.setItem("symar_checkout_subscription_id", response.razorpay_subscription_id);
-            localStorage.setItem("symar_checkout_payment_id", response.razorpay_payment_id);
-            localStorage.setItem("symar_checkout_signature", response.razorpay_signature);
+            if (typeof window !== "undefined") {
+              localStorage.setItem("symar_selected_plan", activePlan);
+              localStorage.setItem("symar_checkout_subscription_id", response.razorpay_subscription_id);
+              localStorage.setItem("symar_checkout_payment_id", response.razorpay_payment_id);
+              localStorage.setItem("symar_checkout_signature", response.razorpay_signature);
+            }
+
+            const nextDateFormatted = verRes.data?.nextBillingDate
+              ? new Date(verRes.data.nextBillingDate).toLocaleDateString("en-IN", {
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric",
+                })
+              : null;
 
             toast.success(
-              `${getPlanDisplayName(activePlan)} Activated!`,
-              `Payment verified. Continuing to template selection...`
+              "Payment Successful!",
+              `Your ${getPlanDisplayName(activePlan)} is now active.${nextDateFormatted ? ` Next billing date: ${nextDateFormatted}` : ""}`
             );
             router.push("/choose-template");
           } else {
@@ -286,8 +275,17 @@ export default function ChoosePlanPage() {
                     ))}
                   </ul>
 
-                  <div className="text-[9px] text-zinc-400 font-body text-center bg-white/5 p-2 rounded-xl border border-white/5 mt-2">
-                    {plan.isTrialEligible ? "🎁 Includes a 3-Day Free Trial" : "⚡ Direct Activation (No trial period)"}
+                  <div className="text-[10px] text-zinc-300 font-body text-center bg-white/5 p-2.5 rounded-xl border border-white/10 mt-2 space-y-0.5">
+                    <div className="font-semibold text-white">
+                      {isAnnual
+                        ? `₹${plan.priceAnnual.toLocaleString("en-IN")} today`
+                        : `₹${plan.priceMonthly.toLocaleString("en-IN")} today`}
+                    </div>
+                    <div className="text-zinc-400 text-[9px]">
+                      {isAnnual
+                        ? `Then ₹${plan.priceAnnual.toLocaleString("en-IN")} every year`
+                        : `Then ₹${plan.priceMonthly.toLocaleString("en-IN")} every month`}
+                    </div>
                   </div>
                 </div>
 
