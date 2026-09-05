@@ -2,13 +2,8 @@ import { NextResponse } from "next/server";
 
 export async function GET() {
   const content = `
-    const CACHE_NAME = 'kraftaura-v1.0.1';
+    const CACHE_NAME = 'kraftaura-v1.0.2';
     const STATIC_ASSETS = [
-      '/',
-      '/icon',
-      '/apple-icon',
-      '/icon-192.png',
-      '/icon-512.png',
       '/manifest.webmanifest'
     ];
 

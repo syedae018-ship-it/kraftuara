@@ -105,6 +105,10 @@ export default function BloomStorefront({
               <img
                 src={resolveImageUrl(store.appearance.branding.heroBannerUrl)}
                 alt="Hero Banner"
+                loading="eager"
+                decoding="async"
+                // @ts-ignore
+                fetchpriority="high"
                 className="w-full h-full object-cover object-center"
               />
               <div className="absolute inset-0 bg-black/40 backdrop-blur-[0.5px]" />

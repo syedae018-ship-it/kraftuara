@@ -113,11 +113,11 @@ export async function getAdminOverviewMetricsAction(): Promise<ActionResponse<Pl
 /**
  * 2. Get Real Platform Users (with stores and active subscriptions)
  */
-export async function getAdminUsersAction(): Promise<ActionResponse<AdminUser[]>> {
+export async function getAdminUsersAction(limit: number = 100): Promise<ActionResponse<AdminUser[]>> {
   try {
     const { supabase } = await assertAdminSession();
 
-    // Fetch profiles joined with stores and store-level subscriptions
+    // Fetch profiles joined with stores and store-level subscriptions with safe limit
     const { data: profiles, error: pErr } = await supabase
       .from("profiles")
       .select(`
@@ -138,15 +138,21 @@ export async function getAdminUsersAction(): Promise<ActionResponse<AdminUser[]>
           )
         )
       `)
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .limit(limit);
 
     if (pErr) throw pErr;
 
-    // Also fetch all user-level subscriptions (including unlinked subscriptions where store is not created yet)
-    const { data: allUserSubs } = await (supabase.from("subscriptions") as any)
-      .select("id, user_id, store_id, plan, status, updated_at")
-      .not("user_id", "is", null)
-      .order("updated_at", { ascending: false });
+    // Fetch user-level subscriptions ONLY for the retrieved users to avoid table scanning
+    const userIds = (profiles || []).map((p: any) => p.id);
+    let allUserSubs: any[] = [];
+    if (userIds.length > 0) {
+      const { data: subsData } = await (supabase.from("subscriptions") as any)
+        .select("id, user_id, store_id, plan, status, updated_at")
+        .in("user_id", userIds)
+        .order("updated_at", { ascending: false });
+      allUserSubs = subsData || [];
+    }
 
     const userSubMap = new Map<string, any>();
     (allUserSubs || []).forEach((s: any) => {

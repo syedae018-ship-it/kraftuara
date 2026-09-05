@@ -1,13 +1,12 @@
 "use client";
 
 import React, { forwardRef } from "react";
-import { motion, HTMLMotionProps } from "framer-motion";
 import { Loader2 } from "lucide-react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center font-heading font-medium tracking-wide transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-maroon-500 focus-visible:ring-offset-2 focus-visible:ring-offset-[#080808] disabled:opacity-50 disabled:pointer-events-none select-none rounded-xl",
+  "inline-flex items-center justify-center font-heading font-medium tracking-wide transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-maroon-500 focus-visible:ring-offset-2 focus-visible:ring-offset-[#080808] disabled:opacity-50 disabled:pointer-events-none select-none rounded-xl active:scale-[0.98] transition-transform duration-100 ease-out cursor-pointer",
   {
     variants: {
       variant: {
@@ -39,7 +38,7 @@ const buttonVariants = cva(
 );
 
 export interface ButtonProps
-  extends Omit<HTMLMotionProps<"button">, "size" | "children">,
+  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof buttonVariants> {
   children?: React.ReactNode;
   isLoading?: boolean;
@@ -58,14 +57,15 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       rightIcon,
       children,
       disabled,
+      type = "button",
       ...props
     },
     ref
   ) => {
     return (
-      <motion.button
+      <button
         ref={ref}
-        whileTap={{ scale: disabled || isLoading ? 1 : 0.98 }}
+        type={type}
         disabled={disabled || isLoading}
         className={cn(buttonVariants({ variant, size, className }))}
         {...props}
@@ -77,7 +77,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         )}
         <span>{children}</span>
         {!isLoading && rightIcon && <span className="shrink-0">{rightIcon}</span>}
-      </motion.button>
+      </button>
     );
   }
 );

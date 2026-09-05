@@ -48,6 +48,7 @@ export default function DashboardOverview() {
   const router = useRouter();
   const { activeStore, user, isLoading } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
+  const [totalProductsCount, setTotalProductsCount] = useState(0);
   const [categoriesCount, setCategoriesCount] = useState(0);
   const [creativeOrdersCount, setCreativeOrdersCount] = useState(0);
   const [analytics, setAnalytics] = useState({ views: 0, orders: 0, revenue: 0 });
@@ -91,7 +92,7 @@ export default function DashboardOverview() {
           ordersList,
           analyticsRes
         ] = await Promise.all([
-          productRepository.getAll(activeStore.id).catch(() => ({ products: [] })),
+          productRepository.getAll(activeStore.id, undefined, 1, 4).catch(() => ({ products: [], totalCount: 0 })),
           categoryRepository.getAll(activeStore.id).catch(() => []),
           creativeRepository.getOrders().catch(() => []),
           orderRepository.getAll(activeStore.id).catch(() => []),
@@ -99,6 +100,7 @@ export default function DashboardOverview() {
         ]);
 
         setProducts(productsRes.products || []);
+        setTotalProductsCount(productsRes.totalCount || productsRes.products?.length || 0);
         setCategoriesCount(categoriesList.length || 0);
 
         const activeCreative = (creativeList || []).filter((o: any) => o.status !== "completed");
@@ -249,9 +251,9 @@ export default function DashboardOverview() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
             title="Total Products"
-            value={products.length.toString()}
-            delta={products.length > 0 ? { value: `${products.length}/${currentProductLimit} used`, isPositive: true } : undefined}
-            subtitle={`${products.length} of ${currentProductLimit} products used`}
+            value={totalProductsCount.toString()}
+            delta={totalProductsCount > 0 ? { value: `${totalProductsCount}/${currentProductLimit} used`, isPositive: true } : undefined}
+            subtitle={`${totalProductsCount} of ${currentProductLimit} products used`}
             icon={<Package className="w-4 h-4" />}
             isLoading={showSkeletons}
           />

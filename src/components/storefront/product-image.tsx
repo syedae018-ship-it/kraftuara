@@ -8,59 +8,37 @@ interface ProductImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
   alt: string;
 }
 
-export default function ProductImage({ src, alt, className, ...props }: ProductImageProps) {
-  const [resolvedSrc, setResolvedSrc] = useState<string>("");
+export default function ProductImage({
+  src,
+  alt,
+  className,
+  loading = "lazy",
+  decoding = "async",
+  ...props
+}: ProductImageProps) {
+  const [resolvedSrc, setResolvedSrc] = useState<string>(() => resolveProductImageUrl(src) || FALLBACK_PRODUCT_IMAGE);
   const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
     setHasError(false);
-    
     const initialUrl = resolveProductImageUrl(src);
-    setResolvedSrc(initialUrl);
-
-    // Check if the URL is not a direct image (doesn't end with typical image extensions)
-    // and is a webpage URL (like Instagram or generic website), then resolve OG image server-side
-    const cleanUrl = src?.trim() || "";
-    const isDirectImage = /\.(jpeg|jpg|gif|png|webp|svg)/i.test(cleanUrl) || cleanUrl.startsWith("data:");
-    const isWebpage = cleanUrl.startsWith("http") && !isDirectImage;
-
-    if (isWebpage) {
-      let active = true;
-      async function resolveOg() {
-        try {
-          const { resolveOgImageAction } = await import("@/lib/actions/store");
-          const res = await resolveOgImageAction(cleanUrl);
-          if (active && res.success && res.data?.imageUrl) {
-            setResolvedSrc(res.data.imageUrl);
-          }
-        } catch (e) {
-          if (process.env.NODE_ENV === "development") {
-            console.warn("Failed to resolve OG image for URL:", cleanUrl, e);
-          }
-        }
-      }
-      resolveOg();
-      return () => {
-        active = false;
-      };
-    }
+    setResolvedSrc(initialUrl || FALLBACK_PRODUCT_IMAGE);
   }, [src]);
 
   const handleError = () => {
     if (!hasError) {
       setHasError(true);
       setResolvedSrc(FALLBACK_PRODUCT_IMAGE);
-      if (process.env.NODE_ENV === "development") {
-        console.warn(`Product image failed to load: ${src}`);
-      }
     }
   };
 
   return (
     <img
-      src={resolvedSrc || FALLBACK_PRODUCT_IMAGE}
+      src={resolvedSrc}
       alt={alt}
       onError={handleError}
+      loading={loading}
+      decoding={decoding}
       className={className}
       {...props}
     />

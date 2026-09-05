@@ -1,8 +1,13 @@
 import React from "react";
 import { notFound } from "next/navigation";
 import { storefrontRepository } from "@/lib/repositories/storefront-repository";
-import { StoreRenderer } from "@/components/storefront/store-renderer";
+import nextDynamic from "next/dynamic";
 import BloomStorefront from "@/components/storefront/templates/bloom/home/BloomStorefront";
+
+const StoreRenderer = nextDynamic(
+  () => import("@/components/storefront/store-renderer").then((m) => m.StoreRenderer),
+  { ssr: true }
+);
 import { Metadata } from "next";
 import { headers } from "next/headers";
 import { createServerSupabaseClient } from "@/lib/supabase/server";

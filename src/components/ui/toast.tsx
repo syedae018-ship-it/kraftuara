@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle2, AlertTriangle, AlertCircle, Info, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ToastItem } from "@/types";
@@ -58,14 +57,10 @@ function ToastSingle({ toast: item, onDismiss }: ToastProps) {
   }, [item, onDismiss]);
 
   return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, y: 15, scale: 0.95 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: 10, scale: 0.95 }}
-      transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+    <div
+      role="alert"
       className={cn(
-        "pointer-events-auto flex items-start gap-3 w-full max-w-sm rounded-xl p-4 shadow-xl backdrop-blur-md border",
+        "animate-toast-in pointer-events-auto flex items-start gap-3 w-full max-w-sm rounded-xl p-4 shadow-xl backdrop-blur-md border transition-all duration-200",
         variant.bg,
         variant.border
       )}
@@ -88,23 +83,23 @@ function ToastSingle({ toast: item, onDismiss }: ToastProps) {
       >
         <X className="w-4 h-4" />
       </button>
-    </motion.div>
+    </div>
   );
 }
 
 export function ToastProvider() {
   const { toasts, dismiss } = useToast();
 
+  if (!toasts || toasts.length === 0) return null;
+
   return (
     <div
       aria-live="polite"
       className="fixed bottom-6 right-6 z-[100] flex flex-col gap-2.5 max-w-sm w-full pointer-events-none px-4 sm:px-0"
     >
-      <AnimatePresence mode="sync">
-        {toasts.map((t) => (
-          <ToastSingle key={t.id} toast={t} onDismiss={dismiss} />
-        ))}
-      </AnimatePresence>
+      {toasts.map((t) => (
+        <ToastSingle key={t.id} toast={t} onDismiss={dismiss} />
+      ))}
     </div>
   );
 }

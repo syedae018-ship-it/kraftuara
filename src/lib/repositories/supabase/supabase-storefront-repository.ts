@@ -1,3 +1,4 @@
+import { cache } from "react";
 import type { StoreData, IStorefrontRepository } from "@/lib/repositories/storefront-repository";
 import { Product } from "@/types/product";
 import { supabaseProductRepository } from "./supabase-product-repository";
@@ -38,11 +39,15 @@ export class SupabaseStorefrontRepository implements IStorefrontRepository {
     }
   }
 
-  async getStoreBySlug(slug: string, client?: any): Promise<StoreData | null> {
+  getStoreBySlug = cache(async (slug: string, client?: any): Promise<StoreData | null> => {
     const isDemoSlug = ["demo", "demo-craft-classic", "craft-classic", "aroma-perfumes", "tech-haven", "creative-threads"].includes(slug);
 
     const supabase = client || this.getSupabase();
-    const { data: storeRow, error: storeErr } = await supabase.from("stores").select("*").eq("slug", slug).maybeSingle();
+    const { data: storeRow, error: storeErr } = await supabase
+      .from("stores")
+      .select("id, user_id, name, slug, status, plan, logo_url, banner_url, primary_color, secondary_color")
+      .eq("slug", slug)
+      .maybeSingle();
 
     if (storeErr || !storeRow) {
       if (isDemoSlug) {
@@ -58,29 +63,34 @@ export class SupabaseStorefrontRepository implements IStorefrontRepository {
 
     if (s.status === "suspended") return null;
 
-    // Load store_settings for draft/publish snapshot
-    const { data: settingsRow } = await supabase
-      .from("store_settings")
-      .select("metadata")
-      .eq("store_id", s.id)
-      .maybeSingle();
+    // Load store settings, appearance, categories, collections, products, and plan in parallel
+    const [
+      settingsRes,
+      appearance,
+      categories,
+      collections,
+      productsRes,
+      plan,
+    ] = await Promise.all([
+      supabase
+        .from("store_settings")
+        .select("metadata")
+        .eq("store_id", s.id)
+        .maybeSingle(),
+      supabaseAppearanceRepository.getSettings(s.id, supabase),
+      supabaseCategoryRepository.getAll(s.id, supabase),
+      supabaseCollectionRepository.getAll(s.id, supabase),
+      supabaseProductRepository.getAll(s.id, undefined, 1, 1000, supabase),
+      this.resolveStorePlan(s.id, s.user_id, s.plan),
+    ]);
 
-    const metadata = settingsRow?.metadata || {};
+    const metadata = settingsRes?.data?.metadata || {};
     const rawShipping = metadata.shipping;
     const resolvedShipping = {
       freeShippingEnabled: rawShipping?.freeShippingEnabled !== undefined ? Boolean(rawShipping.freeShippingEnabled) : true,
       freeShippingThreshold: typeof rawShipping?.freeShippingThreshold === "number" ? rawShipping.freeShippingThreshold : 0,
       shippingFee: typeof rawShipping?.shippingFee === "number" ? rawShipping.shippingFee : 50,
     };
-
-    // Resolve the store's active plan for feature rendering on the storefront
-    const plan = await this.resolveStorePlan(s.id, s.user_id, s.plan);
-
-    // Always load fresh appearance, categories, collections, and products for live store accuracy
-    const appearance = await supabaseAppearanceRepository.getSettings(s.id, supabase);
-    const categories = await supabaseCategoryRepository.getAll(s.id, supabase);
-    const collections = await supabaseCollectionRepository.getAll(s.id, supabase);
-    const { products } = await supabaseProductRepository.getAll(s.id, undefined, 1, 1000, supabase);
 
     return {
       id: s.id,
@@ -90,10 +100,10 @@ export class SupabaseStorefrontRepository implements IStorefrontRepository {
       appearance,
       categories,
       collections,
-      products,
+      products: productsRes.products || [],
       shipping: resolvedShipping,
     };
-  }
+  });
 
   async getProductBySlug(storeSlug: string, productSlug: string, client?: any): Promise<{
     product: Product;

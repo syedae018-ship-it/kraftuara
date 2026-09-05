@@ -49,9 +49,12 @@ export const getFontStack = (font?: string): string => {
 };
 
 export const SYSTEM_FONTS = ["Helvetica Neue", "Helvetica", "Arial", "Impact", "Georgia", "Times New Roman"];
+export const PRELOADED_APP_FONTS = ["Plus Jakarta Sans", "Inter", ...SYSTEM_FONTS];
 
 /**
  * Builds a valid Google Fonts URL for dynamic loading of heading and body fonts.
+ * Skips preloaded application fonts (Plus Jakarta Sans, Inter) and system fonts.
+ * Only downloads needed weights (400, 600, 700) to minimize mobile network payload.
  */
 export function getGoogleFontsUrl(headingFont?: string, bodyFont?: string): string | null {
   const hFont = headingFont || "Plus Jakarta Sans";
@@ -60,7 +63,7 @@ export function getGoogleFontsUrl(headingFont?: string, bodyFont?: string): stri
   const fontsToLoad: string[] = [];
 
   const addFont = (fontName: string) => {
-    if (!fontName || SYSTEM_FONTS.includes(fontName)) return;
+    if (!fontName || PRELOADED_APP_FONTS.includes(fontName)) return;
     const formatted = fontName.trim().replace(/ /g, "+");
     if (!fontsToLoad.includes(formatted)) {
       fontsToLoad.push(formatted);
@@ -73,7 +76,7 @@ export function getGoogleFontsUrl(headingFont?: string, bodyFont?: string): stri
   if (fontsToLoad.length === 0) return null;
 
   const fontQueries = fontsToLoad
-    .map((f) => `family=${f}:wght@300;400;500;600;700;800`)
+    .map((f) => `family=${f}:wght@400;600;700`)
     .join("&");
 
   return `https://fonts.googleapis.com/css2?${fontQueries}&display=swap`;

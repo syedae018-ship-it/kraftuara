@@ -1,7 +1,6 @@
 "use client";
 
 import React from "react";
-import { motion } from "framer-motion";
 import { Sparkles, MessageSquare, ArrowRight } from "lucide-react";
 import { StoreData } from "@/lib/repositories/storefront-repository";
 import { cn } from "@/lib/utils";
@@ -24,12 +23,7 @@ export function HeroSection({ store, className }: HeroSectionProps) {
         </div>
       )}
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-        className="relative z-10 max-w-3xl mx-auto text-center space-y-6"
-      >
+      <div className="relative z-10 max-w-3xl mx-auto text-center space-y-6">
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-maroon-950/80 border border-maroon-600/40 text-[11px] font-bold font-heading text-maroon-300 uppercase tracking-widest">
           <Sparkles className="w-3.5 h-3.5 text-maroon-400" /> Handcrafted Catalog
         </div>
@@ -50,7 +44,7 @@ export function HeroSection({ store, className }: HeroSectionProps) {
             Shop Collection <ArrowRight className="w-4 h-4" />
           </a>
         </div>
-      </motion.div>
+      </div>
     </section>
   );
 }

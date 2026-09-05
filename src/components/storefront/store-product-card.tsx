@@ -3,7 +3,6 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { motion } from "framer-motion";
 import { Eye, Sparkles, Package, ShoppingCart, Check } from "lucide-react";
 import { Product } from "@/types/product";
 import { StatusBadge } from "@/components/products/status-badge";
@@ -68,14 +67,13 @@ export function StoreProductCard({
   };
 
   return (
-    <motion.div
-      whileHover={{ y: -3 }}
+    <div
       style={{
         backgroundColor: "var(--color-surface)",
         borderColor: "var(--color-border)",
       }}
       className={cn(
-        "group relative border rounded-2xl overflow-hidden shadow-sm transition-all duration-200 hover:shadow-lg flex flex-col justify-between",
+        "group relative border rounded-2xl overflow-hidden shadow-sm transition-all duration-200 hover:shadow-lg hover:-translate-y-1 flex flex-col justify-between",
         className
       )}
     >
@@ -214,6 +212,6 @@ export function StoreProductCard({
           </div>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }
