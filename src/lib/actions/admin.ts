@@ -8,8 +8,8 @@ import { PlatformStats, AdminUser, AdminStore, AdminPayment, Coupon, Template } 
 import { cookies, headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { PLANS } from "@/lib/feature-gating";
-import { getAllPlans } from "@/lib/services/plan-service";
+import { PLANS, PlanTier, BillingInterval, normalizePlanTier } from "@/lib/feature-gating";
+import { getAllPlans, getAuthoritativePlan } from "@/lib/services/plan-service";
 
 const IMPERSONATION_COOKIE = "kraftaura_impersonation";
 
@@ -768,16 +768,27 @@ export async function deletePlatformPromoCodeAction(codeId: string): Promise<Act
  */
 export async function validateSaaSPromoCodeAction(
   code: string,
-  planTier: "startup" | "growth" | "pro"
-): Promise<ActionResponse<{ originalPrice: number; discountAmount: number; finalPrice: number; code: string }>> {
+  planTier: string,
+  interval: BillingInterval = "monthly"
+): Promise<
+  ActionResponse<{
+    originalPrice: number;
+    discountAmount: number;
+    finalPrice: number;
+    code: string;
+    discountType: "percentage" | "flat";
+    value: number;
+  }>
+> {
   try {
     const cleanCode = (code || "").trim().toUpperCase();
     if (!cleanCode) return errorResponse("Please enter a promo code.");
 
-    const planConfig = PLANS[planTier];
-    if (!planConfig) return errorResponse("Invalid plan tier specified.");
+    const authoritativePlan = await getAuthoritativePlan(planTier);
+    if (!authoritativePlan) return errorResponse("Invalid plan tier specified.");
 
-    const originalPrice = planConfig.priceMonthly;
+    const originalPrice =
+      interval === "annual" ? authoritativePlan.priceAnnual : authoritativePlan.priceMonthly;
 
     const supabase = await createServerSupabaseClient();
     const { data: settingsRow } = await supabase
@@ -787,19 +798,40 @@ export async function validateSaaSPromoCodeAction(
       .maybeSingle();
 
     const promos: Coupon[] = (settingsRow as any)?.metadata?.platform_promos || [];
-    const found = promos.find((p) => p.code === cleanCode && p.status === "active");
-
+    const found = promos.find((p) => p.code.trim().toUpperCase() === cleanCode);
 
     if (!found) {
-      return errorResponse("Invalid or inactive promo code.");
+      return errorResponse("Invalid coupon code.");
     }
 
-    if (found.expiryDate && new Date(found.expiryDate) < new Date()) {
-      return errorResponse("This promo code has expired.");
+    if (found.status !== "active") {
+      return errorResponse("This coupon code is no longer active.");
+    }
+
+    if (found.expiryDate && new Date(found.expiryDate).getTime() < Date.now()) {
+      return errorResponse("This coupon code has expired.");
     }
 
     if (found.usageLimit > 0 && found.usageCount >= found.usageLimit) {
-      return errorResponse("This promo code has reached its maximum usage limit.");
+      return errorResponse("This coupon code has reached its maximum usage limit.");
+    }
+
+    // Check plan restriction if configured on the coupon
+    if (found.applicablePlans && found.applicablePlans.length > 0) {
+      const normalizedApplicable = found.applicablePlans.map(normalizePlanTier);
+      const currentTier = normalizePlanTier(planTier);
+      if (!normalizedApplicable.includes(currentTier)) {
+        return errorResponse("This coupon is not valid for this plan.");
+      }
+    }
+
+    // Check interval restriction if configured
+    if (found.applicableInterval && found.applicableInterval !== "all") {
+      if (found.applicableInterval !== interval) {
+        return errorResponse(
+          `This coupon is only valid for ${found.applicableInterval} billing.`
+        );
+      }
     }
 
     let discount = 0;
@@ -811,12 +843,17 @@ export async function validateSaaSPromoCodeAction(
 
     const finalPrice = Math.max(0, originalPrice - discount);
 
-    return successResponse({
-      originalPrice,
-      discountAmount: discount,
-      finalPrice,
-      code: cleanCode,
-    }, `Promo code applied: -₹${discount}`);
+    return successResponse(
+      {
+        originalPrice,
+        discountAmount: discount,
+        finalPrice,
+        code: cleanCode,
+        discountType: found.discountType,
+        value: found.value,
+      },
+      `Coupon "${cleanCode}" applied! You saved ₹${discount}.`
+    );
   } catch (err) {
     return errorResponse(getErrorMessage(err));
   }

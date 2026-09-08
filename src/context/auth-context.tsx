@@ -278,7 +278,8 @@ export function DummyAuthProvider({ children }: { children: React.ReactNode }) {
         pathname.startsWith("/admin") ||
         pathname.startsWith("/create-store") ||
         pathname.startsWith("/choose-plan") ||
-        pathname.startsWith("/choose-template")
+        pathname.startsWith("/choose-template") ||
+        pathname.startsWith("/checkout")
       : false;
 
     if (isProtectedRoute && !user) {

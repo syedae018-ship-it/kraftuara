@@ -58,6 +58,7 @@ export async function middleware(request: NextRequest) {
         pathname.startsWith("/signup") ||
         pathname.startsWith("/choose-plan") ||
         pathname.startsWith("/choose-template") ||
+        pathname.startsWith("/checkout") ||
         pathname === "/create-store" ||
         pathname === "/pricing"
       ) {
@@ -172,7 +173,8 @@ export async function middleware(request: NextRequest) {
       pathname.startsWith("/dashboard") ||
       pathname.startsWith("/create-store") ||
       pathname.startsWith("/choose-plan") ||
-      pathname.startsWith("/choose-template");
+      pathname.startsWith("/choose-template") ||
+      pathname.startsWith("/checkout");
     const isAdminRoute = pathname.startsWith("/admin");
     const isAuthRoute = pathname.startsWith("/login") || pathname.startsWith("/signup");
 

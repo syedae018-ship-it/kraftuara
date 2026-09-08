@@ -59,24 +59,31 @@ export const CANONICAL_RAZORPAY_PLANS = getCanonicalPlans();
 export const getOrCreateRazorpayPlan = async (
   razorpay: Razorpay,
   planTier: PlanTier,
-  interval: BillingInterval = "monthly"
+  interval: BillingInterval = "monthly",
+  customAmount?: number
 ): Promise<string> => {
   const planConfig = await getAuthoritativePlan(planTier);
-  const targetPrice = interval === "annual" ? planConfig.priceAnnual : planConfig.priceMonthly;
+  const defaultPrice = interval === "annual" ? planConfig.priceAnnual : planConfig.priceMonthly;
+  const targetPrice = typeof customAmount === "number" && customAmount > 0 ? customAmount : defaultPrice;
   const targetPaise = Math.round(targetPrice * 100);
   const targetPeriod = interval === "annual" ? "yearly" : "monthly";
 
-  // 1. Check environment variable override
-  const envKey = `RAZORPAY_PLAN_${planTier.toUpperCase()}_${interval.toUpperCase()}`;
-  if (process.env[envKey]) {
-    return process.env[envKey] as string;
-  }
+  // If standard price, check canonical mappings and env vars first
+  const isCustomPrice = typeof customAmount === "number" && customAmount !== defaultPrice;
 
-  // 2. Check canonical pre-configured plan mapping for active environment
-  const canonicalPlans = getCanonicalPlans();
-  const canonicalId = canonicalPlans[planTier]?.[interval];
-  if (canonicalId) {
-    return canonicalId;
+  if (!isCustomPrice) {
+    // 1. Check environment variable override
+    const envKey = `RAZORPAY_PLAN_${planTier.toUpperCase()}_${interval.toUpperCase()}`;
+    if (process.env[envKey]) {
+      return process.env[envKey] as string;
+    }
+
+    // 2. Check canonical pre-configured plan mapping for active environment
+    const canonicalPlans = getCanonicalPlans();
+    const canonicalId = canonicalPlans[planTier]?.[interval];
+    if (canonicalId) {
+      return canonicalId;
+    }
   }
 
   // 3. Search existing plans in Razorpay to prevent creating duplicate plans
@@ -94,14 +101,15 @@ export const getOrCreateRazorpayPlan = async (
     }
 
     // 4. Create plan if none exists
+    const planNameSuffix = isCustomPrice ? ` - ₹${targetPrice}` : "";
     const plan = await razorpay.plans.create({
       period: targetPeriod,
       interval: 1,
       item: {
-        name: `Kraftaura ${planConfig.name} (${interval === "annual" ? "Annual" : "Monthly"})`,
+        name: `Kraftaura ${planConfig.name} (${interval === "annual" ? "Annual" : "Monthly"})${planNameSuffix}`,
         amount: targetPaise,
         currency: "INR",
-        description: `Kraftaura ${interval} subscription tier: ${planConfig.name}`,
+        description: `Kraftaura ${interval} subscription: ${planConfig.name} (₹${targetPrice})`,
       },
     });
     return plan.id;

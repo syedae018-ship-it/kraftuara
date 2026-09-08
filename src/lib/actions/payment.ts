@@ -33,12 +33,14 @@ const getRazorpayInstance = () => {
 /**
  * Initiates subscription creation on the server.
  * Configures an immediate-start subscription (charges the actual plan amount immediately).
+ * Authoritatively validates coupon code server-side and adjusts the charged amount.
  */
 export async function createStoreSubscriptionAction(
   storeId: string | null | undefined,
   planName: PlanTier,
-  interval: BillingInterval = "monthly"
-): Promise<ActionResponse<{ subscriptionId: string; keyId: string; isSimulated: boolean }>> {
+  interval: BillingInterval = "monthly",
+  couponCode?: string | null
+): Promise<ActionResponse<{ subscriptionId: string; keyId: string; isSimulated: boolean; finalAmount?: number }>> {
   try {
     const supabase = await createServerSupabaseClient();
     const {
@@ -75,6 +77,65 @@ export async function createStoreSubscriptionAction(
       );
     }
 
+    const basePrice = interval === "annual" ? planConfig.priceAnnual : planConfig.priceMonthly;
+    let discountAmount = 0;
+    let validCouponCode = "";
+
+    // Authoritative Server-side Coupon Validation
+    if (couponCode && couponCode.trim()) {
+      const cleanCode = couponCode.trim().toUpperCase();
+      const { data: settingsRow } = await supabase
+        .from("store_settings")
+        .select("metadata")
+        .limit(1)
+        .maybeSingle();
+
+      const promos: any[] = (settingsRow as any)?.metadata?.platform_promos || [];
+      const found = promos.find((p) => p.code?.trim().toUpperCase() === cleanCode);
+
+      if (!found) {
+        return errorResponse("Invalid coupon code.");
+      }
+
+      if (found.status !== "active") {
+        return errorResponse("This coupon code is no longer active.");
+      }
+
+      if (found.expiryDate && new Date(found.expiryDate).getTime() < Date.now()) {
+        return errorResponse("This coupon code has expired.");
+      }
+
+      if (found.usageLimit > 0 && found.usageCount >= found.usageLimit) {
+        return errorResponse("This coupon code has reached its maximum usage limit.");
+      }
+
+      // Check plan restriction if configured
+      if (found.applicablePlans && found.applicablePlans.length > 0) {
+        const normalizedApplicable = found.applicablePlans.map(normalizePlanTier);
+        const currentTier = normalizePlanTier(planName);
+        if (!normalizedApplicable.includes(currentTier)) {
+          return errorResponse("This coupon is not valid for this plan.");
+        }
+      }
+
+      // Check interval restriction if configured
+      if (found.applicableInterval && found.applicableInterval !== "all") {
+        if (found.applicableInterval !== interval) {
+          return errorResponse(`This coupon is only valid for ${found.applicableInterval} billing.`);
+        }
+      }
+
+      if (found.discountType === "percentage") {
+        discountAmount = Math.round((basePrice * found.value) / 100);
+      } else {
+        discountAmount = Math.min(basePrice, found.value);
+      }
+
+      validCouponCode = cleanCode;
+    }
+
+    const finalPayableAmount = Math.max(0, basePrice - discountAmount);
+
     const razorpay = getRazorpayInstance();
     const isSimulated = !razorpay;
 
@@ -84,11 +145,12 @@ export async function createStoreSubscriptionAction(
         subscriptionId: mockSubId,
         keyId: "rzp_test_placeholder",
         isSimulated: true,
+        finalAmount: finalPayableAmount,
       });
     }
 
-    // Real Razorpay Subscription API call
-    const planId = await getOrCreateRazorpayPlan(razorpay, planName, interval);
+    // Real Razorpay Subscription API call with authoritative final payable amount
+    const planId = await getOrCreateRazorpayPlan(razorpay, planName, interval, finalPayableAmount);
 
     // Immediate-start subscription configuration:
     // Do NOT specify `start_at` so Razorpay starts the subscription immediately.
@@ -104,6 +166,10 @@ export async function createStoreSubscriptionAction(
         billingInterval: interval,
         userId: user.id,
         userEmail: user.email || "",
+        couponCode: validCouponCode || "",
+        discountAmount: discountAmount || 0,
+        originalPrice: basePrice,
+        finalAmount: finalPayableAmount,
       },
     };
 
@@ -113,6 +179,7 @@ export async function createStoreSubscriptionAction(
       subscriptionId: subscription.id,
       keyId: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "",
       isSimulated: false,
+      finalAmount: finalPayableAmount,
     });
   } catch (err: any) {
     console.error("Failed to create subscription order:", err);
@@ -355,6 +422,34 @@ export async function verifySubscriptionPaymentAction(payload: {
           updated_at: now.toISOString(),
         })
         .eq("id", user.id);
+    }
+
+    // Increment coupon usage count if a promo code was used in the subscription notes
+    try {
+      const couponCodeUsed = (subDetails?.notes?.couponCode || "").trim().toUpperCase();
+      if (couponCodeUsed) {
+        const { data: settingsRow } = await (adminSupabase as any)
+          .from("store_settings")
+          .select("id, metadata")
+          .limit(1)
+          .maybeSingle();
+
+        const existingMeta = settingsRow?.metadata || {};
+        const existingPromos = existingMeta.platform_promos || [];
+        const updatedPromos = existingPromos.map((p: any) =>
+          p.code?.trim().toUpperCase() === couponCodeUsed
+            ? { ...p, usageCount: (p.usageCount || 0) + 1 }
+            : p
+        );
+        if (settingsRow?.id) {
+          await (adminSupabase as any)
+            .from("store_settings")
+            .update({ metadata: { ...existingMeta, platform_promos: updatedPromos } })
+            .eq("id", settingsRow.id);
+        }
+      }
+    } catch (couponErr) {
+      console.warn("Could not increment coupon usage count:", couponErr);
     }
 
     // Trigger decoupled customer receipt & admin notification

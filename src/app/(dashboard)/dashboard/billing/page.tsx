@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { CreditCard, CheckCircle2, AlertCircle, Loader2, Calendar, ShieldCheck, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -15,6 +16,7 @@ import { createClient } from "@/lib/supabase/client";
 import { PLANS, PlanTier, PlanConfig, getPlanDisplayName, getPlanHierarchyWeight } from "@/lib/feature-gating";
 
 export default function MerchantBillingPage() {
+  const router = useRouter();
   const { activeStore, user, refreshSession } = useAuth();
   const [subscription, setSubscription] = useState<StoreSubscription | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -129,93 +131,9 @@ export default function MerchantBillingPage() {
     }
   };
 
-  const handleRequestUpgrade = async (planId: PlanTier) => {
+  const handleRequestUpgrade = (planId: PlanTier) => {
     if (!activeStore?.id) return;
-    setProcessingUpgrade(planId);
-
-    try {
-      const { createStoreSubscriptionAction } = await import("@/lib/actions/payment");
-      const res = await createStoreSubscriptionAction(activeStore.id, planId, billingInterval);
-
-      if (!res.success) {
-        toast.error("Upgrade Error", res.error || "Failed to create subscription order.");
-        setProcessingUpgrade(null);
-        return;
-      }
-
-      const { subscriptionId, keyId, isSimulated } = res.data;
-
-      if (isSimulated) {
-        toast.info("Sandbox Mode", "Live Razorpay credentials not configured in this environment.");
-        setProcessingUpgrade(null);
-        return;
-      }
-
-      const targetPlanConfig = PLANS_CATALOG.find((p) => p.id === planId) || PLANS_CATALOG[0];
-
-      const options = {
-        key: keyId,
-        subscription_id: subscriptionId,
-        name: "Kraftaura Platform Upgrade",
-        description: `Upgrade to ${targetPlanConfig.name} (${billingInterval === "annual" ? "Annual" : "Monthly"})`,
-        image: "https://api.dicebear.com/7.x/initials/svg?seed=Kraftaura",
-        modal: {
-          ondismiss: function () {
-            setProcessingUpgrade(null);
-            toast.info("Payment Cancelled", "Payment was cancelled. Your current plan remains unchanged.");
-          },
-        },
-        handler: async function (response: any) {
-          setProcessingUpgrade(planId);
-          const { verifySubscriptionPaymentAction } = await import("@/lib/actions/payment");
-          const verRes = await verifySubscriptionPaymentAction({
-            storeId: activeStore.id,
-            paymentId: response.razorpay_payment_id,
-            subscriptionId: response.razorpay_subscription_id,
-            signature: response.razorpay_signature,
-            planId: planId,
-          });
-
-          if (verRes.success) {
-            const nextDateFormatted = verRes.data?.nextBillingDate
-              ? new Date(verRes.data.nextBillingDate).toLocaleDateString("en-IN", {
-                  day: "numeric",
-                  month: "short",
-                  year: "numeric",
-                })
-              : null;
-
-            toast.success(
-              "Payment Successful!",
-              `Payment verified. Store upgraded to ${targetPlanConfig.name}!${nextDateFormatted ? ` Next renewal: ${nextDateFormatted}` : ""}`
-            );
-            await fetchSubscription();
-            await fetchPayments();
-            await notifyStateChange();
-          } else {
-            toast.error("Verification Failed", "Payment verification failed. Your current plan remains unchanged.");
-          }
-          setProcessingUpgrade(null);
-        },
-        prefill: {
-          email: user?.email || "",
-          name: user?.name || "",
-        },
-        theme: {
-          color: "#800020",
-        },
-      };
-
-      const rzp = new (window as any).Razorpay(options);
-      rzp.on("payment.failed", function (resp: any) {
-        toast.error("Payment Failed", "Payment was unsuccessful. Your current plan remains unchanged.");
-        setProcessingUpgrade(null);
-      });
-      rzp.open();
-    } catch (err: any) {
-      toast.error("Checkout Launch Error", err.message || "Failed to load checkout. Your current plan remains unchanged.");
-      setProcessingUpgrade(null);
-    }
+    router.push(`/checkout?plan=${planId}&interval=${billingInterval}&storeId=${activeStore.id}`);
   };
 
   const handleAdminOverride = async () => {

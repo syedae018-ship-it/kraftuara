@@ -80,6 +80,8 @@ export type Coupon = {
   usageLimit: number;
   usageCount: number;
   status: "active" | "expired" | "disabled";
+  applicablePlans?: string[];
+  applicableInterval?: "monthly" | "annual" | "all";
 };
 
 export type SupportTicket = {
