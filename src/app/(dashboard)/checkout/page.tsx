@@ -22,7 +22,7 @@ import {
   MapPin,
   Building2,
   Receipt,
-  Sparkles,
+  CreditCard,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/table";
@@ -94,7 +94,7 @@ interface AppliedCoupon {
 function CheckoutContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user, selectPlan, activeStore, stores } = useAuth();
+  const { user, selectPlan, stores } = useAuth();
 
   // Query parameters
   const rawPlan = searchParams.get("plan") || "growth";
@@ -483,23 +483,23 @@ function CheckoutContent() {
   };
 
   return (
-    <div className="min-h-screen bg-[#080808] text-white selection:bg-maroon-800 selection:text-white font-body py-8 sm:py-10 px-4 sm:px-6 lg:px-8 relative overflow-hidden flex flex-col justify-between">
-      {/* Ambient background glow */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-maroon-900/15 blur-[160px] pointer-events-none rounded-full" />
-      <div className="absolute bottom-0 right-10 w-[500px] h-[500px] bg-maroon-950/20 blur-[180px] pointer-events-none rounded-full" />
+    <div className="min-h-screen bg-[#080808] text-white selection:bg-maroon-800 selection:text-white font-body pt-6 sm:pt-8 pb-16 px-4 sm:px-6 lg:px-8 relative overflow-x-hidden">
+      {/* Ambient background glows */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[350px] bg-maroon-900/15 blur-[160px] pointer-events-none rounded-full" />
+      <div className="absolute bottom-0 right-10 w-[400px] h-[400px] bg-maroon-950/20 blur-[180px] pointer-events-none rounded-full" />
 
-      <div className="max-w-6xl mx-auto w-full relative z-10 space-y-8">
+      <div className="max-w-6xl mx-auto w-full relative z-10 space-y-6">
         {/* Header Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-5">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <Badge variant="maroon" className="gap-1.5 py-0.5 px-2.5 text-[10px] uppercase font-mono tracking-wider">
                 <ShieldCheck className="w-3 h-3 text-emerald-400" />
                 Secure Checkout
               </Badge>
-              <span className="text-xs text-zinc-500 font-mono">• 256-Bit SSL Encrypted</span>
+              <span className="text-[11px] text-zinc-500 font-mono">• 256-Bit SSL Encrypted</span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold font-heading text-white tracking-tight">
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-extrabold font-heading text-white tracking-tight">
               Complete Your Purchase
             </h1>
             <p className="text-xs text-zinc-400 font-body">
@@ -507,7 +507,7 @@ function CheckoutContent() {
             </p>
           </div>
 
-          <Link href={changePlanHref}>
+          <Link href={changePlanHref} className="self-start sm:self-auto shrink-0">
             <Button
               variant="outline"
               size="sm"
@@ -519,17 +519,17 @@ function CheckoutContent() {
           </Link>
         </div>
 
-        {/* 2-Column Responsive Checkout Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        {/* 2-Column Responsive Checkout Grid (50 / 50 on Desktop) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
           {/* ============================================================ */}
-          {/* LEFT COLUMN: YOUR PLAN & INCLUDED BENEFITS (7 cols)           */}
+          {/* LEFT COLUMN: SELECTED PLAN & BENEFITS (6 cols)              */}
           {/* ============================================================ */}
-          <div className="lg:col-span-7 space-y-6">
-            <Card className="bg-[#111111]/90 border-white/10 p-6 sm:p-8 rounded-3xl backdrop-blur-xl shadow-2xl relative overflow-hidden space-y-6">
-              {/* Plan Title & Price header */}
-              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 pb-6 border-b border-white/10">
-                <div className="space-y-1.5">
-                  <div className="flex items-center gap-2.5">
+          <div className="lg:col-span-6 space-y-5">
+            <Card className="bg-[#111111]/90 border-white/10 p-5 sm:p-6 rounded-3xl backdrop-blur-xl shadow-2xl space-y-5">
+              {/* Plan Title & Price Header */}
+              <div className="flex items-start justify-between gap-4 pb-5 border-b border-white/10">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
                     <h2 className="text-xl sm:text-2xl font-bold font-heading text-white">
                       {currentPlanConfig.name}
                     </h2>
@@ -539,14 +539,14 @@ function CheckoutContent() {
                       </Badge>
                     )}
                   </div>
-                  <p className="text-xs text-zinc-400 font-body leading-relaxed max-w-md">
+                  <p className="text-xs text-zinc-400 font-body leading-relaxed max-w-sm">
                     {currentPlanConfig.description}
                   </p>
                 </div>
 
-                <div className="text-left sm:text-right shrink-0">
-                  <div className="flex items-baseline gap-1 sm:justify-end">
-                    <span className="text-3xl font-extrabold font-heading text-white">
+                <div className="text-right shrink-0">
+                  <div className="flex items-baseline gap-1 justify-end">
+                    <span className="text-2xl sm:text-3xl font-extrabold font-heading text-white">
                       ₹{basePrice.toLocaleString("en-IN")}
                     </span>
                     <span className="text-xs text-zinc-500 font-mono">
@@ -555,257 +555,258 @@ function CheckoutContent() {
                   </div>
                   {isAnnual && (
                     <p className="text-[11px] text-emerald-400 font-mono font-semibold mt-0.5">
-                      (Equivalent to ₹{Math.round(basePrice / 12)}/month)
+                      (₹{Math.round(basePrice / 12)}/mo)
                     </p>
                   )}
                 </div>
               </div>
 
               {/* Resource Capacity Highlight Badges */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="bg-[#161616] p-3.5 rounded-2xl border border-white/5 flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-xl bg-maroon-900/40 border border-maroon-700/40 flex items-center justify-center shrink-0">
-                    <Package className="w-4 h-4 text-maroon-300" />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-[#161616] p-3 rounded-2xl border border-white/5 flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-lg bg-maroon-900/40 border border-maroon-700/40 flex items-center justify-center shrink-0">
+                    <Package className="w-3.5 h-3.5 text-maroon-300" />
                   </div>
                   <div>
-                    <div className="text-[10px] uppercase font-mono text-zinc-500 tracking-wider font-semibold">
+                    <div className="text-[9px] uppercase font-mono text-zinc-500 tracking-wider font-semibold">
                       Product Limit
                     </div>
-                    <div className="text-xs font-bold text-white font-heading">
+                    <div className="text-xs font-bold text-white font-heading truncate">
                       {currentPlanConfig.productLimit === -1 || currentPlanConfig.productLimit >= 99999
-                        ? "Unlimited Products"
-                        : `Up to ${currentPlanConfig.productLimit} Products`}
+                        ? "Unlimited"
+                        : `Up to ${currentPlanConfig.productLimit}`}
                     </div>
                   </div>
                 </div>
 
-                <div className="bg-[#161616] p-3.5 rounded-2xl border border-white/5 flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-xl bg-emerald-950/40 border border-emerald-700/40 flex items-center justify-center shrink-0">
-                    <FolderTree className="w-4 h-4 text-emerald-400" />
+                <div className="bg-[#161616] p-3 rounded-2xl border border-white/5 flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-lg bg-emerald-950/40 border border-emerald-700/40 flex items-center justify-center shrink-0">
+                    <FolderTree className="w-3.5 h-3.5 text-emerald-400" />
                   </div>
                   <div>
-                    <div className="text-[10px] uppercase font-mono text-zinc-500 tracking-wider font-semibold">
+                    <div className="text-[9px] uppercase font-mono text-zinc-500 tracking-wider font-semibold">
                       Category Limit
                     </div>
-                    <div className="text-xs font-bold text-white font-heading">
+                    <div className="text-xs font-bold text-white font-heading truncate">
                       {currentPlanConfig.categoryLimit >= 999999
-                        ? "Unlimited Categories"
-                        : `Up to ${currentPlanConfig.categoryLimit} Categories`}
+                        ? "Unlimited"
+                        : `Up to ${currentPlanConfig.categoryLimit}`}
                     </div>
                   </div>
                 </div>
               </div>
 
               {/* Complete List of Included Benefits */}
-              <div className="space-y-3 pt-2">
-                <div className="text-xs font-mono font-bold uppercase tracking-wider text-zinc-400">
+              <div className="space-y-2.5">
+                <div className="text-[11px] font-mono font-bold uppercase tracking-wider text-zinc-400">
                   Included In This Plan:
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {currentPlanConfig.featuresDisplay.map((feat, idx) => (
                     <div
                       key={idx}
-                      className="flex items-start gap-2.5 text-xs text-zinc-300 font-body bg-white/[0.02] p-2.5 rounded-xl border border-white/5"
+                      className="flex items-start gap-2 text-xs text-zinc-300 font-body bg-white/[0.02] p-2.5 rounded-xl border border-white/5"
                     >
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
                       <span className="leading-snug">{feat}</span>
                     </div>
                   ))}
                 </div>
               </div>
 
-              {/* Bottom Quick-Action: Change Plan link */}
-              <div className="pt-4 border-t border-white/10 flex items-center justify-between text-xs text-zinc-400">
-                <span>Want a different catalog tier or feature set?</span>
+              {/* Change Plan link */}
+              <div className="pt-3 border-t border-white/10 flex items-center justify-between text-xs text-zinc-400">
+                <span>Want a different tier?</span>
                 <Link
                   href={changePlanHref}
                   className="text-maroon-400 hover:text-maroon-300 font-semibold font-heading hover:underline flex items-center gap-1"
                 >
-                  Change Plan <ArrowRight className="w-3.5 h-3.5" />
+                  Change Plan <ArrowRight className="w-3 h-3" />
                 </Link>
               </div>
             </Card>
 
-            {/* Platform Guarantees */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-zinc-400 text-xs font-body">
-              <div className="bg-[#111111]/60 p-4 rounded-2xl border border-white/5 flex items-center gap-3">
-                <ShieldCheck className="w-5 h-5 text-emerald-400 shrink-0" />
-                <span>Instant activation after payment</span>
+            {/* Platform Guarantees Banner */}
+            <div className="grid grid-cols-3 gap-3 text-zinc-400 text-[11px] font-body">
+              <div className="bg-[#111111]/70 p-3 rounded-2xl border border-white/5 flex flex-col sm:flex-row items-center sm:items-start text-center sm:text-left gap-2">
+                <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                <span>Instant activation</span>
               </div>
-              <div className="bg-[#111111]/60 p-4 rounded-2xl border border-white/5 flex items-center gap-3">
-                <Zap className="w-5 h-5 text-maroon-400 shrink-0" />
-                <span>Switch or cancel anytime</span>
+              <div className="bg-[#111111]/70 p-3 rounded-2xl border border-white/5 flex flex-col sm:flex-row items-center sm:items-start text-center sm:text-left gap-2">
+                <Zap className="w-4 h-4 text-maroon-400 shrink-0 mt-0.5" />
+                <span>Cancel anytime</span>
               </div>
-              <div className="bg-[#111111]/60 p-4 rounded-2xl border border-white/5 flex items-center gap-3">
-                <Lock className="w-5 h-5 text-zinc-400 shrink-0" />
-                <span>Zero card info stored on servers</span>
+              <div className="bg-[#111111]/70 p-3 rounded-2xl border border-white/5 flex flex-col sm:flex-row items-center sm:items-start text-center sm:text-left gap-2">
+                <Lock className="w-4 h-4 text-zinc-400 shrink-0 mt-0.5" />
+                <span>Zero card data saved</span>
               </div>
             </div>
           </div>
 
           {/* ============================================================ */}
-          {/* RIGHT COLUMN: BILLING INFO + PAYMENT BREAKDOWN (5 cols)      */}
+          {/* RIGHT COLUMN: UNIFIED BILLING & ORDER SUMMARY (6 cols)       */}
           {/* ============================================================ */}
-          <div className="lg:col-span-5 space-y-6">
-            {/* 1. BILLING INFORMATION CARD */}
-            <Card className="bg-[#151515] border-white/10 p-6 sm:p-7 rounded-3xl shadow-2xl space-y-5 relative">
-              <div className="flex items-center justify-between border-b border-white/10 pb-4">
-                <div className="flex items-center gap-2">
-                  <User className="w-4 h-4 text-maroon-400" />
-                  <h3 className="text-base font-bold font-heading text-white uppercase tracking-wider">
-                    Billing Details
-                  </h3>
-                </div>
-                <span className="text-[10px] text-zinc-500 font-mono">Step 1 of 2</span>
-              </div>
-
-              <div className="space-y-4 text-xs font-body">
-                {/* Full Name */}
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-mono font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
-                    <User className="w-3.5 h-3.5 text-zinc-500" />
-                    Full Name <span className="text-maroon-400">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={billingName}
-                    onChange={(e) => {
-                      setBillingName(e.target.value);
-                      if (billingErrors.name) {
-                        setBillingErrors((prev) => ({ ...prev, name: "" }));
-                      }
-                    }}
-                    placeholder="Enter your full name"
-                    className={cn(
-                      "w-full bg-[#0c0c0c] border rounded-xl px-3.5 py-2.5 text-xs text-white placeholder:text-zinc-600 focus:outline-none focus:ring-1 transition-all",
-                      billingErrors.name
-                        ? "border-red-500/70 focus:border-red-500 focus:ring-red-500"
-                        : "border-white/10 focus:border-maroon-500 focus:ring-maroon-500"
-                    )}
-                    disabled={isProcessingPayment}
-                  />
-                  {billingErrors.name && (
-                    <p className="text-[11px] text-red-400 font-mono">{billingErrors.name}</p>
-                  )}
+          <div className="lg:col-span-6">
+            <Card className="bg-[#151515] border-white/10 p-5 sm:p-7 rounded-3xl shadow-2xl space-y-6">
+              {/* 1. BILLING INFORMATION SECTION */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                  <div className="flex items-center gap-2">
+                    <User className="w-4 h-4 text-maroon-400" />
+                    <h3 className="text-sm sm:text-base font-bold font-heading text-white uppercase tracking-wider">
+                      Billing Information
+                    </h3>
+                  </div>
+                  <Badge variant="maroon" className="text-[10px] font-mono uppercase">
+                    Razorpay Verified
+                  </Badge>
                 </div>
 
-                {/* Email Address */}
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-mono font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
-                    <Mail className="w-3.5 h-3.5 text-zinc-500" />
-                    Email Address <span className="text-maroon-400">*</span>
-                  </label>
-                  <input
-                    type="email"
-                    value={billingEmail}
-                    onChange={(e) => {
-                      setBillingEmail(e.target.value);
-                      if (billingErrors.email) {
-                        setBillingErrors((prev) => ({ ...prev, email: "" }));
-                      }
-                    }}
-                    placeholder="merchant@example.com"
-                    className={cn(
-                      "w-full bg-[#0c0c0c] border rounded-xl px-3.5 py-2.5 text-xs text-white placeholder:text-zinc-600 focus:outline-none focus:ring-1 transition-all",
-                      billingErrors.email
-                        ? "border-red-500/70 focus:border-red-500 focus:ring-red-500"
-                        : "border-white/10 focus:border-maroon-500 focus:ring-maroon-500"
-                    )}
-                    disabled={isProcessingPayment}
-                  />
-                  {billingErrors.email && (
-                    <p className="text-[11px] text-red-400 font-mono">{billingErrors.email}</p>
-                  )}
-                </div>
-
-                {/* Phone Number */}
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-mono font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
-                    <Phone className="w-3.5 h-3.5 text-zinc-500" />
-                    Phone Number <span className="text-maroon-400">*</span>
-                  </label>
-                  <div className="flex gap-2">
-                    <div className="bg-[#0c0c0c] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-zinc-400 font-mono font-semibold shrink-0 flex items-center">
-                      +91
-                    </div>
+                {/* 2-Column Responsive Input Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs font-body">
+                  {/* Full Name */}
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-medium text-zinc-300 flex items-center gap-1">
+                      Full Name <span className="text-maroon-400">*</span>
+                    </label>
                     <input
-                      type="tel"
-                      value={billingPhone}
-                      maxLength={10}
+                      type="text"
+                      value={billingName}
                       onChange={(e) => {
-                        const val = e.target.value.replace(/\D/g, "").slice(0, 10);
-                        setBillingPhone(val);
-                        if (billingErrors.phone) {
-                          setBillingErrors((prev) => ({ ...prev, phone: "" }));
+                        setBillingName(e.target.value);
+                        if (billingErrors.name) {
+                          setBillingErrors((prev) => ({ ...prev, name: "" }));
                         }
                       }}
-                      placeholder="9876543210"
+                      placeholder="Your Full Name"
                       className={cn(
-                        "w-full bg-[#0c0c0c] border rounded-xl px-3.5 py-2.5 text-xs text-white font-mono placeholder:text-zinc-600 focus:outline-none focus:ring-1 transition-all",
-                        billingErrors.phone
+                        "w-full bg-[#0c0c0c] border rounded-xl px-3 py-2 text-xs text-white placeholder:text-zinc-600 focus:outline-none focus:ring-1 transition-all",
+                        billingErrors.name
                           ? "border-red-500/70 focus:border-red-500 focus:ring-red-500"
                           : "border-white/10 focus:border-maroon-500 focus:ring-maroon-500"
                       )}
                       disabled={isProcessingPayment}
                     />
-                  </div>
-                  {billingErrors.phone && (
-                    <p className="text-[11px] text-red-400 font-mono">{billingErrors.phone}</p>
-                  )}
-                </div>
-
-                {/* State Dropdown */}
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-mono font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
-                    <MapPin className="w-3.5 h-3.5 text-zinc-500" />
-                    State / UT <span className="text-maroon-400">*</span>
-                  </label>
-                  <select
-                    value={billingState}
-                    onChange={(e) => {
-                      setBillingState(e.target.value);
-                      if (billingErrors.state) {
-                        setBillingErrors((prev) => ({ ...prev, state: "" }));
-                      }
-                    }}
-                    className={cn(
-                      "w-full bg-[#0c0c0c] border rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:ring-1 transition-all",
-                      billingErrors.state
-                        ? "border-red-500/70 focus:border-red-500 focus:ring-red-500"
-                        : "border-white/10 focus:border-maroon-500 focus:ring-maroon-500"
+                    {billingErrors.name && (
+                      <p className="text-[10px] text-red-400 font-mono">{billingErrors.name}</p>
                     )}
-                    disabled={isProcessingPayment}
-                  >
-                    {INDIAN_STATES.map((st) => (
-                      <option key={st} value={st} className="bg-[#111111] text-white">
-                        {st}
-                      </option>
-                    ))}
-                  </select>
-                  {billingErrors.state && (
-                    <p className="text-[11px] text-red-400 font-mono">{billingErrors.state}</p>
-                  )}
+                  </div>
+
+                  {/* Phone Number */}
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-medium text-zinc-300 flex items-center gap-1">
+                      Phone Number <span className="text-maroon-400">*</span>
+                    </label>
+                    <div className="flex gap-1.5">
+                      <div className="bg-[#0c0c0c] border border-white/10 rounded-xl px-2.5 py-2 text-xs text-zinc-400 font-mono font-semibold shrink-0 flex items-center">
+                        +91
+                      </div>
+                      <input
+                        type="tel"
+                        value={billingPhone}
+                        maxLength={10}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/\D/g, "").slice(0, 10);
+                          setBillingPhone(val);
+                          if (billingErrors.phone) {
+                            setBillingErrors((prev) => ({ ...prev, phone: "" }));
+                          }
+                        }}
+                        placeholder="9876543210"
+                        className={cn(
+                          "w-full bg-[#0c0c0c] border rounded-xl px-3 py-2 text-xs text-white font-mono placeholder:text-zinc-600 focus:outline-none focus:ring-1 transition-all",
+                          billingErrors.phone
+                            ? "border-red-500/70 focus:border-red-500 focus:ring-red-500"
+                            : "border-white/10 focus:border-maroon-500 focus:ring-maroon-500"
+                        )}
+                        disabled={isProcessingPayment}
+                      />
+                    </div>
+                    {billingErrors.phone && (
+                      <p className="text-[10px] text-red-400 font-mono">{billingErrors.phone}</p>
+                    )}
+                  </div>
+
+                  {/* Email Address */}
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-medium text-zinc-300 flex items-center gap-1">
+                      Email Address <span className="text-maroon-400">*</span>
+                    </label>
+                    <input
+                      type="email"
+                      value={billingEmail}
+                      onChange={(e) => {
+                        setBillingEmail(e.target.value);
+                        if (billingErrors.email) {
+                          setBillingErrors((prev) => ({ ...prev, email: "" }));
+                        }
+                      }}
+                      placeholder="merchant@example.com"
+                      className={cn(
+                        "w-full bg-[#0c0c0c] border rounded-xl px-3 py-2 text-xs text-white placeholder:text-zinc-600 focus:outline-none focus:ring-1 transition-all",
+                        billingErrors.email
+                          ? "border-red-500/70 focus:border-red-500 focus:ring-red-500"
+                          : "border-white/10 focus:border-maroon-500 focus:ring-maroon-500"
+                      )}
+                      disabled={isProcessingPayment}
+                    />
+                    {billingErrors.email && (
+                      <p className="text-[10px] text-red-400 font-mono">{billingErrors.email}</p>
+                    )}
+                  </div>
+
+                  {/* State / UT */}
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-medium text-zinc-300 flex items-center gap-1">
+                      State / UT <span className="text-maroon-400">*</span>
+                    </label>
+                    <select
+                      value={billingState}
+                      onChange={(e) => {
+                        setBillingState(e.target.value);
+                        if (billingErrors.state) {
+                          setBillingErrors((prev) => ({ ...prev, state: "" }));
+                        }
+                      }}
+                      className={cn(
+                        "w-full bg-[#0c0c0c] border rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:ring-1 transition-all",
+                        billingErrors.state
+                          ? "border-red-500/70 focus:border-red-500 focus:ring-red-500"
+                          : "border-white/10 focus:border-maroon-500 focus:ring-maroon-500"
+                      )}
+                      disabled={isProcessingPayment}
+                    >
+                      {INDIAN_STATES.map((st) => (
+                        <option key={st} value={st} className="bg-[#111111] text-white">
+                          {st}
+                        </option>
+                      ))}
+                    </select>
+                    {billingErrors.state && (
+                      <p className="text-[10px] text-red-400 font-mono">{billingErrors.state}</p>
+                    )}
+                  </div>
                 </div>
 
                 {/* Business Billing / GST Toggle */}
-                <div className="pt-2 border-t border-white/5 space-y-3">
+                <div className="pt-1">
                   <label className="flex items-center gap-2 cursor-pointer select-none">
                     <input
                       type="checkbox"
                       checked={isBusinessBilling}
                       onChange={(e) => setIsBusinessBilling(e.target.checked)}
-                      className="w-4 h-4 rounded border-white/20 bg-[#0c0c0c] text-maroon-600 focus:ring-maroon-500 focus:ring-offset-0 focus:ring-1"
+                      className="w-3.5 h-3.5 rounded border-white/20 bg-[#0c0c0c] text-maroon-600 focus:ring-maroon-500 focus:ring-offset-0 focus:ring-1"
                       disabled={isProcessingPayment}
                     />
-                    <span className="text-xs font-medium text-zinc-300">
+                    <span className="text-[11px] font-medium text-zinc-400">
                       I have a GST number (Business Billing)
                     </span>
                   </label>
 
                   {isBusinessBilling && (
-                    <div className="p-3.5 bg-[#0c0c0c] rounded-2xl border border-white/10 space-y-3 animate-in fade-in duration-200">
+                    <div className="mt-2.5 p-3 bg-[#0c0c0c] rounded-2xl border border-white/10 grid grid-cols-1 sm:grid-cols-2 gap-3 animate-in fade-in duration-200">
                       <div className="space-y-1">
-                        <label className="text-[10px] font-mono font-semibold uppercase text-zinc-400 flex items-center gap-1">
+                        <label className="text-[10px] font-mono uppercase text-zinc-400 flex items-center gap-1">
                           <Receipt className="w-3 h-3 text-zinc-500" />
                           GSTIN (15 Digits) *
                         </label>
@@ -819,9 +820,9 @@ function CheckoutContent() {
                               setBillingErrors((prev) => ({ ...prev, gstin: "" }));
                             }
                           }}
-                          placeholder="e.g. 27AAAAA0000A1Z5"
+                          placeholder="27AAAAA0000A1Z5"
                           className={cn(
-                            "w-full bg-[#161616] border rounded-xl px-3 py-2 text-xs text-white uppercase font-mono placeholder:text-zinc-600 focus:outline-none focus:ring-1",
+                            "w-full bg-[#161616] border rounded-xl px-2.5 py-1.5 text-xs text-white uppercase font-mono placeholder:text-zinc-600 focus:outline-none focus:ring-1",
                             billingErrors.gstin
                               ? "border-red-500/70 focus:border-red-500"
                               : "border-white/10 focus:border-maroon-500"
@@ -834,9 +835,9 @@ function CheckoutContent() {
                       </div>
 
                       <div className="space-y-1">
-                        <label className="text-[10px] font-mono font-semibold uppercase text-zinc-400 flex items-center gap-1">
+                        <label className="text-[10px] font-mono uppercase text-zinc-400 flex items-center gap-1">
                           <Building2 className="w-3 h-3 text-zinc-500" />
-                          Registered Business Name *
+                          Business Name *
                         </label>
                         <input
                           type="text"
@@ -847,9 +848,9 @@ function CheckoutContent() {
                               setBillingErrors((prev) => ({ ...prev, businessName: "" }));
                             }
                           }}
-                          placeholder="e.g. Acme Retail Pvt Ltd"
+                          placeholder="Company Name Pvt Ltd"
                           className={cn(
-                            "w-full bg-[#161616] border rounded-xl px-3 py-2 text-xs text-white placeholder:text-zinc-600 focus:outline-none focus:ring-1",
+                            "w-full bg-[#161616] border rounded-xl px-2.5 py-1.5 text-xs text-white placeholder:text-zinc-600 focus:outline-none focus:ring-1",
                             billingErrors.businessName
                               ? "border-red-500/70 focus:border-red-500"
                               : "border-white/10 focus:border-maroon-500"
@@ -864,73 +865,49 @@ function CheckoutContent() {
                   )}
                 </div>
               </div>
-            </Card>
 
-            {/* 2. ORDER SUMMARY & COUPON CARD */}
-            <Card className="bg-[#151515] border-white/10 p-6 sm:p-7 rounded-3xl shadow-2xl space-y-6 relative">
-              {/* Card Header */}
-              <div className="flex items-center justify-between border-b border-white/10 pb-4">
-                <h3 className="text-base font-bold font-heading text-white uppercase tracking-wider">
-                  Order Summary
-                </h3>
-                <Badge variant="maroon" className="text-[10px] font-mono uppercase">
-                  Razorpay Verified
-                </Badge>
-              </div>
-
-              {/* Billing Cycle Switcher */}
-              <div className="space-y-2">
-                <label className="text-[11px] font-mono font-bold uppercase tracking-wider text-zinc-400">
-                  Billing Period
-                </label>
-                <div className="grid grid-cols-2 gap-2 bg-[#0c0c0c] p-1.5 rounded-2xl border border-white/10">
-                  <button
-                    type="button"
-                    onClick={() => setBillingInterval("monthly")}
-                    className={cn(
-                      "py-2 px-3 rounded-xl text-xs font-heading font-semibold transition-all text-center",
-                      !isAnnual
-                        ? "bg-maroon-800 text-white shadow-glow"
-                        : "text-zinc-400 hover:text-white"
-                    )}
-                  >
-                    Monthly
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setBillingInterval("annual")}
-                    className={cn(
-                      "py-2 px-3 rounded-xl text-xs font-heading font-semibold transition-all text-center relative",
-                      isAnnual
-                        ? "bg-maroon-800 text-white shadow-glow"
-                        : "text-zinc-400 hover:text-white"
-                    )}
-                  >
-                    Annual
-                    <span className="ml-1 text-[9px] bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded-full font-mono uppercase">
-                      Save ~17%
-                    </span>
-                  </button>
+              {/* 2. ORDER SUMMARY & PAYMENT BREAKDOWN SECTION */}
+              <div className="space-y-4 pt-3 border-t border-white/10">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-bold font-heading text-white uppercase tracking-wider">
+                    Order Summary
+                  </h4>
+                  {/* Compact Billing Period Toggle */}
+                  <div className="flex items-center bg-[#0c0c0c] p-1 rounded-xl border border-white/10">
+                    <button
+                      type="button"
+                      onClick={() => setBillingInterval("monthly")}
+                      className={cn(
+                        "py-1 px-2.5 rounded-lg text-xs font-heading font-semibold transition-all",
+                        !isAnnual
+                          ? "bg-maroon-800 text-white shadow-glow"
+                          : "text-zinc-400 hover:text-white"
+                      )}
+                    >
+                      Monthly
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setBillingInterval("annual")}
+                      className={cn(
+                        "py-1 px-2.5 rounded-lg text-xs font-heading font-semibold transition-all flex items-center gap-1",
+                        isAnnual
+                          ? "bg-maroon-800 text-white shadow-glow"
+                          : "text-zinc-400 hover:text-white"
+                      )}
+                    >
+                      <span>Annual</span>
+                      <span className="text-[8px] bg-emerald-500/20 text-emerald-400 px-1 py-0.5 rounded font-mono uppercase">
+                        -17%
+                      </span>
+                    </button>
+                  </div>
                 </div>
-              </div>
 
-              {/* Coupon Code Input */}
-              <div className="space-y-2.5 pt-2">
-                <label className="text-[11px] font-mono font-bold uppercase tracking-wider text-zinc-400 flex items-center justify-between">
-                  <span className="flex items-center gap-1.5">
-                    <Tag className="w-3.5 h-3.5 text-maroon-400" />
-                    Coupon / Promo Code
-                  </span>
-                  {appliedCoupon && (
-                    <span className="text-[10px] text-emerald-400 font-semibold font-mono">
-                      Applied
-                    </span>
-                  )}
-                </label>
-
-                {!appliedCoupon ? (
-                  <form onSubmit={handleApplyCoupon} className="flex gap-2">
-                    <div className="relative flex-1">
+                {/* Coupon Code Input */}
+                <div>
+                  {!appliedCoupon ? (
+                    <form onSubmit={handleApplyCoupon} className="flex gap-2">
                       <input
                         type="text"
                         value={couponInput}
@@ -939,150 +916,140 @@ function CheckoutContent() {
                           if (couponError) setCouponError(null);
                         }}
                         placeholder="Enter coupon code"
-                        className="w-full bg-[#0c0c0c] border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white uppercase font-mono placeholder:text-zinc-600 focus:outline-none focus:border-maroon-500 focus:ring-1 focus:ring-maroon-500"
+                        className="flex-1 bg-[#0c0c0c] border border-white/10 rounded-xl px-3 py-2 text-xs text-white uppercase font-mono placeholder:text-zinc-600 focus:outline-none focus:border-maroon-500 focus:ring-1 focus:ring-maroon-500"
                         disabled={isValidatingCoupon || isProcessingPayment}
                       />
-                    </div>
-                    <Button
-                      type="submit"
-                      variant="primary"
-                      size="sm"
-                      disabled={!couponInput.trim() || isValidatingCoupon || isProcessingPayment}
-                      className="px-4 text-xs font-bold uppercase tracking-wider h-10 shrink-0"
-                    >
-                      {isValidatingCoupon ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      ) : (
-                        "Apply"
-                      )}
-                    </Button>
-                  </form>
-                ) : (
-                  <div className="bg-emerald-950/30 border border-emerald-600/40 p-3 rounded-2xl flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                      <div>
+                      <Button
+                        type="submit"
+                        variant="primary"
+                        size="sm"
+                        disabled={!couponInput.trim() || isValidatingCoupon || isProcessingPayment}
+                        className="px-3.5 text-xs font-bold uppercase tracking-wider h-9 shrink-0"
+                      >
+                        {isValidatingCoupon ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          "Apply"
+                        )}
+                      </Button>
+                    </form>
+                  ) : (
+                    <div className="bg-emerald-950/30 border border-emerald-600/40 px-3 py-2 rounded-xl flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                         <span className="font-mono font-bold text-white tracking-wide">
                           {appliedCoupon.code}
                         </span>
-                        <span className="text-emerald-400 ml-2 text-[11px]">
+                        <span className="text-emerald-400 text-[11px]">
                           {appliedCoupon.discountType === "percentage"
                             ? `(${appliedCoupon.value}% OFF)`
                             : `(-₹${appliedCoupon.discountAmount})`}
                         </span>
                       </div>
+                      <button
+                        type="button"
+                        onClick={handleRemoveCoupon}
+                        className="text-zinc-400 hover:text-white p-1 rounded hover:bg-white/10 transition-colors"
+                        title="Remove Coupon"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={handleRemoveCoupon}
-                      className="text-zinc-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors"
-                      title="Remove Coupon"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                )}
-
-                {/* Error Banner */}
-                {couponError && (
-                  <div className="p-2.5 rounded-xl bg-red-950/40 border border-red-800/40 text-red-400 text-xs flex items-center gap-2">
-                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                    <span>{couponError}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Price Breakdown Line Items */}
-              <div className="space-y-3 pt-4 border-t border-white/10 text-xs font-body">
-                <div className="flex justify-between items-center text-zinc-400">
-                  <span>Plan</span>
-                  <span className="font-semibold text-white font-heading">
-                    {currentPlanConfig.name}
-                  </span>
-                </div>
-
-                <div className="flex justify-between items-center text-zinc-400">
-                  <span>Billing Period</span>
-                  <span className="font-semibold text-white capitalize">
-                    {isAnnual ? "Annual (Yearly)" : "Monthly"}
-                  </span>
-                </div>
-
-                <div className="flex justify-between items-center text-zinc-400">
-                  <span>Plan Price</span>
-                  <span className="font-mono font-medium text-white">
-                    ₹{basePrice.toLocaleString("en-IN")}
-                  </span>
-                </div>
-
-                {appliedCoupon && (
-                  <div className="flex justify-between items-center text-emerald-400 font-semibold">
-                    <span className="flex items-center gap-1.5">
-                      <Tag className="w-3 h-3" />
-                      Discount ({appliedCoupon.code})
-                    </span>
-                    <span className="font-mono">
-                      -₹{discountAmount.toLocaleString("en-IN")}
-                    </span>
-                  </div>
-                )}
-
-                <div className="flex justify-between items-center text-zinc-400 pt-1">
-                  <span>Subtotal</span>
-                  <span className="font-mono text-zinc-300">
-                    ₹{(basePrice - discountAmount).toLocaleString("en-IN")}
-                  </span>
-                </div>
-
-                {/* Final Total */}
-                <div className="border-t border-white/10 pt-4 flex justify-between items-baseline">
-                  <div>
-                    <div className="text-sm font-bold font-heading uppercase text-white tracking-wide">
-                      Total Payable
-                    </div>
-                    <div className="text-[10px] text-zinc-500 font-mono">
-                      (Inclusive of all applicable taxes)
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-2xl sm:text-3xl font-extrabold font-heading text-white">
-                      ₹{finalPayable.toLocaleString("en-IN")}
-                    </div>
-                    <div className="text-[10px] text-zinc-400 font-mono">
-                      Billed {isAnnual ? "annually" : "monthly"}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Primary CTA: Proceed to Payment */}
-              <div className="pt-2">
-                <Button
-                  onClick={handleProceedToPayment}
-                  variant="primary"
-                  disabled={isProcessingPayment || isValidatingCoupon}
-                  className="w-full h-12 text-xs sm:text-sm font-bold uppercase tracking-wider shadow-glow-lg rounded-2xl flex items-center justify-center gap-2"
-                >
-                  {isProcessingPayment ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Securing Order...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Lock className="w-4 h-4" />
-                      <span>Proceed to Payment • ₹{finalPayable.toLocaleString("en-IN")}</span>
-                      <ArrowRight className="w-4 h-4 ml-1" />
-                    </>
                   )}
-                </Button>
-              </div>
 
-              {/* Payment Methods Supported */}
-              <div className="text-[11px] text-zinc-500 text-center space-y-1 pt-2 font-mono">
-                <div>Supports UPI, Cards (Visa/Mastercard/RuPay), NetBanking &amp; Wallets</div>
-                <div className="text-zinc-600 text-[10px]">
-                  Recurring subscription managed securely via Razorpay
+                  {couponError && (
+                    <div className="mt-1.5 p-2 rounded-xl bg-red-950/40 border border-red-800/40 text-red-400 text-[11px] flex items-center gap-1.5">
+                      <AlertCircle className="w-3 h-3 shrink-0" />
+                      <span>{couponError}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Pricing Line Items */}
+                <div className="space-y-2 pt-2 border-t border-white/5 text-xs font-body">
+                  <div className="flex justify-between items-center text-zinc-400">
+                    <span>Plan</span>
+                    <span className="font-semibold text-white font-heading">
+                      {currentPlanConfig.name} ({isAnnual ? "Annual" : "Monthly"})
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between items-center text-zinc-400">
+                    <span>Plan Price</span>
+                    <span className="font-mono text-white">
+                      ₹{basePrice.toLocaleString("en-IN")}
+                    </span>
+                  </div>
+
+                  {appliedCoupon && (
+                    <div className="flex justify-between items-center text-emerald-400 font-semibold">
+                      <span className="flex items-center gap-1">
+                        <Tag className="w-3 h-3" />
+                        Coupon Discount
+                      </span>
+                      <span className="font-mono">
+                        -₹{discountAmount.toLocaleString("en-IN")}
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="flex justify-between items-center text-zinc-400">
+                    <span>Subtotal</span>
+                    <span className="font-mono text-zinc-300">
+                      ₹{(basePrice - discountAmount).toLocaleString("en-IN")}
+                    </span>
+                  </div>
+
+                  {/* Final Total Line */}
+                  <div className="border-t border-white/10 pt-3 flex justify-between items-baseline">
+                    <div>
+                      <div className="text-xs sm:text-sm font-bold font-heading uppercase text-white tracking-wide">
+                        Total Payable
+                      </div>
+                      <div className="text-[10px] text-zinc-500 font-mono">
+                        Inclusive of all applicable taxes
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-2xl sm:text-3xl font-extrabold font-heading text-white">
+                        ₹{finalPayable.toLocaleString("en-IN")}
+                      </div>
+                      <div className="text-[10px] text-zinc-400 font-mono">
+                        Billed {isAnnual ? "annually" : "monthly"}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Primary CTA: Proceed to Payment */}
+                <div className="pt-1">
+                  <Button
+                    onClick={handleProceedToPayment}
+                    variant="primary"
+                    disabled={isProcessingPayment || isValidatingCoupon}
+                    className="w-full h-12 text-xs sm:text-sm font-bold uppercase tracking-wider shadow-glow-lg rounded-2xl flex items-center justify-center gap-2"
+                  >
+                    {isProcessingPayment ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Securing Order...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Lock className="w-4 h-4" />
+                        <span>Proceed to Payment • ₹{finalPayable.toLocaleString("en-IN")}</span>
+                        <ArrowRight className="w-4 h-4 ml-1" />
+                      </>
+                    )}
+                  </Button>
+                </div>
+
+                {/* Supported Gateways Info */}
+                <div className="text-[10px] text-zinc-500 text-center space-y-0.5 font-mono pt-1">
+                  <div>Supports UPI, Cards (Visa/Mastercard/RuPay), NetBanking &amp; Wallets</div>
+                  <div className="text-zinc-600">
+                    Recurring subscription managed securely via Razorpay
+                  </div>
                 </div>
               </div>
             </Card>
