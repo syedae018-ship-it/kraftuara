@@ -47,6 +47,11 @@ export function getStorefrontUrl(storeSlug: string, isDemo?: boolean, demoTheme?
       return `${protocol}//${cleanSlug}.localhost${port}`;
     }
 
+    // On Vercel preview deployments, return path-based store route
+    if (hostname.endsWith(".vercel.app")) {
+      return `/store/${cleanSlug}`;
+    }
+
     // Default canonical merchant subdomain URL in production
     return `https://${cleanSlug}.${rootDomain}`;
   }

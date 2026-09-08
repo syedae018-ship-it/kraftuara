@@ -12,7 +12,6 @@ import { formatCurrency } from "@/lib/utils";
 import { getStoreBasePath, getStoreUrl } from "@/lib/urls";
 import { Metadata } from "next";
 import { headers } from "next/headers";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
 import BloomProductDetail from "@/components/storefront/templates/bloom/product/BloomProductDetail";
 import { Sparkles, ArrowLeft, Package, Check, ShieldCheck, Truck } from "lucide-react";
 
@@ -22,8 +21,7 @@ export async function generateMetadata({
   params: Promise<{ slug: string; productSlug: string }>;
 }): Promise<Metadata> {
   const { slug, productSlug } = await params;
-  const supabase = await createServerSupabaseClient();
-  const data = await storefrontRepository.getProductBySlug(slug, productSlug, supabase);
+  const data = await storefrontRepository.getProductBySlug(slug, productSlug);
   if (!data) return {};
 
   const { product, store } = data;
@@ -56,8 +54,7 @@ export default async function StoreProductPage({
   const isSubdomain = requestHeaders.get("x-is-subdomain") === "true";
   const storePrefix = getStoreBasePath(slug, isSubdomain);
 
-  const supabase = await createServerSupabaseClient();
-  const data = await storefrontRepository.getProductBySlug(slug, productSlug, supabase);
+  const data = await storefrontRepository.getProductBySlug(slug, productSlug);
   if (!data) return notFound();
 
   const { product, relatedProducts, store } = data;

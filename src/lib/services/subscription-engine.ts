@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/client";
 import { normalizePlanTier, PLANS, PlanTier, FeatureKey, hasFeatureAccess, getProductLimit } from "@/lib/feature-gating";
 
 export interface AuthoritativeSubscription {
-  storeId: string;
+  storeId: string | null;
   userId: string | null;
   plan: PlanTier;
   status: "active" | "trialing" | "expired" | "cancelled" | "pending" | "payment_pending" | "halted";
@@ -43,7 +43,7 @@ class SubscriptionEngine {
    * 5. Default: Canonical "startup" (Starter Pack) tier.
    */
   async getAuthoritativeSubscription(
-    storeId: string,
+    storeId?: string | null,
     userId?: string | null,
     client?: any
   ): Promise<AuthoritativeSubscription> {
@@ -248,7 +248,7 @@ class SubscriptionEngine {
 
 
     return {
-      storeId,
+      storeId: storeId || subRow?.store_id || null,
       userId: userId || subRow?.user_id || null,
       plan: canonicalPlan,
       status,

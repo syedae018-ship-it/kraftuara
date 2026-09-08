@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 export async function GET() {
   const content = `
-    const CACHE_NAME = 'kraftaura-v1.0.2';
+    const CACHE_NAME = 'kraftaura-v1.0.3';
     const STATIC_ASSETS = [
       '/manifest.webmanifest'
     ];
@@ -71,10 +71,19 @@ export async function GET() {
         return;
       }
 
-      // Network first for HTML navigation pages
+      // Network first for HTML navigation pages - do not fallback to landing for protected app routes
       if (event.request.mode === 'navigate') {
+        const isAppRoute = url.pathname.startsWith('/dashboard') ||
+          url.pathname.startsWith('/admin') ||
+          url.pathname.startsWith('/checkout') ||
+          url.pathname.startsWith('/create-store') ||
+          url.pathname.startsWith('/choose-plan');
+
         event.respondWith(
           fetch(event.request).catch(() => {
+            if (isAppRoute) {
+              return caches.match(event.request) as any;
+            }
             return caches.match(event.request).then((response) => {
               return response || caches.match('/');
             });

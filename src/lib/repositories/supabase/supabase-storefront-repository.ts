@@ -42,12 +42,33 @@ export class SupabaseStorefrontRepository implements IStorefrontRepository {
   getStoreBySlug = cache(async (slug: string, client?: any): Promise<StoreData | null> => {
     const isDemoSlug = ["demo", "demo-craft-classic", "craft-classic", "aroma-perfumes", "tech-haven", "creative-threads"].includes(slug);
 
-    const supabase = client || this.getSupabase();
-    const { data: storeRow, error: storeErr } = await supabase
+    let supabase = client || this.getSupabase();
+    let { data: storeRow, error: storeErr } = await supabase
       .from("stores")
-      .select("id, user_id, name, slug, status, plan, logo_url, banner_url, primary_color, secondary_color")
+      .select("id, user_id, name, slug, status, logo_url, banner_url, primary_color, secondary_color")
       .eq("slug", slug)
       .maybeSingle();
+
+    // Fallback to server admin client if client encountered an RLS boundary on a public store
+    if ((storeErr || !storeRow) && client && typeof window === "undefined") {
+      try {
+        const adminClient = this.getSupabase();
+        if (adminClient !== client) {
+          const adminRes = await adminClient
+            .from("stores")
+            .select("id, user_id, name, slug, status, logo_url, banner_url, primary_color, secondary_color")
+            .eq("slug", slug)
+            .maybeSingle();
+          if (adminRes.data) {
+            storeRow = adminRes.data;
+            storeErr = null;
+            supabase = adminClient;
+          }
+        }
+      } catch {
+        // ignore admin fallback error
+      }
+    }
 
     if (storeErr || !storeRow) {
       if (isDemoSlug) {
@@ -81,7 +102,7 @@ export class SupabaseStorefrontRepository implements IStorefrontRepository {
       supabaseCategoryRepository.getAll(s.id, supabase),
       supabaseCollectionRepository.getAll(s.id, supabase),
       supabaseProductRepository.getAll(s.id, undefined, 1, 1000, supabase),
-      this.resolveStorePlan(s.id, s.user_id, s.plan),
+      this.resolveStorePlan(s.id, s.user_id),
     ]);
 
     const metadata = settingsRes?.data?.metadata || {};
@@ -105,13 +126,12 @@ export class SupabaseStorefrontRepository implements IStorefrontRepository {
     };
   });
 
-  async getProductBySlug(storeSlug: string, productSlug: string, client?: any): Promise<{
+  getProductBySlug = cache(async (storeSlug: string, productSlug: string, client?: any): Promise<{
     product: Product;
     relatedProducts: Product[];
     store: StoreData;
-  } | null> {
-    const supabase = client || this.getSupabase();
-    const store = await this.getStoreBySlug(storeSlug, supabase);
+  } | null> => {
+    const store = await this.getStoreBySlug(storeSlug, client);
     if (!store) return null;
 
     const product = store.products.find((p) => p.slug === productSlug);
@@ -125,7 +145,7 @@ export class SupabaseStorefrontRepository implements IStorefrontRepository {
       relatedProducts,
       store,
     };
-  }
+  });
 }
 
 export const supabaseStorefrontRepository = new SupabaseStorefrontRepository();

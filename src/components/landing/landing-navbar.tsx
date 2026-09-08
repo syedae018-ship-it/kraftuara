@@ -60,7 +60,7 @@ export function LandingNavbar() {
 
         {/* Actions: "My Store" & "Start Free" */}
         <div className="hidden sm:flex items-center gap-3">
-          <Link href="/login">
+          <Link href="/my-store">
             <Button
               variant="outline"
               size="sm"
@@ -124,7 +124,7 @@ export function LandingNavbar() {
             FAQ
           </a>
           <div className="pt-2 border-t border-white/10 flex flex-col gap-2">
-            <Link href="/login" onClick={() => setMobileMenuOpen(false)}>
+            <Link href="/my-store" onClick={() => setMobileMenuOpen(false)}>
               <Button variant="outline" className="w-full justify-center">
                 My Store
               </Button>

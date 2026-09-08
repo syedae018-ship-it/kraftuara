@@ -10,7 +10,6 @@ const StoreRenderer = nextDynamic(
 );
 import { Metadata } from "next";
 import { headers } from "next/headers";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getStoreUrl } from "@/lib/urls";
 
 // Always render dynamically so dashboard changes appear immediately on the storefront.
@@ -24,8 +23,7 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const supabase = await createServerSupabaseClient();
-  const store = await storefrontRepository.getStoreBySlug(slug, supabase);
+  const store = await storefrontRepository.getStoreBySlug(slug);
   if (!store) return {};
 
   const canonicalUrl = getStoreUrl(slug);
@@ -57,8 +55,7 @@ export default async function StoreHomepage({
   const requestHeaders = await headers();
   const isSubdomain = requestHeaders.get("x-is-subdomain") === "true";
 
-  const supabase = await createServerSupabaseClient();
-  const store = await storefrontRepository.getStoreBySlug(slug, supabase);
+  const store = await storefrontRepository.getStoreBySlug(slug);
   if (!store) return notFound();
 
   const themeId = store.appearance.themeId || "bloom";
