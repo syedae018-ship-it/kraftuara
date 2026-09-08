@@ -384,7 +384,7 @@ function CheckoutContent() {
         if (verRes.success) {
           selectPlan(currentPlanConfig.id, "active");
           toast.success("Subscription Active", `Your ${currentPlanConfig.name} is now active.`);
-          router.push(effectiveStoreId ? "/dashboard/billing" : "/choose-template");
+          router.push(effectiveStoreId ? "/dashboard/billing" : "/create-store");
         } else {
           toast.error("Activation Failed", verRes.error || "Failed to activate subscription.");
         }
@@ -450,7 +450,7 @@ function CheckoutContent() {
               );
 
               // Route directly to Store Setup for new merchants, or billing for existing merchants
-              router.push(effectiveStoreId ? "/dashboard/billing" : "/choose-template");
+              router.push(effectiveStoreId ? "/dashboard/billing" : "/create-store");
             } else {
               toast.error("Signature Verification Failed", verRes.error || "Cryptographic verification mismatch.");
               setIsProcessingPayment(false);
