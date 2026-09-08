@@ -126,7 +126,7 @@ export function DummyAuthProvider({ children }: { children: React.ReactNode }) {
           name: u.user_metadata?.full_name || u.user_metadata?.name || u.email?.split("@")[0] || "User",
           email: u.email || "",
           avatar: u.user_metadata?.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(u.email || "")}`,
-          plan: "startup",
+          plan: "",
           storeId: "",
           storeName: "",
           storeSlug: "",
@@ -179,17 +179,24 @@ export function DummyAuthProvider({ children }: { children: React.ReactNode }) {
             setIsLoading(false);
             return { user: profile, stores: mappedStores, activeStore: currentStore };
           } else {
-            // Check if user has an active unlinked subscription or recent payment
+            // Check if user has an active unlinked subscription or recent verified payment
             try {
               const { subscriptionEngine } = await import("@/lib/services/subscription-engine");
               const userSub = await subscriptionEngine.getAuthoritativeSubscription("", u.id, supabase);
-              profile.plan = userSub.plan || "startup";
-              if (userSub.status === "active" || userSub.status === "trialing") {
+              const hasVerifiedProof = Boolean(
+                userSub.razorpaySubscriptionId ||
+                userSub.currentPeriodEnd ||
+                (userSub.status === "active" && userSub.amount > 0)
+              );
+              if (hasVerifiedProof && (userSub.status === "active" || userSub.status === "trialing")) {
+                profile.plan = userSub.plan;
                 profile.onboardingComplete = false;
+              } else {
+                profile.plan = "";
               }
             } catch (subErr) {
               console.warn("User sub check in getSession error:", subErr);
-              profile.plan = "startup";
+              profile.plan = "";
             }
             setStores([]);
             setActiveStore(null as any);
@@ -289,9 +296,12 @@ export function DummyAuthProvider({ children }: { children: React.ReactNode }) {
 
     const isAdmin = user && isAdminUser(user.email);
     if (user && stores.length === 0 && !isAdmin) {
-      if (pathname && pathname.startsWith("/dashboard")) {
-        if (user.plan && user.plan !== "startup") {
-          router.push("/create-store");
+      const isPaid = Boolean(user.plan && user.plan.trim() !== "");
+      if (pathname && (pathname.startsWith("/dashboard") || pathname.startsWith("/create-store") || pathname.startsWith("/choose-template"))) {
+        if (isPaid) {
+          if (pathname.startsWith("/dashboard")) {
+            router.push("/create-store");
+          }
         } else {
           router.push("/choose-plan");
         }
@@ -370,7 +380,7 @@ export function DummyAuthProvider({ children }: { children: React.ReactNode }) {
 
       const sessionData = await getSession();
       const isAdmin = isAdminUser(email);
-      const isPaid = sessionData?.user?.plan && sessionData.user.plan !== "startup";
+      const isPaid = Boolean(sessionData?.user?.plan && sessionData.user.plan.trim() !== "");
 
       return {
         role: (isAdmin ? "admin" : "merchant") as "admin" | "merchant",

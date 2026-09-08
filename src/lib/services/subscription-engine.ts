@@ -172,8 +172,10 @@ class SubscriptionEngine {
 
     // Default base structure
     let canonicalPlan: PlanTier = "startup";
-    let status: AuthoritativeSubscription["status"] = "active";
-    let amount = PLANS.startup.priceMonthly;
+    // For an existing store without a subRow, maintain active status for legacy store compatibility.
+    // For a user with no store and no subscription row, they have NOT paid yet: status must be payment_pending!
+    let status: AuthoritativeSubscription["status"] = storeId ? "active" : "payment_pending";
+    let amount = storeId ? PLANS.startup.priceMonthly : 0;
     let currency = "INR";
     let currentPeriodStart: string | null = null;
     let currentPeriodEnd: string | null = null;

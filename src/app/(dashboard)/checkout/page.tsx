@@ -16,6 +16,13 @@ import {
   Package,
   FolderTree,
   Zap,
+  User,
+  Mail,
+  Phone,
+  MapPin,
+  Building2,
+  Receipt,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/table";
@@ -36,6 +43,45 @@ import {
   createStoreSubscriptionAction,
   verifySubscriptionPaymentAction,
 } from "@/lib/actions/payment";
+
+const INDIAN_STATES = [
+  "Andaman and Nicobar Islands",
+  "Andhra Pradesh",
+  "Arunachal Pradesh",
+  "Assam",
+  "Bihar",
+  "Chandigarh",
+  "Chhattisgarh",
+  "Dadra and Nagar Haveli and Daman and Diu",
+  "Delhi",
+  "Goa",
+  "Gujarat",
+  "Haryana",
+  "Himachal Pradesh",
+  "Jammu and Kashmir",
+  "Jharkhand",
+  "Karnataka",
+  "Kerala",
+  "Ladakh",
+  "Lakshadweep",
+  "Madhya Pradesh",
+  "Maharashtra",
+  "Manipur",
+  "Meghalaya",
+  "Mizoram",
+  "Nagaland",
+  "Odisha",
+  "Puducherry",
+  "Punjab",
+  "Rajasthan",
+  "Sikkim",
+  "Tamil Nadu",
+  "Telangana",
+  "Tripura",
+  "Uttar Pradesh",
+  "Uttarakhand",
+  "West Bengal",
+];
 
 interface AppliedCoupon {
   code: string;
@@ -62,6 +108,16 @@ function CheckoutContent() {
   const [plans, setPlans] = useState<PlanConfig[]>([]);
   const [isLoadingPlans, setIsLoadingPlans] = useState(true);
 
+  // Billing Form State
+  const [billingName, setBillingName] = useState("");
+  const [billingEmail, setBillingEmail] = useState("");
+  const [billingPhone, setBillingPhone] = useState("");
+  const [billingState, setBillingState] = useState("Maharashtra");
+  const [isBusinessBilling, setIsBusinessBilling] = useState(false);
+  const [gstin, setGstin] = useState("");
+  const [businessName, setBusinessName] = useState("");
+  const [billingErrors, setBillingErrors] = useState<Record<string, string>>({});
+
   // Coupon state
   const [couponInput, setCouponInput] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
@@ -70,6 +126,20 @@ function CheckoutContent() {
 
   // Payment state
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+
+  // Prefill billing information from authenticated user profile and saved drafts
+  useEffect(() => {
+    if (user) {
+      if (!billingName && user.name) setBillingName(user.name);
+      if (!billingEmail && user.email) setBillingEmail(user.email);
+    }
+    if (typeof window !== "undefined") {
+      const savedPendingBiz = localStorage.getItem("symar_pending_store_name");
+      if (savedPendingBiz && !businessName) {
+        setBusinessName(savedPendingBiz);
+      }
+    }
+  }, [user]);
 
   // Dynamically load Razorpay SDK
   useEffect(() => {
@@ -105,32 +175,36 @@ function CheckoutContent() {
     };
   }, []);
 
-  // Sync state if query params change
+  // Synchronize target plan with URL parameter changes
   useEffect(() => {
     if (rawPlan) {
       setTargetTier(normalizePlanTier(rawPlan));
     }
   }, [rawPlan]);
 
-  // Resolve active plan configuration
-  const activePlanList = plans.length > 0 ? plans : Object.values(PLANS);
+  // Synchronize interval with URL parameter changes
+  useEffect(() => {
+    if (rawInterval === "annual" || rawInterval === "monthly") {
+      setBillingInterval(rawInterval);
+    }
+  }, [rawInterval]);
+
+  // Resolve active plan config
   const currentPlanConfig: PlanConfig =
-    activePlanList.find((p) => p.id === targetTier) ||
-    PLANS[targetTier] ||
-    PLANS.growth;
+    plans.find((p) => p.id === targetTier) || PLANS[targetTier] || PLANS.growth;
 
   const isAnnual = billingInterval === "annual";
   const basePrice = isAnnual ? currentPlanConfig.priceAnnual : currentPlanConfig.priceMonthly;
 
-  // Revalidate coupon when billing interval or plan changes
+  // Authoritative revalidation when interval changes
   useEffect(() => {
     if (!appliedCoupon) return;
-    const currentCode = appliedCoupon.code;
 
     let isMounted = true;
+    const currentCode = appliedCoupon.code;
+
     async function revalidate() {
       setIsValidatingCoupon(true);
-      setCouponError(null);
       try {
         const res = await validateSaaSPromoCodeAction(
           currentCode,
@@ -228,9 +302,46 @@ function CheckoutContent() {
     ? `/dashboard/billing`
     : `/choose-plan`;
 
-  // Proceed to Payment CTA handler -> LAUNCH RAZORPAY
+  // Proceed to Payment CTA handler -> Validate form, then LAUNCH RAZORPAY
   const handleProceedToPayment = async () => {
     if (isProcessingPayment) return;
+
+    // Validate billing details
+    const errors: Record<string, string> = {};
+    if (!billingName.trim()) {
+      errors.name = "Full name is required";
+    }
+    if (!billingEmail.trim()) {
+      errors.email = "Email address is required";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(billingEmail.trim())) {
+      errors.email = "Please enter a valid email address";
+    }
+    const cleanPhone = billingPhone.replace(/\D/g, "");
+    if (!cleanPhone) {
+      errors.phone = "Phone number is required";
+    } else if (cleanPhone.length < 10) {
+      errors.phone = "Please enter a valid 10-digit mobile number";
+    }
+    if (!billingState.trim()) {
+      errors.state = "Please select your state";
+    }
+    if (isBusinessBilling) {
+      if (!gstin.trim()) {
+        errors.gstin = "GSTIN is required for business billing";
+      } else if (gstin.trim().length !== 15) {
+        errors.gstin = "GSTIN must be exactly 15 characters";
+      }
+      if (!businessName.trim()) {
+        errors.businessName = "Business name is required";
+      }
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setBillingErrors(errors);
+      toast.error("Billing Information Required", "Please fill in all required billing details before payment.");
+      return;
+    }
+    setBillingErrors({});
     setIsProcessingPayment(true);
 
     try {
@@ -239,7 +350,16 @@ function CheckoutContent() {
         effectiveStoreId,
         currentPlanConfig.id,
         billingInterval,
-        appliedCoupon?.code || null
+        appliedCoupon?.code || null,
+        {
+          name: billingName.trim(),
+          email: billingEmail.trim(),
+          phone: cleanPhone,
+          state: billingState.trim(),
+          isBusinessBilling,
+          gstin: isBusinessBilling ? gstin.trim().toUpperCase() : undefined,
+          businessName: isBusinessBilling ? businessName.trim() : undefined,
+        }
       );
 
       if (!res.success) {
@@ -329,6 +449,7 @@ function CheckoutContent() {
                 }`
               );
 
+              // Route directly to Store Setup for new merchants, or billing for existing merchants
               router.push(effectiveStoreId ? "/dashboard/billing" : "/choose-template");
             } else {
               toast.error("Signature Verification Failed", verRes.error || "Cryptographic verification mismatch.");
@@ -340,8 +461,9 @@ function CheckoutContent() {
           }
         },
         prefill: {
-          email: user?.email || "",
-          name: user?.name || "",
+          email: billingEmail.trim(),
+          name: billingName.trim(),
+          contact: cleanPhone,
         },
         theme: {
           color: "#800020",
@@ -361,7 +483,7 @@ function CheckoutContent() {
   };
 
   return (
-    <div className="min-h-screen bg-[#080808] text-white selection:bg-maroon-800 selection:text-white font-body py-10 px-4 sm:px-6 lg:px-8 relative overflow-hidden flex flex-col justify-between">
+    <div className="min-h-screen bg-[#080808] text-white selection:bg-maroon-800 selection:text-white font-body py-8 sm:py-10 px-4 sm:px-6 lg:px-8 relative overflow-hidden flex flex-col justify-between">
       {/* Ambient background glow */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-maroon-900/15 blur-[160px] pointer-events-none rounded-full" />
       <div className="absolute bottom-0 right-10 w-[500px] h-[500px] bg-maroon-950/20 blur-[180px] pointer-events-none rounded-full" />
@@ -381,7 +503,7 @@ function CheckoutContent() {
               Complete Your Purchase
             </h1>
             <p className="text-xs text-zinc-400 font-body">
-              Review your selected plan, apply promo codes, and activate your store catalog.
+              Review your plan, verify billing details, apply coupons, and activate your store catalog.
             </p>
           </div>
 
@@ -397,7 +519,7 @@ function CheckoutContent() {
           </Link>
         </div>
 
-        {/* 2-Column Checkout Layout */}
+        {/* 2-Column Responsive Checkout Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           {/* ============================================================ */}
           {/* LEFT COLUMN: YOUR PLAN & INCLUDED BENEFITS (7 cols)           */}
@@ -522,14 +644,234 @@ function CheckoutContent() {
           </div>
 
           {/* ============================================================ */}
-          {/* RIGHT COLUMN: PAYMENT SUMMARY & COUPON (5 cols)              */}
+          {/* RIGHT COLUMN: BILLING INFO + PAYMENT BREAKDOWN (5 cols)      */}
           {/* ============================================================ */}
           <div className="lg:col-span-5 space-y-6">
+            {/* 1. BILLING INFORMATION CARD */}
+            <Card className="bg-[#151515] border-white/10 p-6 sm:p-7 rounded-3xl shadow-2xl space-y-5 relative">
+              <div className="flex items-center justify-between border-b border-white/10 pb-4">
+                <div className="flex items-center gap-2">
+                  <User className="w-4 h-4 text-maroon-400" />
+                  <h3 className="text-base font-bold font-heading text-white uppercase tracking-wider">
+                    Billing Details
+                  </h3>
+                </div>
+                <span className="text-[10px] text-zinc-500 font-mono">Step 1 of 2</span>
+              </div>
+
+              <div className="space-y-4 text-xs font-body">
+                {/* Full Name */}
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-mono font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
+                    <User className="w-3.5 h-3.5 text-zinc-500" />
+                    Full Name <span className="text-maroon-400">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={billingName}
+                    onChange={(e) => {
+                      setBillingName(e.target.value);
+                      if (billingErrors.name) {
+                        setBillingErrors((prev) => ({ ...prev, name: "" }));
+                      }
+                    }}
+                    placeholder="Enter your full name"
+                    className={cn(
+                      "w-full bg-[#0c0c0c] border rounded-xl px-3.5 py-2.5 text-xs text-white placeholder:text-zinc-600 focus:outline-none focus:ring-1 transition-all",
+                      billingErrors.name
+                        ? "border-red-500/70 focus:border-red-500 focus:ring-red-500"
+                        : "border-white/10 focus:border-maroon-500 focus:ring-maroon-500"
+                    )}
+                    disabled={isProcessingPayment}
+                  />
+                  {billingErrors.name && (
+                    <p className="text-[11px] text-red-400 font-mono">{billingErrors.name}</p>
+                  )}
+                </div>
+
+                {/* Email Address */}
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-mono font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
+                    <Mail className="w-3.5 h-3.5 text-zinc-500" />
+                    Email Address <span className="text-maroon-400">*</span>
+                  </label>
+                  <input
+                    type="email"
+                    value={billingEmail}
+                    onChange={(e) => {
+                      setBillingEmail(e.target.value);
+                      if (billingErrors.email) {
+                        setBillingErrors((prev) => ({ ...prev, email: "" }));
+                      }
+                    }}
+                    placeholder="merchant@example.com"
+                    className={cn(
+                      "w-full bg-[#0c0c0c] border rounded-xl px-3.5 py-2.5 text-xs text-white placeholder:text-zinc-600 focus:outline-none focus:ring-1 transition-all",
+                      billingErrors.email
+                        ? "border-red-500/70 focus:border-red-500 focus:ring-red-500"
+                        : "border-white/10 focus:border-maroon-500 focus:ring-maroon-500"
+                    )}
+                    disabled={isProcessingPayment}
+                  />
+                  {billingErrors.email && (
+                    <p className="text-[11px] text-red-400 font-mono">{billingErrors.email}</p>
+                  )}
+                </div>
+
+                {/* Phone Number */}
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-mono font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
+                    <Phone className="w-3.5 h-3.5 text-zinc-500" />
+                    Phone Number <span className="text-maroon-400">*</span>
+                  </label>
+                  <div className="flex gap-2">
+                    <div className="bg-[#0c0c0c] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-zinc-400 font-mono font-semibold shrink-0 flex items-center">
+                      +91
+                    </div>
+                    <input
+                      type="tel"
+                      value={billingPhone}
+                      maxLength={10}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, "").slice(0, 10);
+                        setBillingPhone(val);
+                        if (billingErrors.phone) {
+                          setBillingErrors((prev) => ({ ...prev, phone: "" }));
+                        }
+                      }}
+                      placeholder="9876543210"
+                      className={cn(
+                        "w-full bg-[#0c0c0c] border rounded-xl px-3.5 py-2.5 text-xs text-white font-mono placeholder:text-zinc-600 focus:outline-none focus:ring-1 transition-all",
+                        billingErrors.phone
+                          ? "border-red-500/70 focus:border-red-500 focus:ring-red-500"
+                          : "border-white/10 focus:border-maroon-500 focus:ring-maroon-500"
+                      )}
+                      disabled={isProcessingPayment}
+                    />
+                  </div>
+                  {billingErrors.phone && (
+                    <p className="text-[11px] text-red-400 font-mono">{billingErrors.phone}</p>
+                  )}
+                </div>
+
+                {/* State Dropdown */}
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-mono font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
+                    <MapPin className="w-3.5 h-3.5 text-zinc-500" />
+                    State / UT <span className="text-maroon-400">*</span>
+                  </label>
+                  <select
+                    value={billingState}
+                    onChange={(e) => {
+                      setBillingState(e.target.value);
+                      if (billingErrors.state) {
+                        setBillingErrors((prev) => ({ ...prev, state: "" }));
+                      }
+                    }}
+                    className={cn(
+                      "w-full bg-[#0c0c0c] border rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:ring-1 transition-all",
+                      billingErrors.state
+                        ? "border-red-500/70 focus:border-red-500 focus:ring-red-500"
+                        : "border-white/10 focus:border-maroon-500 focus:ring-maroon-500"
+                    )}
+                    disabled={isProcessingPayment}
+                  >
+                    {INDIAN_STATES.map((st) => (
+                      <option key={st} value={st} className="bg-[#111111] text-white">
+                        {st}
+                      </option>
+                    ))}
+                  </select>
+                  {billingErrors.state && (
+                    <p className="text-[11px] text-red-400 font-mono">{billingErrors.state}</p>
+                  )}
+                </div>
+
+                {/* Business Billing / GST Toggle */}
+                <div className="pt-2 border-t border-white/5 space-y-3">
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={isBusinessBilling}
+                      onChange={(e) => setIsBusinessBilling(e.target.checked)}
+                      className="w-4 h-4 rounded border-white/20 bg-[#0c0c0c] text-maroon-600 focus:ring-maroon-500 focus:ring-offset-0 focus:ring-1"
+                      disabled={isProcessingPayment}
+                    />
+                    <span className="text-xs font-medium text-zinc-300">
+                      I have a GST number (Business Billing)
+                    </span>
+                  </label>
+
+                  {isBusinessBilling && (
+                    <div className="p-3.5 bg-[#0c0c0c] rounded-2xl border border-white/10 space-y-3 animate-in fade-in duration-200">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-mono font-semibold uppercase text-zinc-400 flex items-center gap-1">
+                          <Receipt className="w-3 h-3 text-zinc-500" />
+                          GSTIN (15 Digits) *
+                        </label>
+                        <input
+                          type="text"
+                          maxLength={15}
+                          value={gstin}
+                          onChange={(e) => {
+                            setGstin(e.target.value.toUpperCase());
+                            if (billingErrors.gstin) {
+                              setBillingErrors((prev) => ({ ...prev, gstin: "" }));
+                            }
+                          }}
+                          placeholder="e.g. 27AAAAA0000A1Z5"
+                          className={cn(
+                            "w-full bg-[#161616] border rounded-xl px-3 py-2 text-xs text-white uppercase font-mono placeholder:text-zinc-600 focus:outline-none focus:ring-1",
+                            billingErrors.gstin
+                              ? "border-red-500/70 focus:border-red-500"
+                              : "border-white/10 focus:border-maroon-500"
+                          )}
+                          disabled={isProcessingPayment}
+                        />
+                        {billingErrors.gstin && (
+                          <p className="text-[10px] text-red-400 font-mono">{billingErrors.gstin}</p>
+                        )}
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-mono font-semibold uppercase text-zinc-400 flex items-center gap-1">
+                          <Building2 className="w-3 h-3 text-zinc-500" />
+                          Registered Business Name *
+                        </label>
+                        <input
+                          type="text"
+                          value={businessName}
+                          onChange={(e) => {
+                            setBusinessName(e.target.value);
+                            if (billingErrors.businessName) {
+                              setBillingErrors((prev) => ({ ...prev, businessName: "" }));
+                            }
+                          }}
+                          placeholder="e.g. Acme Retail Pvt Ltd"
+                          className={cn(
+                            "w-full bg-[#161616] border rounded-xl px-3 py-2 text-xs text-white placeholder:text-zinc-600 focus:outline-none focus:ring-1",
+                            billingErrors.businessName
+                              ? "border-red-500/70 focus:border-red-500"
+                              : "border-white/10 focus:border-maroon-500"
+                          )}
+                          disabled={isProcessingPayment}
+                        />
+                        {billingErrors.businessName && (
+                          <p className="text-[10px] text-red-400 font-mono">{billingErrors.businessName}</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </Card>
+
+            {/* 2. ORDER SUMMARY & COUPON CARD */}
             <Card className="bg-[#151515] border-white/10 p-6 sm:p-7 rounded-3xl shadow-2xl space-y-6 relative">
               {/* Card Header */}
               <div className="flex items-center justify-between border-b border-white/10 pb-4">
                 <h3 className="text-base font-bold font-heading text-white uppercase tracking-wider">
-                  Payment Summary
+                  Order Summary
                 </h3>
                 <Badge variant="maroon" className="text-[10px] font-mono uppercase">
                   Razorpay Verified

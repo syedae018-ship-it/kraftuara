@@ -39,7 +39,16 @@ export async function createStoreSubscriptionAction(
   storeId: string | null | undefined,
   planName: PlanTier,
   interval: BillingInterval = "monthly",
-  couponCode?: string | null
+  couponCode?: string | null,
+  billingDetails?: {
+    name?: string;
+    email?: string;
+    phone?: string;
+    state?: string;
+    isBusinessBilling?: boolean;
+    gstin?: string;
+    businessName?: string;
+  }
 ): Promise<ActionResponse<{ subscriptionId: string; keyId: string; isSimulated: boolean; finalAmount?: number }>> {
   try {
     const supabase = await createServerSupabaseClient();
@@ -170,6 +179,12 @@ export async function createStoreSubscriptionAction(
         discountAmount: discountAmount || 0,
         originalPrice: basePrice,
         finalAmount: finalPayableAmount,
+        billingName: billingDetails?.name || user.user_metadata?.full_name || "",
+        billingEmail: billingDetails?.email || user.email || "",
+        billingPhone: billingDetails?.phone || "",
+        billingState: billingDetails?.state || "",
+        billingGstin: billingDetails?.gstin || "",
+        billingBusinessName: billingDetails?.businessName || "",
       },
     };
 
@@ -643,7 +658,7 @@ export async function activatePlatformSubscriptionAction(
 export async function checkUserActiveSubscriptionAction(): Promise<
   ActionResponse<{
     hasActiveSubscription: boolean;
-    plan: PlanTier;
+    plan: PlanTier | null;
     status: string;
     amount: number;
     nextBillingDate: string | null;
@@ -689,13 +704,23 @@ export async function checkUserActiveSubscriptionAction(): Promise<
       supabase
     );
 
-    const isActive = sub.status === "active" || sub.status === "trialing";
+    // A user has an active subscription ONLY if their status is active/trialing
+    // AND they actually have verified proof: an existing store, razorpay subscription id,
+    // future currentPeriodEnd, or a verified payment record.
+    const hasVerifiedProof = Boolean(
+      hasStores ||
+      sub.razorpaySubscriptionId ||
+      (sub.currentPeriodEnd && new Date(sub.currentPeriodEnd).getTime() > Date.now()) ||
+      profile?.onboarding_status === "payment_successful"
+    );
+
+    const isActive = (sub.status === "active" || sub.status === "trialing") && hasVerifiedProof;
 
     return successResponse({
       hasActiveSubscription: isActive,
-      plan: sub.plan,
-      status: sub.status,
-      amount: sub.amount,
+      plan: isActive ? sub.plan : null,
+      status: isActive ? sub.status : "payment_pending",
+      amount: isActive ? sub.amount : 0,
       nextBillingDate: sub.nextBillingDate,
       hasStores,
       storeName: primaryStore?.name,
