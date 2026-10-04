@@ -25,9 +25,15 @@ export default function AdminCouponsPage() {
     setCoupons([created, ...coupons]);
   };
 
+  const handleCouponUpdated = (updated: Coupon) => {
+    setCoupons(coupons.map((c) => (c.id === updated.id ? updated : c)));
+  };
+
   const handleCouponDeleted = (id: string) => {
     setCoupons(coupons.filter((c) => c.id !== id));
   };
+
+  const activeCount = coupons.filter((c) => c.status === "active").length;
 
   return (
     <AdminLayout>
@@ -36,7 +42,7 @@ export default function AdminCouponsPage() {
         description="Issue promotional discount codes, flat discounts, and usage limits for subscription plans."
         badge={
           <Badge variant="maroon" className="gap-1 font-mono text-[11px]">
-            <Ticket className="w-3 h-3 text-maroon-300" /> {coupons.length} Active Codes
+            <Ticket className="w-3 h-3 text-maroon-300" /> {activeCount} Active Codes
           </Badge>
         }
       />
@@ -45,6 +51,7 @@ export default function AdminCouponsPage() {
         <CouponCard
           coupons={coupons}
           onCreateCoupon={handleCreateCoupon}
+          onCouponUpdated={handleCouponUpdated}
           onCouponDeleted={handleCouponDeleted}
         />
       </div>

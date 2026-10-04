@@ -45,7 +45,7 @@ export class SupabaseStorefrontRepository implements IStorefrontRepository {
     let supabase = client || this.getSupabase();
     let { data: storeRow, error: storeErr } = await supabase
       .from("stores")
-      .select("id, user_id, name, slug, status, logo_url, banner_url, primary_color, secondary_color")
+      .select("id, user_id, name, slug, status, logo_url, banner_url, primary_color, secondary_color, email, whatsapp, business_address, description, instagram, facebook")
       .eq("slug", slug)
       .maybeSingle();
 
@@ -56,7 +56,7 @@ export class SupabaseStorefrontRepository implements IStorefrontRepository {
         if (adminClient !== client) {
           const adminRes = await adminClient
             .from("stores")
-            .select("id, user_id, name, slug, status, logo_url, banner_url, primary_color, secondary_color")
+            .select("id, user_id, name, slug, status, logo_url, banner_url, primary_color, secondary_color, email, whatsapp, business_address, description, instagram, facebook")
             .eq("slug", slug)
             .maybeSingle();
           if (adminRes.data) {
@@ -123,6 +123,14 @@ export class SupabaseStorefrontRepository implements IStorefrontRepository {
       collections,
       products: productsRes.products || [],
       shipping: resolvedShipping,
+      contact: {
+        email: appearance.branding?.email || s.email || null,
+        phone: appearance.branding?.phone || null,
+        whatsapp: appearance.branding?.whatsapp || s.whatsapp || null,
+        address: appearance.branding?.address || s.business_address || null,
+        instagram: appearance.branding?.instagram || s.instagram || null,
+        facebook: appearance.branding?.facebook || s.facebook || null,
+      },
     };
   });
 

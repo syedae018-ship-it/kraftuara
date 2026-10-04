@@ -22,6 +22,9 @@ export interface IAdminRepository {
   createPlan(input: Omit<Plan, "id">): Promise<Plan>;
   getCoupons(): Promise<Coupon[]>;
   createCoupon(input: Omit<Coupon, "id" | "usageCount">): Promise<Coupon>;
+  updateCoupon(id: string, updates: Partial<Omit<Coupon, "id" | "usageCount" | "code">>): Promise<Coupon>;
+  toggleCouponStatus(id: string): Promise<Coupon>;
+  deleteCoupon(id: string): Promise<void>;
   getSupportTickets(): Promise<SupportTicket[]>;
   updateTicketStatus(ticketId: string, status: SupportTicket["status"]): Promise<void>;
   getPayments(): Promise<AdminPayment[]>;

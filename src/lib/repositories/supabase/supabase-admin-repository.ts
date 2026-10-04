@@ -19,6 +19,9 @@ import {
   getAdminCatalogOrdersAction,
   getPlatformPromoCodesAction,
   createPlatformPromoCodeAction,
+  updatePlatformPromoCodeAction,
+  togglePlatformPromoCodeStatusAction,
+  deletePlatformPromoCodeAction,
   getThemeTemplatesAction,
   createThemeTemplateAction,
 } from "@/lib/actions/admin";
@@ -157,6 +160,32 @@ export class SupabaseAdminRepository implements IAdminRepository {
       throw new Error(res.error || "Failed to create coupon");
     }
     return res.data;
+  }
+
+  async updateCoupon(
+    id: string,
+    updates: Partial<Omit<Coupon, "id" | "usageCount" | "code">>
+  ): Promise<Coupon> {
+    const res = await updatePlatformPromoCodeAction(id, updates);
+    if (!res.success) {
+      throw new Error(res.error || "Failed to update coupon");
+    }
+    return res.data;
+  }
+
+  async toggleCouponStatus(id: string): Promise<Coupon> {
+    const res = await togglePlatformPromoCodeStatusAction(id);
+    if (!res.success) {
+      throw new Error(res.error || "Failed to toggle coupon status");
+    }
+    return res.data;
+  }
+
+  async deleteCoupon(id: string): Promise<void> {
+    const res = await deletePlatformPromoCodeAction(id);
+    if (!res.success) {
+      throw new Error(res.error || "Failed to delete coupon");
+    }
   }
 
 

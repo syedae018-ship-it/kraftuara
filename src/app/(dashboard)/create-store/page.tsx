@@ -106,7 +106,7 @@ export default function CreateStoreWizard() {
   // Contact & Social (no dummy defaults — must be filled in by merchant)
   const [phone, setPhone] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
-  const [supportEmail, setSupportEmail] = useState(user?.email || "");
+  const [supportEmail, setSupportEmail] = useState("");
   const [address, setAddress] = useState("");
   const [instagram, setInstagram] = useState("");
   const [facebook, setFacebook] = useState("");

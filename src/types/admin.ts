@@ -76,12 +76,16 @@ export type Coupon = {
   code: string;
   discountType: "percentage" | "flat";
   value: number;
-  expiryDate: string;
+  expiryDate?: string | null;
   usageLimit: number;
   usageCount: number;
-  status: "active" | "expired" | "disabled";
-  applicablePlans?: string[];
+  status: "active" | "inactive" | "expired" | "disabled";
+  applicablePlanId?: string; // "all" or specific plan id (e.g. "growth", "startup", "pro")
+  applicablePlanName?: string; // e.g. "Aura Pack", "Startup Pack", "All Plans"
+  applicablePlans?: string[]; // for backward compatibility
   applicableInterval?: "monthly" | "annual" | "all";
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 export type SupportTicket = {

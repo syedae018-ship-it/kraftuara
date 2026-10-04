@@ -81,6 +81,32 @@ export async function getAdminOverviewMetricsAction(): Promise<ActionResponse<Pl
       return p === "pro" || p === "business";
     }).length;
 
+    // Calculate real month-over-month revenue growth from payments
+    const now = new Date();
+    const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+    const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).getTime();
+    const prevMonthEnd = currentMonthStart;
+
+    let currentMonthRev = 0;
+    let prevMonthRev = 0;
+
+    for (const p of successfulPayments) {
+      const pTime = p.created_at ? new Date(p.created_at).getTime() : 0;
+      const amt = Number(p.amount || 0);
+      if (pTime >= currentMonthStart) {
+        currentMonthRev += amt;
+      } else if (pTime >= prevMonthStart && pTime < prevMonthEnd) {
+        prevMonthRev += amt;
+      }
+    }
+
+    let growthPercent = 0;
+    if (prevMonthRev > 0) {
+      growthPercent = Math.round(((currentMonthRev - prevMonthRev) / prevMonthRev) * 1000) / 10;
+    } else if (currentMonthRev > 0) {
+      growthPercent = 100;
+    }
+
     const stats: PlatformStats = {
       totalUsers: usersRes.count || 0,
       activeStores: storesRes.count || 0,
@@ -89,7 +115,7 @@ export async function getAdminOverviewMetricsAction(): Promise<ActionResponse<Pl
       creativeOrders: ordersRes.count || 0,
       totalRevenue,
       mrr,
-      growthPercent: totalRevenue > 0 ? 15.8 : 0,
+      growthPercent,
       platformHealth: "optimal",
 
       totalSubscribers: subsData.length,
@@ -652,20 +678,82 @@ export async function getAdminCatalogOrdersAction(): Promise<ActionResponse<any[
 }
 
 /**
+ * Helper to reliably resolve the canonical storage row for platform-wide promo codes
+ */
+export async function getGlobalPlatformPromosStorage(supabase: any): Promise<{
+  rowId: string | null;
+  metadata: any;
+  promos: Coupon[];
+}> {
+  const { data: rows } = await supabase
+    .from("store_settings")
+    .select("id, metadata");
+
+  if (!rows || rows.length === 0) {
+    return { rowId: null, metadata: {}, promos: [] };
+  }
+
+  // 1. First priority: find row that already stores platform_promos array
+  for (const r of rows) {
+    if (r.metadata && Array.isArray((r.metadata as any).platform_promos)) {
+      return {
+        rowId: r.id,
+        metadata: r.metadata || {},
+        promos: (r.metadata as any).platform_promos || [],
+      };
+    }
+  }
+
+  // 2. Default to first row
+  const first = rows[0];
+  return {
+    rowId: first.id,
+    metadata: first.metadata || {},
+    promos: [],
+  };
+}
+
+/**
  * 11. SaaS Plan Promo Codes Management
  */
 export async function getPlatformPromoCodesAction(): Promise<ActionResponse<Coupon[]>> {
   try {
     const { supabase } = await assertAdminSession();
 
-    // Check store_settings or coupons table for platform promo codes
-    const { data: settingsRow } = await supabase
-      .from("store_settings")
-      .select("metadata")
-      .limit(1)
-      .maybeSingle();
+    const [storage, plans] = await Promise.all([
+      getGlobalPlatformPromosStorage(supabase),
+      getAllPlans(true),
+    ]);
 
-    const promos: Coupon[] = settingsRow?.metadata?.platform_promos || [];
+    const planMap = new Map<string, string>();
+    planMap.set("all", "All Plans");
+    for (const p of plans) {
+      planMap.set(p.id.toLowerCase(), p.name);
+    }
+
+    const rawPromos: any[] = storage.promos || [];
+    const promos: Coupon[] = rawPromos.map((p) => {
+      const planId = (p.applicablePlanId || (p.applicablePlans && p.applicablePlans[0]) || "all").toLowerCase();
+      const planName = planMap.get(planId) || planMap.get(normalizePlanTier(planId)) || (planId === "all" ? "All Plans" : planId);
+
+      return {
+        id: p.id,
+        code: (p.code || "").trim().toUpperCase(),
+        discountType: p.discountType || "percentage",
+        value: Number(p.value || 0),
+        expiryDate: p.expiryDate || null,
+        usageLimit: Number(p.usageLimit || 100),
+        usageCount: Number(p.usageCount || 0),
+        status: p.status || "active",
+        applicablePlanId: planId,
+        applicablePlanName: planName,
+        applicablePlans: p.applicablePlans || [planId],
+        applicableInterval: p.applicableInterval || "all",
+        createdAt: p.createdAt,
+        updatedAt: p.updatedAt,
+      };
+    });
+
     return successResponse(promos);
   } catch (err) {
     return errorResponse(getErrorMessage(err));
@@ -678,46 +766,76 @@ export async function createPlatformPromoCodeAction(
   try {
     const { supabase, adminId } = await assertAdminSession();
 
-    const cleanCode = input.code.trim().toUpperCase();
+    const cleanCode = (input.code || "").trim().toUpperCase();
     if (!cleanCode || cleanCode.length < 3) {
       return errorResponse("Promo code must be at least 3 characters.");
     }
 
-    const { data: settingsRow } = await supabase
-      .from("store_settings")
-      .select("id, metadata")
-      .limit(1)
-      .maybeSingle();
+    const val = Number(input.value);
+    if (isNaN(val) || val <= 0) {
+      return errorResponse("Discount value must be greater than 0.");
+    }
 
-    const existingMeta = settingsRow?.metadata || {};
-    const existingPromos: Coupon[] = existingMeta.platform_promos || [];
+    if (input.discountType === "percentage" && val > 100) {
+      return errorResponse("Percentage discount cannot exceed 100%.");
+    }
 
-    if (existingPromos.some((p) => p.code === cleanCode)) {
+    const limit = Number(input.usageLimit);
+    if (isNaN(limit) || limit < 1) {
+      return errorResponse("Maximum uses must be at least 1.");
+    }
+
+    const storage = await getGlobalPlatformPromosStorage(supabase);
+    const existingMeta = storage.metadata || {};
+    const existingPromos: Coupon[] = storage.promos || [];
+
+    if (existingPromos.some((p) => p.code.trim().toUpperCase() === cleanCode)) {
       return errorResponse(`Promo code "${cleanCode}" already exists.`);
     }
 
+    const planId = (input.applicablePlanId || (input.applicablePlans && input.applicablePlans[0]) || "all").toLowerCase();
+    const plans = await getAllPlans(true);
+    const matchedPlan = plans.find((p) => p.id.toLowerCase() === planId || normalizePlanTier(p.id) === normalizePlanTier(planId));
+    const planName = planId === "all" ? "All Plans" : matchedPlan?.name || planId;
+
+    const now = new Date().toISOString();
     const newCoupon: Coupon = {
-      ...input,
       id: `promo_${Date.now()}`,
       code: cleanCode,
-      usageCount: 0,
-      status: "active",
+      discountType: input.discountType,
+      value: val,
+      usageLimit: limit,
+      usageCount: 0, // Always starts at 0 - tracked automatically
+      expiryDate: input.expiryDate ? input.expiryDate : null,
+      status: input.status === "inactive" ? "inactive" : "active",
+      applicablePlanId: planId,
+      applicablePlanName: planName,
+      applicablePlans: [planId],
+      applicableInterval: input.applicableInterval || "all",
+      createdAt: now,
+      updatedAt: now,
     };
 
     const updatedPromos = [newCoupon, ...existingPromos];
-    if (settingsRow) {
+    if (storage.rowId) {
       await supabase
         .from("store_settings")
         .update({
           metadata: { ...existingMeta, platform_promos: updatedPromos },
         })
-        .eq("id", settingsRow.id);
+        .eq("id", storage.rowId);
     }
 
     await supabase.from("activity_logs").insert({
       user_id: adminId,
       action: "PROMO_CODE_CREATED",
-      details: { code: cleanCode, discountType: input.discountType, value: input.value },
+      details: {
+        code: cleanCode,
+        discountType: input.discountType,
+        value: val,
+        applicablePlanId: planId,
+        usageLimit: limit,
+      },
     });
 
     revalidatePath("/admin/coupons");
@@ -727,27 +845,166 @@ export async function createPlatformPromoCodeAction(
   }
 }
 
+export async function updatePlatformPromoCodeAction(
+  codeId: string,
+  updates: Partial<Omit<Coupon, "id" | "usageCount" | "code">>
+): Promise<ActionResponse<Coupon>> {
+  try {
+    const { supabase, adminId } = await assertAdminSession();
+
+    const storage = await getGlobalPlatformPromosStorage(supabase);
+    const existingMeta = storage.metadata || {};
+    const existingPromos: Coupon[] = storage.promos || [];
+    const index = existingPromos.findIndex((p) => p.id === codeId);
+
+    if (index === -1) {
+      return errorResponse("Promo code not found.");
+    }
+
+    const current = existingPromos[index];
+
+    // Validate updates
+    let val = current.value;
+    if (updates.value !== undefined) {
+      val = Number(updates.value);
+      if (isNaN(val) || val <= 0) {
+        return errorResponse("Discount value must be greater than 0.");
+      }
+      if (updates.discountType === "percentage" && val > 100) {
+        return errorResponse("Percentage discount cannot exceed 100%.");
+      }
+    }
+
+    let limit = current.usageLimit;
+    if (updates.usageLimit !== undefined) {
+      limit = Number(updates.usageLimit);
+      if (isNaN(limit) || limit < 1) {
+        return errorResponse("Maximum uses must be at least 1.");
+      }
+      if (limit < (current.usageCount || 0)) {
+        return errorResponse(`Maximum uses cannot be less than current used count (${current.usageCount}).`);
+      }
+    }
+
+    let planId = current.applicablePlanId || "all";
+    let planName = current.applicablePlanName || "All Plans";
+    if (updates.applicablePlanId !== undefined) {
+      planId = updates.applicablePlanId.toLowerCase();
+      const plans = await getAllPlans(true);
+      const matchedPlan = plans.find((p) => p.id.toLowerCase() === planId || normalizePlanTier(p.id) === normalizePlanTier(planId));
+      planName = planId === "all" ? "All Plans" : matchedPlan?.name || planId;
+    }
+
+    const updatedCoupon: Coupon = {
+      ...current,
+      discountType: updates.discountType || current.discountType,
+      value: val,
+      usageLimit: limit,
+      expiryDate: updates.expiryDate !== undefined ? updates.expiryDate : current.expiryDate,
+      status: updates.status || current.status,
+      applicablePlanId: planId,
+      applicablePlanName: planName,
+      applicablePlans: [planId],
+      updatedAt: new Date().toISOString(),
+    };
+
+    const newPromos = [...existingPromos];
+    newPromos[index] = updatedCoupon;
+
+    if (storage.rowId) {
+      await supabase
+        .from("store_settings")
+        .update({
+          metadata: { ...existingMeta, platform_promos: newPromos },
+        })
+        .eq("id", storage.rowId);
+    }
+
+    await supabase.from("activity_logs").insert({
+      user_id: adminId,
+      action: "PROMO_CODE_UPDATED",
+      details: {
+        codeId,
+        code: current.code,
+        changes: updates,
+      },
+    });
+
+    revalidatePath("/admin/coupons");
+    return successResponse(updatedCoupon, `Promo code "${current.code}" updated successfully.`);
+  } catch (err) {
+    return errorResponse(getErrorMessage(err));
+  }
+}
+
+export async function togglePlatformPromoCodeStatusAction(
+  codeId: string
+): Promise<ActionResponse<Coupon>> {
+  try {
+    const { supabase, adminId } = await assertAdminSession();
+
+    const storage = await getGlobalPlatformPromosStorage(supabase);
+    const existingMeta = storage.metadata || {};
+    const existingPromos: Coupon[] = storage.promos || [];
+    const index = existingPromos.findIndex((p) => p.id === codeId);
+
+    if (index === -1) {
+      return errorResponse("Promo code not found.");
+    }
+
+    const current = existingPromos[index];
+    const newStatus = current.status === "active" ? "inactive" : "active";
+
+    const updatedCoupon: Coupon = {
+      ...current,
+      status: newStatus,
+      updatedAt: new Date().toISOString(),
+    };
+
+    const newPromos = [...existingPromos];
+    newPromos[index] = updatedCoupon;
+
+    if (storage.rowId) {
+      await supabase
+        .from("store_settings")
+        .update({
+          metadata: { ...existingMeta, platform_promos: newPromos },
+        })
+        .eq("id", storage.rowId);
+    }
+
+    await supabase.from("activity_logs").insert({
+      user_id: adminId,
+      action: "PROMO_CODE_STATUS_TOGGLED",
+      details: { codeId, code: current.code, status: newStatus },
+    });
+
+    revalidatePath("/admin/coupons");
+    return successResponse(
+      updatedCoupon,
+      `Promo code "${current.code}" is now ${newStatus}.`
+    );
+  } catch (err) {
+    return errorResponse(getErrorMessage(err));
+  }
+}
+
 export async function deletePlatformPromoCodeAction(codeId: string): Promise<ActionResponse<void>> {
   try {
     const { supabase, adminId } = await assertAdminSession();
 
-    const { data: settingsRow } = await supabase
-      .from("store_settings")
-      .select("id, metadata")
-      .limit(1)
-      .maybeSingle();
-
-    const existingMeta = settingsRow?.metadata || {};
-    const existingPromos: Coupon[] = existingMeta.platform_promos || [];
+    const storage = await getGlobalPlatformPromosStorage(supabase);
+    const existingMeta = storage.metadata || {};
+    const existingPromos: Coupon[] = storage.promos || [];
     const filtered = existingPromos.filter((p) => p.id !== codeId);
 
-    if (settingsRow) {
+    if (storage.rowId) {
       await supabase
         .from("store_settings")
         .update({
           metadata: { ...existingMeta, platform_promos: filtered },
         })
-        .eq("id", settingsRow.id);
+        .eq("id", storage.rowId);
     }
 
     await supabase.from("activity_logs").insert({
@@ -791,37 +1048,34 @@ export async function validateSaaSPromoCodeAction(
       interval === "annual" ? authoritativePlan.priceAnnual : authoritativePlan.priceMonthly;
 
     const supabase = await createServerSupabaseClient();
-    const { data: settingsRow } = await supabase
-      .from("store_settings")
-      .select("metadata")
-      .limit(1)
-      .maybeSingle();
-
-    const promos: Coupon[] = (settingsRow as any)?.metadata?.platform_promos || [];
-    const found = promos.find((p) => p.code.trim().toUpperCase() === cleanCode);
+    const storage = await getGlobalPlatformPromosStorage(supabase);
+    const promos: Coupon[] = storage.promos || [];
+    const found = promos.find((p) => p.code?.trim().toUpperCase() === cleanCode);
 
     if (!found) {
-      return errorResponse("Invalid coupon code.");
+      return errorResponse("Invalid promo code.");
     }
 
     if (found.status !== "active") {
-      return errorResponse("This coupon code is no longer active.");
+      return errorResponse("This promo code is no longer active.");
     }
 
     if (found.expiryDate && new Date(found.expiryDate).getTime() < Date.now()) {
-      return errorResponse("This coupon code has expired.");
+      return errorResponse("This promo code has expired.");
     }
 
-    if (found.usageLimit > 0 && found.usageCount >= found.usageLimit) {
-      return errorResponse("This coupon code has reached its maximum usage limit.");
+    if (found.usageLimit > 0 && (found.usageCount || 0) >= found.usageLimit) {
+      return errorResponse("This promo code has reached its usage limit.");
     }
 
-    // Check plan restriction if configured on the coupon
-    if (found.applicablePlans && found.applicablePlans.length > 0) {
-      const normalizedApplicable = found.applicablePlans.map(normalizePlanTier);
-      const currentTier = normalizePlanTier(planTier);
-      if (!normalizedApplicable.includes(currentTier)) {
-        return errorResponse("This coupon is not valid for this plan.");
+    // Strict plan restriction verification
+    const selectedTier = normalizePlanTier(planTier);
+    const applicablePlan = (found.applicablePlanId || (found.applicablePlans && found.applicablePlans[0]) || "all").toLowerCase();
+
+    if (applicablePlan !== "all") {
+      const allowedTier = normalizePlanTier(applicablePlan);
+      if (allowedTier !== selectedTier) {
+        return errorResponse("This promo code is not valid for this plan.");
       }
     }
 
@@ -829,7 +1083,7 @@ export async function validateSaaSPromoCodeAction(
     if (found.applicableInterval && found.applicableInterval !== "all") {
       if (found.applicableInterval !== interval) {
         return errorResponse(
-          `This coupon is only valid for ${found.applicableInterval} billing.`
+          `This promo code is only valid for ${found.applicableInterval} billing.`
         );
       }
     }
@@ -856,6 +1110,54 @@ export async function validateSaaSPromoCodeAction(
     );
   } catch (err) {
     return errorResponse(getErrorMessage(err));
+  }
+}
+
+/**
+ * Atomically records promo code usage upon confirmed payment
+ */
+export async function recordPromoCodeUsageAction(code: string): Promise<boolean> {
+  try {
+    const cleanCode = (code || "").trim().toUpperCase();
+    if (!cleanCode) return false;
+
+    const supabase = createAdminClient();
+    const storage = await getGlobalPlatformPromosStorage(supabase);
+    if (!storage.rowId) return false;
+
+    const existingMeta: any = storage.metadata || {};
+    const existingPromos: Coupon[] = storage.promos || [];
+    let found = false;
+
+    const newPromos = existingPromos.map((p) => {
+      if (p.code?.trim().toUpperCase() === cleanCode) {
+        found = true;
+        return {
+          ...p,
+          usageCount: (p.usageCount || 0) + 1,
+          updatedAt: new Date().toISOString(),
+        };
+      }
+      return p;
+    });
+
+    if (found) {
+      await supabase
+        .from("store_settings")
+        .update({
+          metadata: {
+            ...existingMeta,
+            platform_promos: newPromos,
+          },
+        })
+        .eq("id", storage.rowId);
+      return true;
+    }
+
+    return false;
+  } catch (err) {
+    console.error("Failed to record promo code usage:", err);
+    return false;
   }
 }
 

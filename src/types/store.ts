@@ -17,4 +17,12 @@ export type StoreData = {
     freeShippingThreshold: number;
     shippingFee?: number;
   };
+  contact?: {
+    email?: string | null;
+    phone?: string | null;
+    whatsapp?: string | null;
+    address?: string | null;
+    instagram?: string | null;
+    facebook?: string | null;
+  };
 };

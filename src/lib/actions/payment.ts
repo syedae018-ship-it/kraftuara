@@ -13,6 +13,7 @@ import {
   resolveIntervalFromRazorpay,
 } from "@/config/razorpay";
 import { revalidatePath } from "next/cache";
+import { getGlobalPlatformPromosStorage } from "@/lib/actions/admin";
 
 // Lazy-import Razorpay Node SDK
 const getRazorpayInstance = () => {
@@ -93,44 +94,41 @@ export async function createStoreSubscriptionAction(
     // Authoritative Server-side Coupon Validation
     if (couponCode && couponCode.trim()) {
       const cleanCode = couponCode.trim().toUpperCase();
-      const { data: settingsRow } = await supabase
-        .from("store_settings")
-        .select("metadata")
-        .limit(1)
-        .maybeSingle();
-
-      const promos: any[] = (settingsRow as any)?.metadata?.platform_promos || [];
+      const storage = await getGlobalPlatformPromosStorage(supabase);
+      const promos: any[] = storage.promos || [];
       const found = promos.find((p) => p.code?.trim().toUpperCase() === cleanCode);
 
       if (!found) {
-        return errorResponse("Invalid coupon code.");
+        return errorResponse("Invalid promo code.");
       }
 
       if (found.status !== "active") {
-        return errorResponse("This coupon code is no longer active.");
+        return errorResponse("This promo code is no longer active.");
       }
 
       if (found.expiryDate && new Date(found.expiryDate).getTime() < Date.now()) {
-        return errorResponse("This coupon code has expired.");
+        return errorResponse("This promo code has expired.");
       }
 
-      if (found.usageLimit > 0 && found.usageCount >= found.usageLimit) {
-        return errorResponse("This coupon code has reached its maximum usage limit.");
+      if (found.usageLimit > 0 && (found.usageCount || 0) >= found.usageLimit) {
+        return errorResponse("This promo code has reached its usage limit.");
       }
 
       // Check plan restriction if configured
-      if (found.applicablePlans && found.applicablePlans.length > 0) {
-        const normalizedApplicable = found.applicablePlans.map(normalizePlanTier);
-        const currentTier = normalizePlanTier(planName);
-        if (!normalizedApplicable.includes(currentTier)) {
-          return errorResponse("This coupon is not valid for this plan.");
+      const currentTier = normalizePlanTier(planName);
+      const applicablePlan = (found.applicablePlanId || (found.applicablePlans && found.applicablePlans[0]) || "all").toLowerCase();
+
+      if (applicablePlan !== "all") {
+        const allowedTier = normalizePlanTier(applicablePlan);
+        if (allowedTier !== currentTier) {
+          return errorResponse("This promo code is not valid for this plan.");
         }
       }
 
       // Check interval restriction if configured
       if (found.applicableInterval && found.applicableInterval !== "all") {
         if (found.applicableInterval !== interval) {
-          return errorResponse(`This coupon is only valid for ${found.applicableInterval} billing.`);
+          return errorResponse(`This promo code is only valid for ${found.applicableInterval} billing.`);
         }
       }
 
@@ -439,29 +437,12 @@ export async function verifySubscriptionPaymentAction(payload: {
         .eq("id", user.id);
     }
 
-    // Increment coupon usage count if a promo code was used in the subscription notes
+    // Atomically increment promo code usage count if a promo code was used in the subscription notes
     try {
       const couponCodeUsed = (subDetails?.notes?.couponCode || "").trim().toUpperCase();
       if (couponCodeUsed) {
-        const { data: settingsRow } = await (adminSupabase as any)
-          .from("store_settings")
-          .select("id, metadata")
-          .limit(1)
-          .maybeSingle();
-
-        const existingMeta = settingsRow?.metadata || {};
-        const existingPromos = existingMeta.platform_promos || [];
-        const updatedPromos = existingPromos.map((p: any) =>
-          p.code?.trim().toUpperCase() === couponCodeUsed
-            ? { ...p, usageCount: (p.usageCount || 0) + 1 }
-            : p
-        );
-        if (settingsRow?.id) {
-          await (adminSupabase as any)
-            .from("store_settings")
-            .update({ metadata: { ...existingMeta, platform_promos: updatedPromos } })
-            .eq("id", settingsRow.id);
-        }
+        const { recordPromoCodeUsageAction } = await import("@/lib/actions/admin");
+        await recordPromoCodeUsageAction(couponCodeUsed);
       }
     } catch (couponErr) {
       console.warn("Could not increment coupon usage count:", couponErr);
