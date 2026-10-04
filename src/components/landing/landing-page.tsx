@@ -187,14 +187,14 @@ export function LandingPage({ initialPlans }: LandingPageProps) {
 
         {/* Hero CTAs */}
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2 relative z-10">
-          <Link href="/signup">
+          <Link href="/my-store">
             <Button
               variant="primary"
               size="lg"
               className="h-12 px-8 text-sm font-semibold shadow-glow-lg w-full sm:w-auto"
               rightIcon={<ArrowRight className="w-4 h-4" />}
             >
-              Start Free
+              Create My Store
             </Button>
           </Link>
           <Link href="/demo" className="w-full sm:w-auto">
@@ -319,14 +319,14 @@ export function LandingPage({ initialPlans }: LandingPageProps) {
                     Preview Live Demo
                   </Button>
                 </Link>
-                <Link href="/signup" className="w-full sm:w-auto">
+                <Link href="/my-store" className="w-full sm:w-auto">
                   <Button
                     variant="outline"
                     size="md"
                     className="px-6 text-xs uppercase tracking-wider font-heading font-bold border-white/10"
                     rightIcon={<ArrowRight className="w-4 h-4" />}
                   >
-                    Use Template
+                    Create My Store
                   </Button>
                 </Link>
               </div>

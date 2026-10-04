@@ -94,12 +94,37 @@ interface AppliedCoupon {
 function CheckoutContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user, selectPlan, stores } = useAuth();
+  const { user, selectPlan, stores, isLoading } = useAuth();
+
+  // Authentication Guard: unauthenticated users must never access checkout directly
+  useEffect(() => {
+    if (!isLoading && !user) {
+      router.push("/login");
+    }
+  }, [user, isLoading, router]);
 
   // Query parameters
   const rawPlan = searchParams.get("plan") || "growth";
   const rawInterval = searchParams.get("interval") || "monthly";
   const storeIdParam = searchParams.get("storeId");
+
+  // Duplicate Subscription Guard: if user already has verified active sub and no stores, forward to /create-store
+  useEffect(() => {
+    async function checkExistingSub() {
+      if (storeIdParam) return; // upgrading an existing store
+      try {
+        const { checkUserActiveSubscriptionAction } = await import("@/lib/actions/payment");
+        const res = await checkUserActiveSubscriptionAction();
+        if (res.success && res.data?.hasActiveSubscription && !res.data.hasStores) {
+          toast.info("Subscription Already Active", "Continuing to store setup.");
+          router.push("/create-store");
+        }
+      } catch (e) {
+        console.warn("Active sub check error in checkout:", e);
+      }
+    }
+    checkExistingSub();
+  }, [storeIdParam, router]);
 
   const [targetTier, setTargetTier] = useState<PlanTier>(normalizePlanTier(rawPlan));
   const [billingInterval, setBillingInterval] = useState<BillingInterval>(

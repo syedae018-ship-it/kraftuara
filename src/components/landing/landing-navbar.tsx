@@ -58,7 +58,7 @@ export function LandingNavbar() {
           </a>
         </nav>
 
-        {/* Actions: "My Store" & "Start Free" */}
+        {/* Actions: "My Store" & "Create My Store" */}
         <div className="hidden sm:flex items-center gap-3">
           <Link href="/my-store">
             <Button
@@ -70,14 +70,14 @@ export function LandingNavbar() {
               My Store
             </Button>
           </Link>
-          <Link href="/signup">
+          <Link href="/my-store">
             <Button
               variant="primary"
               size="sm"
-              className="shadow-glow"
+              className="shadow-glow font-semibold"
               rightIcon={<ArrowRight className="w-3.5 h-3.5" />}
             >
-              Start Free
+              Create My Store
             </Button>
           </Link>
         </div>
@@ -129,9 +129,9 @@ export function LandingNavbar() {
                 My Store
               </Button>
             </Link>
-            <Link href="/signup" onClick={() => setMobileMenuOpen(false)}>
-              <Button variant="primary" className="w-full justify-center">
-                Start Free
+            <Link href="/my-store" onClick={() => setMobileMenuOpen(false)}>
+              <Button variant="primary" className="w-full justify-center shadow-glow font-semibold">
+                Create My Store
               </Button>
             </Link>
           </div>

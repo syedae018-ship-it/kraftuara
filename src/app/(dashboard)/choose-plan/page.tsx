@@ -42,6 +42,10 @@ export default function ChoosePlanPage() {
       try {
         const { checkUserActiveSubscriptionAction } = await import("@/lib/actions/payment");
         const res = await checkUserActiveSubscriptionAction();
+        if (!res.success && res.error?.includes("Unauthorized")) {
+          router.push("/login");
+          return;
+        }
         if (res.success && res.data?.hasActiveSubscription) {
           setActivePlanInfo(res.data);
         }
@@ -52,7 +56,7 @@ export default function ChoosePlanPage() {
       }
     }
     checkExistingSubscription();
-  }, []);
+  }, [router]);
 
   // Dynamically load Razorpay SDK checkout script and fetch latest plans
   useEffect(() => {

@@ -10,32 +10,76 @@ export async function GET(request: NextRequest) {
     const supabase = await createServerSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
 
+    // STATE 1: Unauthenticated -> Login / Signup
     if (!user) {
       return NextResponse.redirect(new URL("/login", request.url));
     }
 
     const adminClient = createAdminClient();
+
+    // 1. Check existing stores
     const { data: stores } = await adminClient
       .from("stores")
       .select("id, slug, is_published, status")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false });
 
+    // STATE 6: Authenticated + Store Exists -> My Store (Dashboard)
     if (stores && stores.length > 0) {
       return NextResponse.redirect(new URL("/dashboard", request.url));
     }
 
-    // No stores exist. Check if user has an active verified subscription
+    // 2. No stores exist. Check authoritative subscription and payment records
     const sub = await subscriptionEngine.getAuthoritativeSubscription(null, user.id);
-    if (sub && sub.status === "active" && sub.plan) {
-      // User with verified active subscription who hasn't completed store setup
+
+    const { data: paymentRecord } = await adminClient
+      .from("payments")
+      .select("id, status")
+      .eq("user_id", user.id)
+      .eq("status", "successful")
+      .limit(1)
+      .maybeSingle();
+
+    const hasVerifiedProof = Boolean(
+      sub.razorpaySubscriptionId ||
+      (sub.currentPeriodEnd && new Date(sub.currentPeriodEnd).getTime() > Date.now()) ||
+      paymentRecord
+    );
+
+    // STATE 5: Authenticated + Payment Verified + Store Not Created -> Store Setup
+    if ((sub.status === "active" || sub.status === "trialing") && hasVerifiedProof) {
       return NextResponse.redirect(new URL("/create-store", request.url));
     }
 
-    // Brand-new unpaid user -> Route to Choose Plan
+    // STATE 7: Authenticated + Subscription Expired -> Renewal / Plans
+    if (
+      sub.status === "expired" ||
+      (sub.currentPeriodEnd && new Date(sub.currentPeriodEnd).getTime() <= Date.now() && sub.status !== "active")
+    ) {
+      return NextResponse.redirect(new URL("/choose-plan?status=expired", request.url));
+    }
+
+    // 3. Check profile for pending checkout or plan selection (STATE 3 & 4)
+    const { data: profile } = await adminClient
+      .from("profiles")
+      .select("onboarding_status, onboarding_data")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (
+      profile?.onboarding_status === "payment_pending" ||
+      profile?.onboarding_status === "plan_selected"
+    ) {
+      const selectedPlan = (profile.onboarding_data as Record<string, any>)?.selected_plan;
+      if (selectedPlan) {
+        return NextResponse.redirect(new URL(`/checkout?plan=${selectedPlan}`, request.url));
+      }
+    }
+
+    // STATE 2: Authenticated + No Plan -> Plans
     return NextResponse.redirect(new URL("/choose-plan", request.url));
   } catch (error) {
     console.error("Error handling /my-store redirect:", error);
-    return NextResponse.redirect(new URL("/dashboard", request.url));
+    return NextResponse.redirect(new URL("/login", request.url));
   }
 }

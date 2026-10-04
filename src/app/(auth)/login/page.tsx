@@ -63,7 +63,17 @@ function LoginFormContent() {
       if (result.role === "admin") {
         router.push("/admin");
       } else if (!result.hasStores) {
-        if (result.hasActiveSubscription) {
+        let hasActive = result.hasActiveSubscription;
+        try {
+          const { checkUserActiveSubscriptionAction } = await import("@/lib/actions/payment");
+          const checkRes = await checkUserActiveSubscriptionAction();
+          if (checkRes.success) {
+            hasActive = checkRes.data.hasActiveSubscription;
+          }
+        } catch {
+          // fallback to result.hasActiveSubscription
+        }
+        if (hasActive) {
           router.push("/create-store");
         } else {
           router.push("/choose-plan");

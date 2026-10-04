@@ -203,7 +203,7 @@ export async function middleware(request: NextRequest) {
       return withCookies(expiredRedirect);
     }
 
-    const isLoggedIn = isSupabaseConfigured && supabase ? !!user : true;
+    const isLoggedIn = isSupabaseConfigured && supabase ? !!user : false;
 
     const adminEmails = (process.env.ADMIN_EMAILS || "syed.ae018@gmail.com")
       .split(",")
