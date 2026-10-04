@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { AdminLayout } from "@/components/admin/layout/admin-layout";
 import { SectionTitle } from "@/components/dashboard/section-title";
 import { CouponCard } from "@/components/admin/coupon-card";
@@ -11,26 +11,39 @@ import { Ticket } from "lucide-react";
 
 export default function AdminCouponsPage() {
   const [coupons, setCoupons] = useState<Coupon[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function loadData() {
+  const loadData = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
       const c = await adminRepository.getCoupons();
       setCoupons(c);
+    } catch (err: any) {
+      console.error("[AdminCouponsPage] Failed to load promo codes from database:", err);
+      setError("Unable to load promo codes.");
+    } finally {
+      setIsLoading(false);
     }
-    loadData();
   }, []);
 
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
   const handleCreateCoupon = async (input: Omit<Coupon, "id" | "usageCount">) => {
-    const created = await adminRepository.createCoupon(input);
-    setCoupons([created, ...coupons]);
+    await adminRepository.createCoupon(input);
+    // Immediately re-fetch from Supabase to guarantee single source of truth
+    await loadData();
   };
 
-  const handleCouponUpdated = (updated: Coupon) => {
-    setCoupons(coupons.map((c) => (c.id === updated.id ? updated : c)));
+  const handleCouponUpdated = async () => {
+    await loadData();
   };
 
-  const handleCouponDeleted = (id: string) => {
-    setCoupons(coupons.filter((c) => c.id !== id));
+  const handleCouponDeleted = async () => {
+    await loadData();
   };
 
   const activeCount = coupons.filter((c) => c.status === "active").length;
@@ -50,6 +63,9 @@ export default function AdminCouponsPage() {
       <div className="pb-20">
         <CouponCard
           coupons={coupons}
+          isLoading={isLoading}
+          error={error}
+          onRetry={loadData}
           onCreateCoupon={handleCreateCoupon}
           onCouponUpdated={handleCouponUpdated}
           onCouponDeleted={handleCouponDeleted}
@@ -58,3 +74,4 @@ export default function AdminCouponsPage() {
     </AdminLayout>
   );
 }
+

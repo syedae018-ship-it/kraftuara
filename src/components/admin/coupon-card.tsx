@@ -31,6 +31,9 @@ import { PlanConfig } from "@/lib/feature-gating";
 
 export interface CouponCardProps {
   coupons: Coupon[];
+  isLoading?: boolean;
+  error?: string | null;
+  onRetry?: () => void;
   onCreateCoupon: (input: Omit<Coupon, "id" | "usageCount">) => Promise<void> | void;
   onCouponUpdated?: (updated: Coupon) => void;
   onCouponDeleted?: (codeId: string) => void;
@@ -38,6 +41,9 @@ export interface CouponCardProps {
 
 export function CouponCard({
   coupons,
+  isLoading = false,
+  error = null,
+  onRetry,
   onCreateCoupon,
   onCouponUpdated,
   onCouponDeleted,
@@ -253,12 +259,14 @@ export function CouponCard({
     try {
       const res = await deletePlatformPromoCodeAction(deletingCoupon.id);
       if (res.success) {
-        toast.success("Promo Code Deleted", `Promo code "${deletingCoupon.code}" permanently deleted.`);
+        toast.success("Promo code deleted.", `Promo code "${deletingCoupon.code}" was permanently deleted.`);
         onCouponDeleted?.(deletingCoupon.id);
         setDeleteOpen(false);
       } else {
         toast.error("Delete Failed", res.error || "Could not delete promo code.");
       }
+    } catch (err: any) {
+      toast.error("Delete Failed", err?.message || "Could not delete promo code.");
     } finally {
       setIsDeleting(false);
     }
@@ -298,13 +306,51 @@ export function CouponCard({
         </Button>
       </div>
 
-      {coupons.length === 0 ? (
+      {isLoading ? (
+        <div className="rounded-2xl border border-white/10 p-8 bg-[#151515] font-body space-y-4">
+          <div className="flex items-center justify-between animate-pulse">
+            <div className="h-4 w-36 bg-white/10 rounded" />
+            <div className="h-4 w-24 bg-white/10 rounded" />
+          </div>
+          <div className="space-y-3">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-14 bg-white/5 rounded-xl animate-pulse" />
+            ))}
+          </div>
+        </div>
+      ) : error ? (
+        <div className="rounded-2xl border border-rose-500/20 p-12 text-center bg-[#151515] font-body text-zinc-400">
+          <AlertTriangle className="w-8 h-8 text-rose-400 mx-auto mb-3" />
+          <p className="text-sm font-semibold text-rose-300">Unable to load promo codes.</p>
+          <p className="text-xs text-zinc-500 mt-1 mb-4">
+            Could not fetch promo codes from the database. Please check your connection and retry.
+          </p>
+          {onRetry && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onRetry}
+              className="border-white/10 text-zinc-300 hover:text-white"
+            >
+              Retry
+            </Button>
+          )}
+        </div>
+      ) : coupons.length === 0 ? (
         <div className="rounded-2xl border border-white/10 p-12 text-center bg-[#151515] font-body text-zinc-500">
           <Tag className="w-8 h-8 text-zinc-600 mx-auto mb-3" />
-          <p className="text-sm font-semibold text-zinc-400">No coupons created yet.</p>
-          <p className="text-xs text-zinc-500 mt-1">
-            Click &ldquo;Create Promo Code&rdquo; above to set up your first plan-specific discount.
+          <p className="text-sm font-semibold text-zinc-300">No promo codes yet.</p>
+          <p className="text-xs text-zinc-500 mt-1 mb-4">
+            Create your first promo code to offer discounts on selected plans.
           </p>
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={openCreateModal}
+            leftIcon={<Plus className="w-3.5 h-3.5" />}
+          >
+            + Create Promo Code
+          </Button>
         </div>
       ) : (
         <>
@@ -314,11 +360,10 @@ export function CouponCard({
               <TableHeader>
                 <TableRow>
                   <TableHead>Promo Code</TableHead>
-                  <TableHead>Applicable Plan</TableHead>
-                  <TableHead>Billing Cycle</TableHead>
+                  <TableHead>Plan</TableHead>
                   <TableHead>Discount</TableHead>
-                  <TableHead>Discount Scope</TableHead>
-                  <TableHead>Used / Max Uses</TableHead>
+                  <TableHead>Billing</TableHead>
+                  <TableHead>Usage</TableHead>
                   <TableHead>Expiry</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -346,20 +391,21 @@ export function CouponCard({
                         </Badge>
                       </TableCell>
 
-                      <TableCell>
-                        <Badge variant="outline" className="text-[11px] font-mono capitalize">
-                          {cycle === "annual" ? "Annual" : cycle === "monthly" ? "Monthly" : "Both"}
-                        </Badge>
-                      </TableCell>
-
                       <TableCell className="font-heading font-bold text-white text-sm">
                         {c.discountType === "percentage" ? `${c.value}%` : `₹${c.value}`}
                       </TableCell>
 
-                      <TableCell className="text-xs text-zinc-300 font-medium">
-                        {scope === "entire_period"
-                          ? (cycle === "annual" ? "Entire Annual Billing" : "Entire Billing Period")
-                          : (cycle === "monthly" ? "First Month Only" : "First Payment Only")}
+                      <TableCell>
+                        <div className="flex flex-col gap-0.5">
+                          <Badge variant="outline" className="text-[11px] font-mono capitalize w-fit">
+                            {cycle === "annual" ? "Annual" : cycle === "monthly" ? "Monthly" : "All Cycles"}
+                          </Badge>
+                          <span className="text-[10px] text-zinc-400">
+                            {scope === "entire_period"
+                              ? (cycle === "annual" ? "Entire Annual" : "Entire Period")
+                              : (cycle === "monthly" ? "First Month Only" : "First Payment Only")}
+                          </span>
+                        </div>
                       </TableCell>
 
                       <TableCell className="font-mono text-xs text-zinc-300">
@@ -881,7 +927,7 @@ export function CouponCard({
       <Modal
         isOpen={deleteOpen}
         onClose={() => setDeleteOpen(false)}
-        title="Delete Promo Code"
+        title="Delete this promo code?"
         maxWidth="sm"
       >
         <div className="space-y-4 font-body text-left">
@@ -907,7 +953,7 @@ export function CouponCard({
               onClick={handleConfirmDelete}
               isLoading={isDeleting}
             >
-              Confirm Delete
+              Delete
             </Button>
           </div>
         </div>

@@ -683,21 +683,28 @@ export async function getAdminCatalogOrdersAction(): Promise<ActionResponse<any[
  * Uses the persistent platform themes table (guaranteed to exist across store cleanups)
  * with graceful backwards-compatible fallback to store_settings.
  */
-export async function getGlobalPlatformPromosStorage(supabase: any): Promise<{
+export async function getGlobalPlatformPromosStorage(supabaseClient?: any): Promise<{
   table: "themes" | "store_settings";
   rowId: string | null;
   metadata: any;
   promos: Coupon[];
 }> {
+  // Always use admin client with service role to guarantee authoritative access without RLS issues
+  const client = createAdminClient();
+
   // 1. First priority: Check persistent platform themes table
-  const { data: themeRow } = await supabase
+  const { data: themeRow, error: themeError } = await client
     .from("themes")
     .select("id, config_schema")
     .eq("slug", "luxury")
     .maybeSingle();
 
+  if (themeError) {
+    console.error("[getGlobalPlatformPromosStorage] Error fetching luxury theme row:", themeError);
+  }
+
   if (themeRow) {
-    const config = themeRow.config_schema || {};
+    const config = (themeRow.config_schema as Record<string, any>) || {};
     if (Array.isArray(config.platform_promos)) {
       return {
         table: "themes",
@@ -706,12 +713,22 @@ export async function getGlobalPlatformPromosStorage(supabase: any): Promise<{
         promos: config.platform_promos,
       };
     }
+    return {
+      table: "themes",
+      rowId: themeRow.id,
+      metadata: config,
+      promos: [],
+    };
   }
 
   // 2. Secondary check: store_settings
-  const { data: rows } = await supabase
+  const { data: rows, error: storeSettingsError } = await client
     .from("store_settings")
     .select("id, metadata");
+
+  if (storeSettingsError) {
+    console.error("[getGlobalPlatformPromosStorage] Error fetching store_settings:", storeSettingsError);
+  }
 
   if (rows && rows.length > 0) {
     for (const r of rows) {
@@ -724,20 +741,6 @@ export async function getGlobalPlatformPromosStorage(supabase: any): Promise<{
         };
       }
     }
-  }
-
-  // 3. If no promos found yet, anchor to the luxury theme row
-  if (themeRow) {
-    return {
-      table: "themes",
-      rowId: themeRow.id,
-      metadata: themeRow.config_schema || {},
-      promos: [],
-    };
-  }
-
-  // 4. Fallback to first store_settings if available
-  if (rows && rows.length > 0) {
     return {
       table: "store_settings",
       rowId: rows[0].id,
@@ -750,32 +753,80 @@ export async function getGlobalPlatformPromosStorage(supabase: any): Promise<{
 }
 
 export async function saveGlobalPlatformPromosStorage(
-  supabase: any,
   storage: { table: "themes" | "store_settings"; rowId: string | null; metadata: any },
   promos: Coupon[]
 ): Promise<void> {
-  if (!storage.rowId) return;
+  const adminClient = createAdminClient();
 
-  if (storage.table === "themes") {
-    await supabase
+  let rowId = storage.rowId;
+  let targetTable = storage.table;
+
+  if (!rowId) {
+    const { data: themeRow } = await adminClient
+      .from("themes")
+      .select("id, config_schema")
+      .eq("slug", "luxury")
+      .maybeSingle();
+
+    if (themeRow) {
+      rowId = themeRow.id;
+      targetTable = "themes";
+      storage.metadata = themeRow.config_schema || {};
+    }
+  }
+
+  if (!rowId) {
+    console.error("[saveGlobalPlatformPromosStorage] No persistent storage row available.");
+    throw new Error("Unable to save promo codes: No persistent database storage row found.");
+  }
+
+  if (targetTable === "themes") {
+    const updatedConfig = {
+      ...(storage.metadata || {}),
+      platform_promos: promos,
+    };
+
+    const { data, error } = await adminClient
       .from("themes")
       .update({
-        config_schema: {
-          ...storage.metadata,
-          platform_promos: promos,
-        },
+        config_schema: updatedConfig,
       })
-      .eq("id", storage.rowId);
+      .eq("id", rowId)
+      .select("id");
+
+    if (error) {
+      console.error("[saveGlobalPlatformPromosStorage] Database error saving to themes:", error);
+      throw new Error(`Database error saving promo codes: ${error.message}`);
+    }
+
+    if (!data || data.length === 0) {
+      console.error("[saveGlobalPlatformPromosStorage] Zero rows updated in themes table!");
+      throw new Error("Unable to persist promo code to database (0 rows updated).");
+    }
   } else {
-    await supabase
+    const updatedMetadata = {
+      ...(storage.metadata || {}),
+      platform_promos: promos,
+    };
+
+    const { data, error } = await adminClient
       .from("store_settings")
       .update({
-        metadata: {
-          ...storage.metadata,
-          platform_promos: promos,
-        },
+        metadata: updatedMetadata,
+        updated_at: new Date().toISOString(),
       })
-      .eq("id", storage.rowId);
+      .eq("id", rowId)
+      .select("id");
+
+    if (error) {
+      console.error("[saveGlobalPlatformPromosStorage] Database error saving to store_settings:", error);
+      throw new Error(`Database error saving promo codes: ${error.message}`);
+    }
+
+    if (!data || data.length === 0) {
+      console.error("[saveGlobalPlatformPromosStorage] Zero rows updated in store_settings table!");
+      throw new Error("Unable to persist promo code to database (0 rows updated).");
+    }
   }
 }
 
@@ -784,10 +835,10 @@ export async function saveGlobalPlatformPromosStorage(
  */
 export async function getPlatformPromoCodesAction(): Promise<ActionResponse<Coupon[]>> {
   try {
-    const { supabase } = await assertAdminSession();
+    await assertAdminSession();
 
     const [storage, plans] = await Promise.all([
-      getGlobalPlatformPromosStorage(supabase),
+      getGlobalPlatformPromosStorage(),
       getAllPlans(true),
     ]);
 
@@ -826,7 +877,8 @@ export async function getPlatformPromoCodesAction(): Promise<ActionResponse<Coup
 
     return successResponse(promos);
   } catch (err) {
-    return errorResponse(getErrorMessage(err));
+    console.error("[getPlatformPromoCodesAction] Error loading promos:", err);
+    return errorResponse(getErrorMessage(err) || "Unable to load promo codes.");
   }
 }
 
@@ -855,12 +907,11 @@ export async function createPlatformPromoCodeAction(
       return errorResponse("Maximum uses must be at least 1.");
     }
 
-    const storage = await getGlobalPlatformPromosStorage(supabase);
-    const existingMeta = storage.metadata || {};
+    const storage = await getGlobalPlatformPromosStorage();
     const existingPromos: Coupon[] = storage.promos || [];
 
     if (existingPromos.some((p) => p.code.trim().toUpperCase() === cleanCode)) {
-      return errorResponse(`Promo code "${cleanCode}" already exists.`);
+      return errorResponse("Promo code already exists.");
     }
 
     const planId = (input.applicablePlanId || (input.applicablePlans && input.applicablePlans[0]) || "all").toLowerCase();
@@ -892,24 +943,29 @@ export async function createPlatformPromoCodeAction(
     };
 
     const updatedPromos = [newCoupon, ...existingPromos];
-    await saveGlobalPlatformPromosStorage(supabase, storage, updatedPromos);
+    await saveGlobalPlatformPromosStorage(storage, updatedPromos);
 
-    await supabase.from("activity_logs").insert({
-      user_id: adminId,
-      action: "PROMO_CODE_CREATED",
-      details: {
-        code: cleanCode,
-        discountType: input.discountType,
-        value: val,
-        applicablePlanId: planId,
-        usageLimit: limit,
-      },
-    });
+    try {
+      await supabase.from("activity_logs").insert({
+        user_id: adminId,
+        action: "PROMO_CODE_CREATED",
+        details: {
+          code: cleanCode,
+          discountType: input.discountType,
+          value: val,
+          applicablePlanId: planId,
+          usageLimit: limit,
+        },
+      });
+    } catch (logErr) {
+      console.warn("[createPlatformPromoCodeAction] Failed to write activity log:", logErr);
+    }
 
     revalidatePath("/admin/coupons");
     return successResponse(newCoupon, `Promo code "${cleanCode}" created successfully.`);
   } catch (err) {
-    return errorResponse(getErrorMessage(err));
+    console.error("[createPlatformPromoCodeAction] Error creating promo code:", err);
+    return errorResponse(getErrorMessage(err) || "Unable to create promo code. Please try again.");
   }
 }
 
@@ -920,8 +976,7 @@ export async function updatePlatformPromoCodeAction(
   try {
     const { supabase, adminId } = await assertAdminSession();
 
-    const storage = await getGlobalPlatformPromosStorage(supabase);
-    const existingMeta = storage.metadata || {};
+    const storage = await getGlobalPlatformPromosStorage();
     const existingPromos: Coupon[] = storage.promos || [];
     const index = existingPromos.findIndex((p) => p.id === codeId);
 
@@ -985,22 +1040,27 @@ export async function updatePlatformPromoCodeAction(
     const newPromos = [...existingPromos];
     newPromos[index] = updatedCoupon;
 
-    await saveGlobalPlatformPromosStorage(supabase, storage, newPromos);
+    await saveGlobalPlatformPromosStorage(storage, newPromos);
 
-    await supabase.from("activity_logs").insert({
-      user_id: adminId,
-      action: "PROMO_CODE_UPDATED",
-      details: {
-        codeId,
-        code: current.code,
-        changes: updates,
-      },
-    });
+    try {
+      await supabase.from("activity_logs").insert({
+        user_id: adminId,
+        action: "PROMO_CODE_UPDATED",
+        details: {
+          codeId,
+          code: current.code,
+          changes: updates,
+        },
+      });
+    } catch (logErr) {
+      console.warn("[updatePlatformPromoCodeAction] Failed to write activity log:", logErr);
+    }
 
     revalidatePath("/admin/coupons");
     return successResponse(updatedCoupon, `Promo code "${current.code}" updated successfully.`);
   } catch (err) {
-    return errorResponse(getErrorMessage(err));
+    console.error("[updatePlatformPromoCodeAction] Error updating promo code:", err);
+    return errorResponse(getErrorMessage(err) || "Unable to update promo code.");
   }
 }
 
@@ -1010,8 +1070,7 @@ export async function togglePlatformPromoCodeStatusAction(
   try {
     const { supabase, adminId } = await assertAdminSession();
 
-    const storage = await getGlobalPlatformPromosStorage(supabase);
-    const existingMeta = storage.metadata || {};
+    const storage = await getGlobalPlatformPromosStorage();
     const existingPromos: Coupon[] = storage.promos || [];
     const index = existingPromos.findIndex((p) => p.id === codeId);
 
@@ -1031,13 +1090,17 @@ export async function togglePlatformPromoCodeStatusAction(
     const newPromos = [...existingPromos];
     newPromos[index] = updatedCoupon;
 
-    await saveGlobalPlatformPromosStorage(supabase, storage, newPromos);
+    await saveGlobalPlatformPromosStorage(storage, newPromos);
 
-    await supabase.from("activity_logs").insert({
-      user_id: adminId,
-      action: "PROMO_CODE_STATUS_TOGGLED",
-      details: { codeId, code: current.code, status: newStatus },
-    });
+    try {
+      await supabase.from("activity_logs").insert({
+        user_id: adminId,
+        action: "PROMO_CODE_STATUS_TOGGLED",
+        details: { codeId, code: current.code, status: newStatus },
+      });
+    } catch (logErr) {
+      console.warn("[togglePlatformPromoCodeStatusAction] Failed to write activity log:", logErr);
+    }
 
     revalidatePath("/admin/coupons");
     return successResponse(
@@ -1045,7 +1108,8 @@ export async function togglePlatformPromoCodeStatusAction(
       `Promo code "${current.code}" is now ${newStatus}.`
     );
   } catch (err) {
-    return errorResponse(getErrorMessage(err));
+    console.error("[togglePlatformPromoCodeStatusAction] Error toggling status:", err);
+    return errorResponse(getErrorMessage(err) || "Unable to update promo code status.");
   }
 }
 
@@ -1053,25 +1117,32 @@ export async function deletePlatformPromoCodeAction(codeId: string): Promise<Act
   try {
     const { supabase, adminId } = await assertAdminSession();
 
-    const storage = await getGlobalPlatformPromosStorage(supabase);
-    const existingMeta = storage.metadata || {};
+    const storage = await getGlobalPlatformPromosStorage();
     const existingPromos: Coupon[] = storage.promos || [];
-    const filtered = existingPromos.filter((p) => p.id !== codeId);
-
-    if (storage.rowId) {
-      await saveGlobalPlatformPromosStorage(supabase, storage, filtered);
+    
+    const existing = existingPromos.find((p) => p.id === codeId);
+    if (!existing) {
+      return errorResponse("Promo code not found or already deleted.");
     }
 
-    await supabase.from("activity_logs").insert({
-      user_id: adminId,
-      action: "PROMO_CODE_DELETED",
-      details: { codeId },
-    });
+    const filtered = existingPromos.filter((p) => p.id !== codeId);
+    await saveGlobalPlatformPromosStorage(storage, filtered);
+
+    try {
+      await supabase.from("activity_logs").insert({
+        user_id: adminId,
+        action: "PROMO_CODE_DELETED",
+        details: { codeId, code: existing.code },
+      });
+    } catch (logErr) {
+      console.warn("[deletePlatformPromoCodeAction] Failed to write activity log:", logErr);
+    }
 
     revalidatePath("/admin/coupons");
     return successResponse(undefined, "Promo code deleted.");
   } catch (err) {
-    return errorResponse(getErrorMessage(err));
+    console.error("[deletePlatformPromoCodeAction] Error deleting promo code:", err);
+    return errorResponse(getErrorMessage(err) || "Unable to delete promo code. Please try again.");
   }
 }
 
@@ -1223,7 +1294,7 @@ export async function recordPromoCodeUsageAction(code: string): Promise<boolean>
     });
 
     if (updated) {
-      await saveGlobalPlatformPromosStorage(supabase, storage, newPromos);
+      await saveGlobalPlatformPromosStorage(storage, newPromos);
       return true;
     }
 
