@@ -30,7 +30,7 @@ export async function getAdminOverviewMetricsAction(): Promise<ActionResponse<Pl
       subscriptionsRes,
       allPlans,
     ] = await Promise.all([
-      supabase.from("profiles").select("*", { count: "exact", head: true }),
+      supabase.from("profiles").select("*", { count: "exact", head: true }).neq("email", "syed.ae018@gmail.com"),
       supabase.from("stores").select("*", { count: "exact", head: true }),
       supabase.from("stores").select("*", { count: "exact", head: true }).eq("status", "live"),
       supabase.from("products").select("*", { count: "exact", head: true }),
@@ -187,7 +187,9 @@ export async function getAdminUsersAction(limit: number = 100): Promise<ActionRe
       }
     });
 
-    const users: AdminUser[] = (profiles || []).map((p: any) => {
+    const users: AdminUser[] = (profiles || [])
+      .filter((p: any) => p.email?.toLowerCase() !== "syed.ae018@gmail.com")
+      .map((p: any) => {
       const primaryStore = p.stores?.[0];
       const storeSub = primaryStore?.subscriptions?.[0];
       const userSub = userSubMap.get(p.id);
@@ -678,39 +680,104 @@ export async function getAdminCatalogOrdersAction(): Promise<ActionResponse<any[
 }
 
 /**
- * Helper to reliably resolve the canonical storage row for platform-wide promo codes
+ * Helper to reliably resolve the canonical storage row for platform-wide promo codes.
+ * Uses the persistent platform themes table (guaranteed to exist across store cleanups)
+ * with graceful backwards-compatible fallback to store_settings.
  */
 export async function getGlobalPlatformPromosStorage(supabase: any): Promise<{
+  table: "themes" | "store_settings";
   rowId: string | null;
   metadata: any;
   promos: Coupon[];
 }> {
-  const { data: rows } = await supabase
-    .from("store_settings")
-    .select("id, metadata");
+  // 1. First priority: Check persistent platform themes table
+  const { data: themeRow } = await supabase
+    .from("themes")
+    .select("id, config_schema")
+    .eq("slug", "luxury")
+    .maybeSingle();
 
-  if (!rows || rows.length === 0) {
-    return { rowId: null, metadata: {}, promos: [] };
-  }
-
-  // 1. First priority: find row that already stores platform_promos array
-  for (const r of rows) {
-    if (r.metadata && Array.isArray((r.metadata as any).platform_promos)) {
+  if (themeRow) {
+    const config = themeRow.config_schema || {};
+    if (Array.isArray(config.platform_promos)) {
       return {
-        rowId: r.id,
-        metadata: r.metadata || {},
-        promos: (r.metadata as any).platform_promos || [],
+        table: "themes",
+        rowId: themeRow.id,
+        metadata: config,
+        promos: config.platform_promos,
       };
     }
   }
 
-  // 2. Default to first row
-  const first = rows[0];
-  return {
-    rowId: first.id,
-    metadata: first.metadata || {},
-    promos: [],
-  };
+  // 2. Secondary check: store_settings
+  const { data: rows } = await supabase
+    .from("store_settings")
+    .select("id, metadata");
+
+  if (rows && rows.length > 0) {
+    for (const r of rows) {
+      if (r.metadata && Array.isArray((r.metadata as any).platform_promos)) {
+        return {
+          table: "store_settings",
+          rowId: r.id,
+          metadata: r.metadata || {},
+          promos: (r.metadata as any).platform_promos || [],
+        };
+      }
+    }
+  }
+
+  // 3. If no promos found yet, anchor to the luxury theme row
+  if (themeRow) {
+    return {
+      table: "themes",
+      rowId: themeRow.id,
+      metadata: themeRow.config_schema || {},
+      promos: [],
+    };
+  }
+
+  // 4. Fallback to first store_settings if available
+  if (rows && rows.length > 0) {
+    return {
+      table: "store_settings",
+      rowId: rows[0].id,
+      metadata: rows[0].metadata || {},
+      promos: [],
+    };
+  }
+
+  return { table: "themes", rowId: null, metadata: {}, promos: [] };
+}
+
+export async function saveGlobalPlatformPromosStorage(
+  supabase: any,
+  storage: { table: "themes" | "store_settings"; rowId: string | null; metadata: any },
+  promos: Coupon[]
+): Promise<void> {
+  if (!storage.rowId) return;
+
+  if (storage.table === "themes") {
+    await supabase
+      .from("themes")
+      .update({
+        config_schema: {
+          ...storage.metadata,
+          platform_promos: promos,
+        },
+      })
+      .eq("id", storage.rowId);
+  } else {
+    await supabase
+      .from("store_settings")
+      .update({
+        metadata: {
+          ...storage.metadata,
+          platform_promos: promos,
+        },
+      })
+      .eq("id", storage.rowId);
+  }
 }
 
 /**
@@ -826,14 +893,7 @@ export async function createPlatformPromoCodeAction(
     };
 
     const updatedPromos = [newCoupon, ...existingPromos];
-    if (storage.rowId) {
-      await supabase
-        .from("store_settings")
-        .update({
-          metadata: { ...existingMeta, platform_promos: updatedPromos },
-        })
-        .eq("id", storage.rowId);
-    }
+    await saveGlobalPlatformPromosStorage(supabase, storage, updatedPromos);
 
     await supabase.from("activity_logs").insert({
       user_id: adminId,
@@ -926,14 +986,7 @@ export async function updatePlatformPromoCodeAction(
     const newPromos = [...existingPromos];
     newPromos[index] = updatedCoupon;
 
-    if (storage.rowId) {
-      await supabase
-        .from("store_settings")
-        .update({
-          metadata: { ...existingMeta, platform_promos: newPromos },
-        })
-        .eq("id", storage.rowId);
-    }
+    await saveGlobalPlatformPromosStorage(supabase, storage, newPromos);
 
     await supabase.from("activity_logs").insert({
       user_id: adminId,
@@ -979,14 +1032,7 @@ export async function togglePlatformPromoCodeStatusAction(
     const newPromos = [...existingPromos];
     newPromos[index] = updatedCoupon;
 
-    if (storage.rowId) {
-      await supabase
-        .from("store_settings")
-        .update({
-          metadata: { ...existingMeta, platform_promos: newPromos },
-        })
-        .eq("id", storage.rowId);
-    }
+    await saveGlobalPlatformPromosStorage(supabase, storage, newPromos);
 
     await supabase.from("activity_logs").insert({
       user_id: adminId,
@@ -1014,12 +1060,7 @@ export async function deletePlatformPromoCodeAction(codeId: string): Promise<Act
     const filtered = existingPromos.filter((p) => p.id !== codeId);
 
     if (storage.rowId) {
-      await supabase
-        .from("store_settings")
-        .update({
-          metadata: { ...existingMeta, platform_promos: filtered },
-        })
-        .eq("id", storage.rowId);
+      await saveGlobalPlatformPromosStorage(supabase, storage, filtered);
     }
 
     await supabase.from("activity_logs").insert({
@@ -1183,15 +1224,7 @@ export async function recordPromoCodeUsageAction(code: string): Promise<boolean>
     });
 
     if (updated) {
-      await supabase
-        .from("store_settings")
-        .update({
-          metadata: {
-            ...existingMeta,
-            platform_promos: newPromos,
-          },
-        })
-        .eq("id", storage.rowId);
+      await saveGlobalPlatformPromosStorage(supabase, storage, newPromos);
       return true;
     }
 

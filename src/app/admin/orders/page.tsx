@@ -49,7 +49,7 @@ export default function AdminCatalogOrdersPage() {
           </div>
         ) : catalogOrders.length === 0 ? (
           <div className="rounded-2xl border border-white/10 p-12 text-center bg-[#151515] font-body text-zinc-500">
-            <p className="text-sm font-semibold">No catalog orders placed across storefronts yet.</p>
+            <p className="text-sm font-semibold">No orders yet.</p>
           </div>
         ) : (
           catalogOrders.map((o) => (
@@ -109,7 +109,7 @@ export default function AdminCatalogOrdersPage() {
             ) : catalogOrders.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={8} className="text-center text-zinc-500 text-xs py-12">
-                  No catalog orders placed across storefronts yet.
+                  No orders yet.
                 </TableCell>
               </TableRow>
             ) : (

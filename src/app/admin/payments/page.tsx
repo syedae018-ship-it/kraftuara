@@ -51,7 +51,7 @@ export default function AdminPaymentsPage() {
           </div>
         ) : payments.length === 0 ? (
           <div className="rounded-2xl border border-white/10 p-12 text-center bg-[#151515] font-body text-zinc-500">
-            <p className="text-sm font-semibold">No SaaS subscription payment records found.</p>
+            <p className="text-sm font-semibold">No payments yet.</p>
           </div>
         ) : (
           payments.map((p) => (
@@ -105,7 +105,7 @@ export default function AdminPaymentsPage() {
             ) : payments.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={7} className="text-center text-zinc-500 text-xs py-12">
-                  No SaaS subscription payment records found.
+                  No payments yet.
                 </TableCell>
               </TableRow>
             ) : (

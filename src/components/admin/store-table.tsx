@@ -53,7 +53,7 @@ export function StoreTable({ stores, onToggleStatus, onStoreDeleted }: StoreTabl
   if (stores.length === 0) {
     return (
       <div className="rounded-2xl border border-white/10 p-12 text-center bg-[#151515] font-body text-zinc-500">
-        <p className="text-sm font-semibold">No multi-tenant merchant stores created yet.</p>
+        <p className="text-sm font-semibold">No stores yet.</p>
       </div>
     );
   }

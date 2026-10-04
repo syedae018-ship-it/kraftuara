@@ -70,7 +70,7 @@ export function UserTable({ users, onToggleStatus, onUserDeleted }: UserTablePro
   if (users.length === 0) {
     return (
       <div className="rounded-2xl border border-white/10 p-12 text-center bg-[#151515] font-body text-zinc-500">
-        <p className="text-sm font-semibold">No registered merchant accounts found.</p>
+        <p className="text-sm font-semibold">No merchants yet.</p>
       </div>
     );
   }
