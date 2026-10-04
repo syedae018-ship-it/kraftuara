@@ -59,23 +59,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL("/choose-plan?status=expired", request.url));
     }
 
-    // 3. Check profile for pending checkout or plan selection (STATE 3 & 4)
-    const { data: profile } = await adminClient
-      .from("profiles")
-      .select("onboarding_status, onboarding_data")
-      .eq("id", user.id)
-      .maybeSingle();
-
-    if (
-      profile?.onboarding_status === "payment_pending" ||
-      profile?.onboarding_status === "plan_selected"
-    ) {
-      const selectedPlan = (profile.onboarding_data as Record<string, any>)?.selected_plan;
-      if (selectedPlan) {
-        return NextResponse.redirect(new URL(`/checkout?plan=${selectedPlan}`, request.url));
-      }
-    }
-
     // STATE 2: Authenticated + No Plan -> Plans
     return NextResponse.redirect(new URL("/choose-plan", request.url));
   } catch (error) {

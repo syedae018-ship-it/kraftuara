@@ -783,15 +783,17 @@ export async function getOnboardingDraftAction(): Promise<
     }
 
     const adminSupabase = createAdminClient();
-    const { data: profile } = await (adminSupabase.from("profiles") as any)
-      .select("onboarding_step, onboarding_data, onboarding_status")
-      .eq("id", user.id)
-      .maybeSingle();
+    const { data: stores } = await (adminSupabase.from("stores") as any)
+      .select("id")
+      .eq("user_id", user.id)
+      .limit(1);
+
+    const hasStore = Boolean(stores && stores.length > 0);
 
     return successResponse({
-      step: profile?.onboarding_step || 1,
-      draftData: profile?.onboarding_data || {},
-      onboardingStatus: profile?.onboarding_status || "account_created",
+      step: hasStore ? 3 : 1,
+      draftData: {},
+      onboardingStatus: hasStore ? "completed" : "account_created",
     });
   } catch (err) {
     return errorResponse(getErrorMessage(err));

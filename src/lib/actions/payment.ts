@@ -173,23 +173,18 @@ export async function createStoreSubscriptionAction(
       quantity: 1,
       customer_notify: 0, // Direct Kraftaura email dispatcher handles branded customer notifications
       notes: {
-        storeId: storeId || "",
-        planName: planName,
-        billingInterval: interval,
-        userId: user.id,
-        userEmail: user.email || "",
-        couponCode: validCouponCode || "",
-        discountAmount: discountAmount || 0,
-        originalPrice: basePrice,
-        finalAmount: finalPayableAmount,
+        planName: String(planName),
+        billingInterval: String(interval),
+        userId: String(user.id),
+        userEmail: String(user.email || ""),
+        couponCode: String(validCouponCode || ""),
+        discountAmount: String(discountAmount || 0),
+        originalPrice: String(basePrice),
+        finalAmount: String(finalPayableAmount),
         discountScope: interval === "annual" ? "entire_period" : "first_payment",
-        billingCycle: interval,
-        billingName: billingDetails?.name || user.user_metadata?.full_name || "",
-        billingEmail: billingDetails?.email || user.email || "",
-        billingPhone: billingDetails?.phone || "",
-        billingState: billingDetails?.state || "",
-        billingGstin: billingDetails?.gstin || "",
-        billingBusinessName: billingDetails?.businessName || "",
+        storeId: String(storeId || ""),
+        billingName: String(billingDetails?.name || user.user_metadata?.full_name || ""),
+        billingPhone: String(billingDetails?.phone || ""),
       },
     };
 
@@ -203,7 +198,12 @@ export async function createStoreSubscriptionAction(
     });
   } catch (err: any) {
     console.error("Failed to create subscription order:", err);
-    return errorResponse(err.message || "Failed to create subscription order.");
+    const detailedMessage =
+      err?.error?.description ||
+      err?.description ||
+      err?.message ||
+      "Unable to start payment. Please try again.";
+    return errorResponse(detailedMessage);
   }
 }
 
@@ -334,11 +334,49 @@ export async function verifySubscriptionPaymentAction(payload: {
       .eq("razorpay_payment_id", payload.paymentId)
       .maybeSingle();
 
-    if (payload.storeId) {
+    // Ensure a valid store ID exists to satisfy database foreign-key constraints
+    let targetStoreId = payload.storeId;
+    if (!targetStoreId) {
+      const { data: userStore } = await (adminSupabase.from("stores") as any)
+        .select("id")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (userStore) {
+        targetStoreId = userStore.id;
+      } else {
+        // Create draft onboarding store for the user so foreign key constraints on subscriptions and payments are satisfied
+        const defaultName = subDetails?.notes?.billingName || user.user_metadata?.full_name || "My Store";
+        const rawSlug = defaultName.toLowerCase().replace(/[^a-z0-9]/g, "-").replace(/-+/g, "-").slice(0, 20);
+        const draftSlug = `${rawSlug || "store"}-${Date.now().toString(36)}`;
+
+        const { data: newStore, error: newStoreErr } = await (adminSupabase.from("stores") as any)
+          .insert({
+            user_id: user.id,
+            name: defaultName,
+            slug: draftSlug,
+            status: "draft",
+            is_published: false,
+            currency: "INR",
+          })
+          .select("id")
+          .single();
+
+        if (newStoreErr) {
+          console.error("Failed to create draft store during payment verification:", newStoreErr);
+        } else if (newStore) {
+          targetStoreId = newStore.id;
+        }
+      }
+    }
+
+    if (targetStoreId) {
       // Store-scoped subscription: upsert
       const { error: updateError } = await (adminSupabase.from("subscriptions") as any).upsert(
         {
-          store_id: payload.storeId,
+          store_id: targetStoreId,
           user_id: user.id,
           plan: targetPlan,
           status: "active",
@@ -360,10 +398,10 @@ export async function verifySubscriptionPaymentAction(payload: {
         console.error("Failed to update store subscription:", updateError);
       }
 
-      // Record successful payment if not already recorded
+      // Record successful payment if not already recorded (Idempotency)
       if (!existingPayment) {
         await (adminSupabase as any).from("payments").insert({
-          store_id: payload.storeId,
+          store_id: targetStoreId,
           plan: targetPlan,
           razorpay_payment_id: payload.paymentId,
           razorpay_subscription_id: payload.subscriptionId,
@@ -380,71 +418,6 @@ export async function verifySubscriptionPaymentAction(payload: {
       revalidatePath("/dashboard/analytics");
       revalidatePath("/dashboard/coupons");
       revalidatePath("/dashboard/billing");
-    } else {
-      // ONBOARDING FLOW: store is not created yet. Persist verified subscription by user_id
-      const { data: existingUserSub } = await (adminSupabase.from("subscriptions") as any)
-        .select("id, store_id")
-        .eq("user_id", user.id)
-        .order("updated_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (existingUserSub) {
-        await (adminSupabase.from("subscriptions") as any)
-          .update({
-            plan: targetPlan,
-            status: "active",
-            razorpay_subscription_id: payload.subscriptionId,
-            razorpay_signature: payload.signature,
-            current_period_start: currentStartFromRzp,
-            current_period_end: currentEndFromRzp,
-            trial_start: null,
-            trial_end: null,
-            next_billing_date: nextBillingDateFromRzp,
-            amount: futureRecurringAmount,
-            currency: "INR",
-            updated_at: now.toISOString(),
-          })
-          .eq("id", existingUserSub.id);
-      } else {
-        await (adminSupabase.from("subscriptions") as any).insert({
-          user_id: user.id,
-          store_id: null,
-          plan: targetPlan,
-          status: "active",
-          razorpay_subscription_id: payload.subscriptionId,
-          razorpay_signature: payload.signature,
-          current_period_start: currentStartFromRzp,
-          current_period_end: currentEndFromRzp,
-          trial_start: null,
-          trial_end: null,
-          next_billing_date: nextBillingDateFromRzp,
-          amount: futureRecurringAmount,
-          currency: "INR",
-          updated_at: now.toISOString(),
-        });
-      }
-
-      // Record verified payment under user_id if not already recorded
-      if (!existingPayment) {
-        await (adminSupabase as any).from("payments").insert({
-          store_id: null,
-          plan: targetPlan,
-          razorpay_payment_id: payload.paymentId,
-          razorpay_subscription_id: payload.subscriptionId,
-          amount: chargedAmount,
-          currency: "INR",
-          status: "successful",
-        });
-      }
-
-      // Update merchant profile onboarding lifecycle state
-      await (adminSupabase.from("profiles") as any)
-        .update({
-          onboarding_status: "payment_successful",
-          updated_at: now.toISOString(),
-        })
-        .eq("id", user.id);
     }
 
     // Schedule next-cycle standard plan if first_payment discount was applied
@@ -654,7 +627,6 @@ export async function activatePlatformSubscriptionAction(
       if (!existingPayment) {
         await (supabase as any).from("payments").insert({
           store_id: storeId,
-          user_id: store.user_id,
           plan: authoritativePlan,
           razorpay_payment_id: paymentId,
           razorpay_subscription_id: subscriptionId,
@@ -721,14 +693,9 @@ export async function checkUserActiveSubscriptionAction(): Promise<
     const hasStores = Boolean(stores && stores.length > 0);
     const primaryStore = stores?.[0];
 
-    // 2. Check profile onboarding status & step
-    const { data: profile } = await (supabase.from("profiles") as any)
-      .select("onboarding_status, onboarding_step")
-      .eq("id", user.id)
-      .maybeSingle();
-
-    const onboardingStatus = profile?.onboarding_status || (hasStores ? "completed" : "account_created");
-    const onboardingStep = profile?.onboarding_step || 1;
+    // 2. Safe onboarding state evaluation based on store and subscription status
+    const onboardingStatus = hasStores ? "completed" : "account_created";
+    const onboardingStep = hasStores ? 3 : 1;
 
     // 3. Resolve authoritative subscription using subscription engine
     const { subscriptionEngine } = await import("@/lib/services/subscription-engine");
@@ -740,12 +707,12 @@ export async function checkUserActiveSubscriptionAction(): Promise<
 
     // A user has an active subscription ONLY if their status is active/trialing
     // AND they actually have verified proof: an existing store, razorpay subscription id,
-    // future currentPeriodEnd, or a verified payment record.
+    // future currentPeriodEnd, or an active subscription row with positive amount.
     const hasVerifiedProof = Boolean(
       hasStores ||
       sub.razorpaySubscriptionId ||
       (sub.currentPeriodEnd && new Date(sub.currentPeriodEnd).getTime() > Date.now()) ||
-      profile?.onboarding_status === "payment_successful"
+      (sub.status === "active" && sub.amount > 0)
     );
 
     const isActive = (sub.status === "active" || sub.status === "trialing") && hasVerifiedProof;

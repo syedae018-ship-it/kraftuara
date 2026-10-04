@@ -151,7 +151,6 @@ export async function getAdminUsersAction(limit: number = 100): Promise<ActionRe
         email,
         full_name,
         avatar_url,
-        onboarding_status,
         created_at,
         stores (
           id,

@@ -113,9 +113,10 @@ export const getOrCreateRazorpayPlan = async (
       },
     });
     return plan.id;
-  } catch (error) {
-    console.error("Failed to fetch or create plan in Razorpay:", error);
-    return `plan_${planTier}_${interval}_mock`;
+  } catch (error: any) {
+    const errorDesc = error?.error?.description || error?.message || "Failed to fetch or create plan in Razorpay";
+    console.error("Failed to fetch or create plan in Razorpay:", errorDesc, error);
+    throw new Error(errorDesc);
   }
 };
 

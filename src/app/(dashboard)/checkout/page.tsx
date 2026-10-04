@@ -1085,23 +1085,19 @@ function CheckoutContent() {
                 {/* Primary CTA: Proceed to Payment */}
                 <div className="pt-1">
                   <Button
+                    id="proceed-to-payment-btn"
                     onClick={handleProceedToPayment}
                     variant="primary"
+                    size="lg"
+                    isLoading={isProcessingPayment}
                     disabled={isProcessingPayment || isValidatingCoupon}
-                    className="w-full h-12 text-xs sm:text-sm font-bold uppercase tracking-wider shadow-glow-lg rounded-2xl flex items-center justify-center gap-2"
+                    leftIcon={<Lock className="w-4 h-4 text-white/90 shrink-0" />}
+                    rightIcon={<ArrowRight className="w-4 h-4 text-white/90 shrink-0" />}
+                    className="w-full h-12 text-xs sm:text-sm font-bold uppercase tracking-wider shadow-glow-lg rounded-2xl"
                   >
-                    {isProcessingPayment ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        <span>Securing Order...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Lock className="w-4 h-4" />
-                        <span>Proceed to Payment • ₹{finalPayable.toLocaleString("en-IN")}</span>
-                        <ArrowRight className="w-4 h-4 ml-1" />
-                      </>
-                    )}
+                    {isProcessingPayment
+                      ? "Creating secure payment..."
+                      : `Proceed to Payment • ₹${finalPayable.toLocaleString("en-IN")}`}
                   </Button>
                 </div>
 

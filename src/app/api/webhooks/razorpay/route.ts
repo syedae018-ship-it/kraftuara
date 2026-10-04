@@ -197,14 +197,6 @@ export async function POST(request: NextRequest) {
             updated_at: new Date().toISOString(),
           });
         }
-
-        // Also update profiles onboarding status
-        await (supabase.from("profiles") as any)
-          .update({
-            onboarding_status: "payment_successful",
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", userIdFromNotes);
       }
 
       // 2. Insert payment record idempotently
@@ -402,15 +394,6 @@ export async function POST(request: NextRequest) {
             currency: paymentEntity.currency || "INR",
             status: "failed",
           });
-        }
-
-        if (userId && !storeId) {
-          await (supabase.from("profiles") as any)
-            .update({
-              onboarding_status: "payment_failed",
-              updated_at: new Date().toISOString(),
-            })
-            .eq("id", userId);
         }
       }
     }

@@ -93,16 +93,13 @@ class SubscriptionEngine {
 
         if (storeId) {
           paymentQuery = paymentQuery.eq("store_id", storeId);
-        } else if (userId) {
-          paymentQuery = paymentQuery.eq("user_id", userId);
-        }
+          const { data: latestPayment } = await paymentQuery.maybeSingle();
 
-        const { data: latestPayment } = await paymentQuery.maybeSingle();
-
-        if (latestPayment?.plan) {
-          recoveredPaymentPlan = normalizePlanTier(latestPayment.plan);
-          recoveredAmount = latestPayment.amount || (PLANS[recoveredPaymentPlan]?.priceMonthly ?? 99);
-          recoveredRzpSubId = latestPayment.razorpay_subscription_id || null;
+          if (latestPayment?.plan) {
+            recoveredPaymentPlan = normalizePlanTier(latestPayment.plan);
+            recoveredAmount = latestPayment.amount || (PLANS[recoveredPaymentPlan]?.priceMonthly ?? 99);
+            recoveredRzpSubId = latestPayment.razorpay_subscription_id || null;
+          }
         }
       } catch (err) {
         console.error("Payment fallback resolution error:", err);
@@ -330,19 +327,7 @@ class SubscriptionEngine {
           }, { onConflict: "store_id" });
       }
 
-      // Also link any unlinked payment records
-      await (supabase.from("payments") as any)
-        .update({ store_id: storeId })
-        .eq("user_id", userId)
-        .is("store_id", null);
-
-      // Mark onboarding completed in profiles
-      await (supabase.from("profiles") as any)
-        .update({
-          onboarding_status: "completed",
-          updated_at: now.toISOString(),
-        })
-        .eq("id", userId);
+      // Complete link operation successfully
     }
 
     return this.getAuthoritativeSubscription(storeId, userId, supabase);
