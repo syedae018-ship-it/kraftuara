@@ -89,7 +89,17 @@ interface AppliedCoupon {
   value: number;
   discountAmount: number;
   finalPrice: number;
+  billingCycle?: string;
+  discountScope?: string;
+  renewalPrice?: number;
+  renewalText?: string;
 }
+
+const formatCurrency = (amount: number) => {
+  return amount % 1 === 0
+    ? amount.toLocaleString("en-IN")
+    : amount.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
 
 function CheckoutContent() {
   const router = useRouter();
@@ -246,6 +256,10 @@ function CheckoutContent() {
             value: res.data.value,
             discountAmount: res.data.discountAmount,
             finalPrice: res.data.finalPrice,
+            billingCycle: res.data.billingCycle,
+            discountScope: res.data.discountScope,
+            renewalPrice: res.data.renewalPrice,
+            renewalText: res.data.renewalText,
           });
         } else {
           setAppliedCoupon(null);
@@ -294,6 +308,10 @@ function CheckoutContent() {
           value: res.data.value,
           discountAmount: res.data.discountAmount,
           finalPrice: res.data.finalPrice,
+          billingCycle: res.data.billingCycle,
+          discountScope: res.data.discountScope,
+          renewalPrice: res.data.renewalPrice,
+          renewalText: res.data.renewalText,
         });
         setCouponError(null);
         toast.success("Coupon Applied", `Promo code "${cleanCode}" applied successfully.`);
@@ -995,41 +1013,50 @@ function CheckoutContent() {
                   <div className="flex justify-between items-center text-zinc-400">
                     <span>Plan</span>
                     <span className="font-semibold text-white font-heading">
-                      {currentPlanConfig.name} ({isAnnual ? "Annual" : "Monthly"})
+                      {currentPlanConfig.name}
                     </span>
                   </div>
 
                   <div className="flex justify-between items-center text-zinc-400">
-                    <span>Plan Price</span>
+                    <span>Billing</span>
+                    <span className="font-mono text-zinc-300 capitalize">
+                      {isAnnual ? "Annual" : "Monthly"}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between items-center text-zinc-400">
+                    <span>Original Price</span>
                     <span className="font-mono text-white">
-                      ₹{basePrice.toLocaleString("en-IN")}
+                      ₹{formatCurrency(basePrice)}
                     </span>
                   </div>
 
                   {appliedCoupon && (
-                    <div className="flex justify-between items-center text-emerald-400 font-semibold">
-                      <span className="flex items-center gap-1">
-                        <Tag className="w-3 h-3" />
-                        Coupon Discount
-                      </span>
-                      <span className="font-mono">
-                        -₹{discountAmount.toLocaleString("en-IN")}
-                      </span>
-                    </div>
-                  )}
+                    <>
+                      <div className="flex justify-between items-center text-zinc-400">
+                        <span>Coupon</span>
+                        <span className="font-mono font-bold text-white tracking-wide">
+                          {appliedCoupon.code}
+                        </span>
+                      </div>
 
-                  <div className="flex justify-between items-center text-zinc-400">
-                    <span>Subtotal</span>
-                    <span className="font-mono text-zinc-300">
-                      ₹{(basePrice - discountAmount).toLocaleString("en-IN")}
-                    </span>
-                  </div>
+                      <div className="flex justify-between items-center text-emerald-400 font-semibold">
+                        <span className="flex items-center gap-1">
+                          <Tag className="w-3 h-3" />
+                          Discount
+                        </span>
+                        <span className="font-mono">
+                          -₹{formatCurrency(discountAmount)}
+                        </span>
+                      </div>
+                    </>
+                  )}
 
                   {/* Final Total Line */}
                   <div className="border-t border-white/10 pt-3 flex justify-between items-baseline">
                     <div>
                       <div className="text-xs sm:text-sm font-bold font-heading uppercase text-white tracking-wide">
-                        Total Payable
+                        You Pay Today
                       </div>
                       <div className="text-[10px] text-zinc-500 font-mono">
                         Inclusive of all applicable taxes
@@ -1037,11 +1064,20 @@ function CheckoutContent() {
                     </div>
                     <div className="text-right">
                       <div className="text-2xl sm:text-3xl font-extrabold font-heading text-white">
-                        ₹{finalPayable.toLocaleString("en-IN")}
+                        ₹{formatCurrency(finalPayable)}
                       </div>
-                      <div className="text-[10px] text-zinc-400 font-mono">
-                        Billed {isAnnual ? "annually" : "monthly"}
-                      </div>
+                      {appliedCoupon ? (
+                        <div className="text-[11px] text-amber-300/90 font-medium font-body mt-0.5">
+                          {appliedCoupon.renewalText ||
+                            (isAnnual
+                              ? `₹${formatCurrency(finalPayable)} today for 12 months.`
+                              : `₹${formatCurrency(finalPayable)} today, then ₹${formatCurrency(basePrice)}/month.`)}
+                        </div>
+                      ) : (
+                        <div className="text-[10px] text-zinc-400 font-mono">
+                          Billed {isAnnual ? "annually" : "monthly"}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

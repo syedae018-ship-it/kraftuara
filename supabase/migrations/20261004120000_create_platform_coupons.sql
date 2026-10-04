@@ -7,6 +7,8 @@ CREATE TABLE IF NOT EXISTS public.platform_coupons (
   discount_type TEXT NOT NULL CHECK (discount_type IN ('percentage', 'flat')),
   discount_value NUMERIC NOT NULL CHECK (discount_value > 0),
   applicable_plan_id TEXT NOT NULL DEFAULT 'all', -- 'all', 'startup', 'growth', 'pro', 'premium_ai'
+  billing_cycle TEXT NOT NULL DEFAULT 'all' CHECK (billing_cycle IN ('monthly', 'annual', 'all')),
+  discount_scope TEXT NOT NULL DEFAULT 'first_payment' CHECK (discount_scope IN ('first_payment', 'entire_period', 'recurring')),
   usage_limit INTEGER NOT NULL DEFAULT 100 CHECK (usage_limit >= 1),
   usage_count INTEGER NOT NULL DEFAULT 0 CHECK (usage_count >= 0),
   expiry_date TIMESTAMPTZ,

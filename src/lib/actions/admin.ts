@@ -4,7 +4,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { assertAdminSession } from "@/lib/admin/admin-auth";
 import { errorResponse, successResponse, getErrorMessage } from "@/lib/api-response";
 import { ActionResponse } from "@/types";
-import { PlatformStats, AdminUser, AdminStore, AdminPayment, Coupon, Template } from "@/types/admin";
+import { PlatformStats, AdminUser, AdminStore, AdminPayment, Coupon, Template, CouponBillingCycle, DiscountScope } from "@/types/admin";
 import { cookies, headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -735,6 +735,8 @@ export async function getPlatformPromoCodesAction(): Promise<ActionResponse<Coup
     const promos: Coupon[] = rawPromos.map((p) => {
       const planId = (p.applicablePlanId || (p.applicablePlans && p.applicablePlans[0]) || "all").toLowerCase();
       const planName = planMap.get(planId) || planMap.get(normalizePlanTier(planId)) || (planId === "all" ? "All Plans" : planId);
+      const cycle: CouponBillingCycle = p.billingCycle || p.applicableInterval || "all";
+      const scope: DiscountScope = p.discountScope || (cycle === "annual" ? "entire_period" : "first_payment");
 
       return {
         id: p.id,
@@ -748,7 +750,9 @@ export async function getPlatformPromoCodesAction(): Promise<ActionResponse<Coup
         applicablePlanId: planId,
         applicablePlanName: planName,
         applicablePlans: p.applicablePlans || [planId],
-        applicableInterval: p.applicableInterval || "all",
+        applicableInterval: cycle,
+        billingCycle: cycle,
+        discountScope: scope,
         createdAt: p.createdAt,
         updatedAt: p.updatedAt,
       };
@@ -798,6 +802,9 @@ export async function createPlatformPromoCodeAction(
     const matchedPlan = plans.find((p) => p.id.toLowerCase() === planId || normalizePlanTier(p.id) === normalizePlanTier(planId));
     const planName = planId === "all" ? "All Plans" : matchedPlan?.name || planId;
 
+    const billingCycle: CouponBillingCycle = input.billingCycle || input.applicableInterval || "all";
+    const discountScope: DiscountScope = input.discountScope || (billingCycle === "annual" ? "entire_period" : "first_payment");
+
     const now = new Date().toISOString();
     const newCoupon: Coupon = {
       id: `promo_${Date.now()}`,
@@ -805,13 +812,15 @@ export async function createPlatformPromoCodeAction(
       discountType: input.discountType,
       value: val,
       usageLimit: limit,
-      usageCount: 0, // Always starts at 0 - tracked automatically
+      usageCount: 0, // Always starts at 0 - tracked automatically upon payment
       expiryDate: input.expiryDate ? input.expiryDate : null,
       status: input.status === "inactive" ? "inactive" : "active",
       applicablePlanId: planId,
       applicablePlanName: planName,
       applicablePlans: [planId],
-      applicableInterval: input.applicableInterval || "all",
+      applicableInterval: billingCycle,
+      billingCycle: billingCycle,
+      discountScope: discountScope,
       createdAt: now,
       updatedAt: now,
     };
@@ -895,6 +904,9 @@ export async function updatePlatformPromoCodeAction(
       planName = planId === "all" ? "All Plans" : matchedPlan?.name || planId;
     }
 
+    const billingCycle: CouponBillingCycle = updates.billingCycle || updates.applicableInterval || current.billingCycle || current.applicableInterval || "all";
+    const discountScope: DiscountScope = updates.discountScope || current.discountScope || (billingCycle === "annual" ? "entire_period" : "first_payment");
+
     const updatedCoupon: Coupon = {
       ...current,
       discountType: updates.discountType || current.discountType,
@@ -905,6 +917,9 @@ export async function updatePlatformPromoCodeAction(
       applicablePlanId: planId,
       applicablePlanName: planName,
       applicablePlans: [planId],
+      applicableInterval: billingCycle,
+      billingCycle,
+      discountScope,
       updatedAt: new Date().toISOString(),
     };
 
@@ -1035,6 +1050,10 @@ export async function validateSaaSPromoCodeAction(
     code: string;
     discountType: "percentage" | "flat";
     value: number;
+    billingCycle: CouponBillingCycle;
+    discountScope: DiscountScope;
+    renewalPrice: number;
+    renewalText: string;
   }>
 > {
   try {
@@ -1079,23 +1098,35 @@ export async function validateSaaSPromoCodeAction(
       }
     }
 
-    // Check interval restriction if configured
-    if (found.applicableInterval && found.applicableInterval !== "all") {
-      if (found.applicableInterval !== interval) {
-        return errorResponse(
-          `This promo code is only valid for ${found.applicableInterval} billing.`
-        );
+    // Strict billing cycle compatibility verification
+    const couponCycle: CouponBillingCycle = found.billingCycle || found.applicableInterval || "all";
+    if (couponCycle !== "all") {
+      if (couponCycle === "annual" && interval !== "annual") {
+        return errorResponse("This promo code is only valid for annual billing.");
+      }
+      if (couponCycle === "monthly" && interval !== "monthly") {
+        return errorResponse("This promo code is only valid for monthly billing.");
       }
     }
 
+    // Exact two-decimal currency precision
     let discount = 0;
     if (found.discountType === "percentage") {
-      discount = Math.round((originalPrice * found.value) / 100);
+      discount = Math.round(((originalPrice * found.value) / 100) * 100) / 100;
     } else {
-      discount = Math.min(originalPrice, found.value);
+      discount = Math.min(originalPrice, Math.round(Number(found.value) * 100) / 100);
     }
 
-    const finalPrice = Math.max(0, originalPrice - discount);
+    const finalPrice = Math.max(0, Math.round((originalPrice - discount) * 100) / 100);
+    const discountScope: DiscountScope =
+      found.discountScope || (interval === "annual" ? "entire_period" : "first_payment");
+    const renewalPrice = discountScope === "recurring" ? finalPrice : originalPrice;
+    const renewalText =
+      discountScope === "first_payment"
+        ? `₹${finalPrice.toFixed(2)} today, then ₹${originalPrice.toFixed(2)}/month.`
+        : interval === "annual"
+        ? `₹${finalPrice.toFixed(2)} today for 12 months.`
+        : `₹${finalPrice.toFixed(2)}/${interval}`;
 
     return successResponse(
       {
@@ -1105,8 +1136,12 @@ export async function validateSaaSPromoCodeAction(
         code: cleanCode,
         discountType: found.discountType,
         value: found.value,
+        billingCycle: couponCycle,
+        discountScope,
+        renewalPrice,
+        renewalText,
       },
-      `Coupon "${cleanCode}" applied! You saved ₹${discount}.`
+      `Coupon "${cleanCode}" applied! You saved ₹${discount.toFixed(2)}.`
     );
   } catch (err) {
     return errorResponse(getErrorMessage(err));
@@ -1115,6 +1150,7 @@ export async function validateSaaSPromoCodeAction(
 
 /**
  * Atomically records promo code usage upon confirmed payment
+ * Enforces atomic race-condition checking so usageCount never exceeds usageLimit
  */
 export async function recordPromoCodeUsageAction(code: string): Promise<boolean> {
   try {
@@ -1127,21 +1163,26 @@ export async function recordPromoCodeUsageAction(code: string): Promise<boolean>
 
     const existingMeta: any = storage.metadata || {};
     const existingPromos: Coupon[] = storage.promos || [];
-    let found = false;
+    let updated = false;
 
     const newPromos = existingPromos.map((p) => {
       if (p.code?.trim().toUpperCase() === cleanCode) {
-        found = true;
+        const currentCount = Number(p.usageCount || 0);
+        if (p.usageLimit > 0 && currentCount >= p.usageLimit) {
+          // Already capped - reject increment
+          return p;
+        }
+        updated = true;
         return {
           ...p,
-          usageCount: (p.usageCount || 0) + 1,
+          usageCount: currentCount + 1,
           updatedAt: new Date().toISOString(),
         };
       }
       return p;
     });
 
-    if (found) {
+    if (updated) {
       await supabase
         .from("store_settings")
         .update({

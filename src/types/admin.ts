@@ -71,6 +71,9 @@ export type Plan = {
   status: "active" | "archived";
 };
 
+export type DiscountScope = "first_payment" | "entire_period" | "recurring";
+export type CouponBillingCycle = "monthly" | "annual" | "all";
+
 export type Coupon = {
   id: string;
   code: string;
@@ -83,7 +86,9 @@ export type Coupon = {
   applicablePlanId?: string; // "all" or specific plan id (e.g. "growth", "startup", "pro")
   applicablePlanName?: string; // e.g. "Aura Pack", "Startup Pack", "All Plans"
   applicablePlans?: string[]; // for backward compatibility
-  applicableInterval?: "monthly" | "annual" | "all";
+  applicableInterval?: CouponBillingCycle; // "monthly" | "annual" | "all"
+  billingCycle?: CouponBillingCycle; // alias / explicit
+  discountScope?: DiscountScope; // "first_payment" | "entire_period" | "recurring"
   createdAt?: string;
   updatedAt?: string;
 };

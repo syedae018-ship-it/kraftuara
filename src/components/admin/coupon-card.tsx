@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Coupon } from "@/types/admin";
+import { Coupon, DiscountScope, CouponBillingCycle } from "@/types/admin";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { Input } from "@/components/ui/input";
@@ -51,6 +51,8 @@ export function CouponCard({
   const [applicablePlanId, setApplicablePlanId] = useState("all");
   const [discountType, setDiscountType] = useState<"percentage" | "flat">("percentage");
   const [value, setValue] = useState("20");
+  const [billingCycle, setBillingCycle] = useState<CouponBillingCycle>("all");
+  const [discountScope, setDiscountScope] = useState<DiscountScope>("first_payment");
   const [hasExpiry, setHasExpiry] = useState(false);
   const [expiryDate, setExpiryDate] = useState("");
   const [usageLimit, setUsageLimit] = useState("100");
@@ -63,6 +65,8 @@ export function CouponCard({
   const [editPlanId, setEditPlanId] = useState("all");
   const [editDiscountType, setEditDiscountType] = useState<"percentage" | "flat">("percentage");
   const [editValue, setEditValue] = useState("");
+  const [editBillingCycle, setEditBillingCycle] = useState<CouponBillingCycle>("all");
+  const [editDiscountScope, setEditDiscountScope] = useState<DiscountScope>("first_payment");
   const [editHasExpiry, setEditHasExpiry] = useState(false);
   const [editExpiryDate, setEditExpiryDate] = useState("");
   const [editUsageLimit, setEditUsageLimit] = useState("");
@@ -94,6 +98,8 @@ export function CouponCard({
     setApplicablePlanId("all");
     setDiscountType("percentage");
     setValue("20");
+    setBillingCycle("all");
+    setDiscountScope("first_payment");
     setHasExpiry(false);
     setExpiryDate("");
     setUsageLimit("100");
@@ -133,6 +139,9 @@ export function CouponCard({
         applicablePlanId,
         discountType,
         value: numVal,
+        billingCycle,
+        applicableInterval: billingCycle,
+        discountScope,
         usageLimit: numLimit,
         expiryDate: hasExpiry && expiryDate ? expiryDate : null,
         status,
@@ -148,6 +157,9 @@ export function CouponCard({
     setEditPlanId(coupon.applicablePlanId || "all");
     setEditDiscountType(coupon.discountType || "percentage");
     setEditValue(coupon.value.toString());
+    const cycle = coupon.billingCycle || coupon.applicableInterval || "all";
+    setEditBillingCycle(cycle);
+    setEditDiscountScope(coupon.discountScope || (cycle === "annual" ? "entire_period" : "first_payment"));
     setEditHasExpiry(Boolean(coupon.expiryDate));
     setEditExpiryDate(coupon.expiryDate ? coupon.expiryDate.split("T")[0] : "");
     setEditUsageLimit(coupon.usageLimit.toString());
@@ -190,6 +202,9 @@ export function CouponCard({
         applicablePlanId: editPlanId,
         discountType: editDiscountType,
         value: numVal,
+        billingCycle: editBillingCycle,
+        applicableInterval: editBillingCycle,
+        discountScope: editDiscountScope,
         usageLimit: numLimit,
         expiryDate: editHasExpiry && editExpiryDate ? editExpiryDate : null,
         status: editStatus,
@@ -300,7 +315,9 @@ export function CouponCard({
                 <TableRow>
                   <TableHead>Promo Code</TableHead>
                   <TableHead>Applicable Plan</TableHead>
+                  <TableHead>Billing Cycle</TableHead>
                   <TableHead>Discount</TableHead>
+                  <TableHead>Discount Scope</TableHead>
                   <TableHead>Used / Max Uses</TableHead>
                   <TableHead>Expiry</TableHead>
                   <TableHead>Status</TableHead>
@@ -308,166 +325,202 @@ export function CouponCard({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {coupons.map((c) => (
-                  <TableRow key={c.id}>
-                    <TableCell className="font-mono text-xs font-bold text-white">
-                      <span className="px-2 py-1 rounded bg-[#202020] border border-white/10 text-maroon-300">
-                        {c.code}
-                      </span>
-                    </TableCell>
+                {coupons.map((c) => {
+                  const cycle = c.billingCycle || c.applicableInterval || "all";
+                  const scope = c.discountScope || (cycle === "annual" ? "entire_period" : "first_payment");
 
-                    <TableCell>
-                      <Badge
-                        variant={c.applicablePlanId && c.applicablePlanId !== "all" ? "maroon" : "outline"}
-                        className="text-[11px] font-medium"
-                      >
-                        {c.applicablePlanName || (c.applicablePlanId === "all" ? "All Plans" : c.applicablePlanId)}
-                      </Badge>
-                    </TableCell>
+                  return (
+                    <TableRow key={c.id}>
+                      <TableCell className="font-mono text-xs font-bold text-white">
+                        <span className="px-2 py-1 rounded bg-[#202020] border border-white/10 text-maroon-300">
+                          {c.code}
+                        </span>
+                      </TableCell>
 
-                    <TableCell className="font-heading font-bold text-white text-sm">
-                      {c.discountType === "percentage" ? `${c.value}%` : `₹${c.value}`}
-                    </TableCell>
-
-                    <TableCell className="font-mono text-xs text-zinc-300">
-                      <span className="font-bold text-white">{c.usageCount || 0}</span> /{" "}
-                      <span>{c.usageLimit || "∞"}</span>
-                    </TableCell>
-
-                    <TableCell className="text-xs text-zinc-400 font-mono">
-                      {formatExpiryDisplay(c.expiryDate)}
-                    </TableCell>
-
-                    <TableCell>
-                      <Badge
-                        variant={c.status === "active" ? "success" : "outline"}
-                        className="capitalize text-[10px]"
-                      >
-                        {c.status}
-                      </Badge>
-                    </TableCell>
-
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => openEditModal(c)}
-                          className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/5 transition-colors"
-                          title="Edit Promo Code"
+                      <TableCell>
+                        <Badge
+                          variant={c.applicablePlanId && c.applicablePlanId !== "all" ? "maroon" : "outline"}
+                          className="text-[11px] font-medium"
                         >
-                          <Edit2 className="w-3.5 h-3.5" />
-                        </button>
+                          {c.applicablePlanName || (c.applicablePlanId === "all" ? "All Plans" : c.applicablePlanId)}
+                        </Badge>
+                      </TableCell>
 
-                        <button
-                          type="button"
-                          onClick={() => handleToggleStatus(c)}
-                          disabled={togglingId === c.id}
-                          className={`p-1.5 rounded-lg transition-colors disabled:opacity-50 ${
-                            c.status === "active"
-                              ? "text-zinc-400 hover:text-amber-400 hover:bg-amber-400/10"
-                              : "text-zinc-400 hover:text-emerald-400 hover:bg-emerald-400/10"
-                          }`}
-                          title={c.status === "active" ? "Deactivate Promo Code" : "Activate Promo Code"}
-                        >
-                          {c.status === "active" ? (
-                            <PowerOff className="w-3.5 h-3.5" />
-                          ) : (
-                            <Power className="w-3.5 h-3.5" />
-                          )}
-                        </button>
+                      <TableCell>
+                        <Badge variant="outline" className="text-[11px] font-mono capitalize">
+                          {cycle === "annual" ? "Annual" : cycle === "monthly" ? "Monthly" : "Both"}
+                        </Badge>
+                      </TableCell>
 
-                        <button
-                          type="button"
-                          onClick={() => openDeleteModal(c)}
-                          className="p-1.5 rounded-lg text-zinc-400 hover:text-rose-400 hover:bg-rose-400/10 transition-colors"
-                          title="Delete Promo Code"
+                      <TableCell className="font-heading font-bold text-white text-sm">
+                        {c.discountType === "percentage" ? `${c.value}%` : `₹${c.value}`}
+                      </TableCell>
+
+                      <TableCell className="text-xs text-zinc-300 font-medium">
+                        {scope === "entire_period"
+                          ? (cycle === "annual" ? "Entire Annual Billing" : "Entire Billing Period")
+                          : (cycle === "monthly" ? "First Month Only" : "First Payment Only")}
+                      </TableCell>
+
+                      <TableCell className="font-mono text-xs text-zinc-300">
+                        <span className="font-bold text-white">{c.usageCount || 0}</span> /{" "}
+                        <span>{c.usageLimit || "∞"}</span>
+                      </TableCell>
+
+                      <TableCell className="text-xs text-zinc-400 font-mono">
+                        {formatExpiryDisplay(c.expiryDate)}
+                      </TableCell>
+
+                      <TableCell>
+                        <Badge
+                          variant={c.status === "active" ? "success" : "outline"}
+                          className="capitalize text-[10px]"
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                          {c.status}
+                        </Badge>
+                      </TableCell>
+
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => openEditModal(c)}
+                            className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/5 transition-colors"
+                            title="Edit Promo Code"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleToggleStatus(c)}
+                            disabled={togglingId === c.id}
+                            className={`p-1.5 rounded-lg transition-colors disabled:opacity-50 ${
+                              c.status === "active"
+                                ? "text-zinc-400 hover:text-amber-400 hover:bg-amber-400/10"
+                                : "text-zinc-400 hover:text-emerald-400 hover:bg-emerald-400/10"
+                            }`}
+                            title={c.status === "active" ? "Deactivate Promo Code" : "Activate Promo Code"}
+                          >
+                            {c.status === "active" ? (
+                              <PowerOff className="w-3.5 h-3.5" />
+                            ) : (
+                              <Power className="w-3.5 h-3.5" />
+                            )}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => openDeleteModal(c)}
+                            className="p-1.5 rounded-lg text-zinc-400 hover:text-rose-400 hover:bg-rose-400/10 transition-colors"
+                            title="Delete Promo Code"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </div>
 
           {/* Mobile Card Layout */}
           <div className="md:hidden space-y-3">
-            {coupons.map((c) => (
-              <div
-                key={c.id}
-                className="bg-[#151515] border border-white/10 rounded-2xl p-4 space-y-3 font-body"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-[#202020] border border-white/10 text-maroon-300">
-                    {c.code}
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <Badge
-                      variant={c.status === "active" ? "success" : "outline"}
-                      className="capitalize text-[10px]"
+            {coupons.map((c) => {
+              const cycle = c.billingCycle || c.applicableInterval || "all";
+              const scope = c.discountScope || (cycle === "annual" ? "entire_period" : "first_payment");
+
+              return (
+                <div
+                  key={c.id}
+                  className="bg-[#151515] border border-white/10 rounded-2xl p-4 space-y-3 font-body"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-[#202020] border border-white/10 text-maroon-300">
+                      {c.code}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <Badge
+                        variant={c.status === "active" ? "success" : "outline"}
+                        className="capitalize text-[10px]"
+                      >
+                        {c.status}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-xs border-t border-white/5 pt-2">
+                    <div>
+                      <span className="text-[10px] text-zinc-500 uppercase block font-mono">Plan</span>
+                      <span className="font-medium text-white text-xs">
+                        {c.applicablePlanName || (c.applicablePlanId === "all" ? "All Plans" : c.applicablePlanId)}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-zinc-500 uppercase block font-mono">Discount</span>
+                      <span className="font-bold text-white text-xs">
+                        {c.discountType === "percentage" ? `${c.value}% OFF` : `₹${c.value} OFF`}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-zinc-500 uppercase block font-mono">Billing Cycle</span>
+                      <span className="font-medium text-white text-xs capitalize">
+                        {cycle === "annual" ? "Annual" : cycle === "monthly" ? "Monthly" : "Both (Monthly & Annual)"}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-zinc-500 uppercase block font-mono">Scope</span>
+                      <span className="font-medium text-white text-xs">
+                        {scope === "entire_period"
+                          ? (cycle === "annual" ? "Entire Annual Billing" : "Entire Period")
+                          : (cycle === "monthly" ? "First Month Only" : "First Payment Only")}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-zinc-500 uppercase block font-mono">Usage</span>
+                      <span className="font-mono text-zinc-300 text-xs">
+                        {c.usageCount || 0} / {c.usageLimit || "∞"}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-zinc-500 uppercase block font-mono">Expires</span>
+                      <span className="font-mono text-zinc-300 text-xs">
+                        {formatExpiryDisplay(c.expiryDate)}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/5">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 text-xs"
+                      onClick={() => openEditModal(c)}
                     >
-                      {c.status}
-                    </Badge>
+                      Edit
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 text-xs"
+                      onClick={() => handleToggleStatus(c)}
+                    >
+                      {c.status === "active" ? "Deactivate" : "Activate"}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 text-xs text-rose-400 hover:text-rose-300"
+                      onClick={() => openDeleteModal(c)}
+                    >
+                      Delete
+                    </Button>
                   </div>
                 </div>
-
-                <div className="grid grid-cols-2 gap-2 text-xs border-t border-white/5 pt-2">
-                  <div>
-                    <span className="text-[10px] text-zinc-500 uppercase block font-mono">Plan</span>
-                    <span className="font-medium text-white text-xs">
-                      {c.applicablePlanName || (c.applicablePlanId === "all" ? "All Plans" : c.applicablePlanId)}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-zinc-500 uppercase block font-mono">Discount</span>
-                    <span className="font-bold text-white text-xs">
-                      {c.discountType === "percentage" ? `${c.value}% OFF` : `₹${c.value} OFF`}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-zinc-500 uppercase block font-mono">Usage</span>
-                    <span className="font-mono text-zinc-300 text-xs">
-                      {c.usageCount || 0} / {c.usageLimit || "∞"}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-zinc-500 uppercase block font-mono">Expires</span>
-                    <span className="font-mono text-zinc-300 text-xs">
-                      {formatExpiryDisplay(c.expiryDate)}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/5">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-8 text-xs"
-                    onClick={() => openEditModal(c)}
-                  >
-                    Edit
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-8 text-xs"
-                    onClick={() => handleToggleStatus(c)}
-                  >
-                    {c.status === "active" ? "Deactivate" : "Activate"}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-8 text-xs text-rose-400 hover:text-rose-300"
-                    onClick={() => openDeleteModal(c)}
-                  >
-                    Delete
-                  </Button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </>
       )}
@@ -537,6 +590,43 @@ export function CouponCard({
               required
             />
           </div>
+
+          {/* Billing Cycle & Discount Scope */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-zinc-300 font-heading">
+                Billing Cycle *
+              </label>
+              <select
+                value={billingCycle}
+                onChange={(e) => setBillingCycle(e.target.value as any)}
+                className="w-full h-10 bg-[#111111] border border-white/10 rounded-xl px-3 text-xs text-white outline-none focus:border-maroon-500"
+              >
+                <option value="all">Both (Monthly & Annual)</option>
+                <option value="monthly">Monthly Only</option>
+                <option value="annual">Annual Only</option>
+              </select>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-zinc-300 font-heading">
+                Discount Scope *
+              </label>
+              <select
+                value={discountScope}
+                onChange={(e) => setDiscountScope(e.target.value as any)}
+                className="w-full h-10 bg-[#111111] border border-white/10 rounded-xl px-3 text-xs text-white outline-none focus:border-maroon-500"
+              >
+                <option value="first_payment">First Payment Only</option>
+                <option value="entire_period">Entire Billing Period</option>
+              </select>
+            </div>
+          </div>
+          <p className="text-[11px] text-zinc-500 -mt-1">
+            {discountScope === "first_payment"
+              ? "First Payment Only: Discount applies to initial checkout; subsequent renewals return to original plan price."
+              : "Entire Billing Period: Discount applies to the entire upfront billing period (e.g. 12 months for annual)."}
+          </p>
 
           {/* Maximum Uses */}
           <Input
@@ -677,6 +767,43 @@ export function CouponCard({
               required
             />
           </div>
+
+          {/* Billing Cycle & Discount Scope */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-zinc-300 font-heading">
+                Billing Cycle
+              </label>
+              <select
+                value={editBillingCycle}
+                onChange={(e) => setEditBillingCycle(e.target.value as any)}
+                className="w-full h-10 bg-[#111111] border border-white/10 rounded-xl px-3 text-xs text-white outline-none focus:border-maroon-500"
+              >
+                <option value="all">Both (Monthly & Annual)</option>
+                <option value="monthly">Monthly Only</option>
+                <option value="annual">Annual Only</option>
+              </select>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-zinc-300 font-heading">
+                Discount Scope
+              </label>
+              <select
+                value={editDiscountScope}
+                onChange={(e) => setEditDiscountScope(e.target.value as any)}
+                className="w-full h-10 bg-[#111111] border border-white/10 rounded-xl px-3 text-xs text-white outline-none focus:border-maroon-500"
+              >
+                <option value="first_payment">First Payment Only</option>
+                <option value="entire_period">Entire Billing Period</option>
+              </select>
+            </div>
+          </div>
+          <p className="text-[11px] text-zinc-500 -mt-1">
+            {editDiscountScope === "first_payment"
+              ? "First Payment Only: Discount applies to initial checkout; subsequent renewals return to original plan price."
+              : "Entire Billing Period: Discount applies to the entire upfront billing period (e.g. 12 months for annual)."}
+          </p>
 
           {/* Usage Limit */}
           <Input

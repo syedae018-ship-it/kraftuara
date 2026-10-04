@@ -125,23 +125,28 @@ export async function createStoreSubscriptionAction(
         }
       }
 
-      // Check interval restriction if configured
-      if (found.applicableInterval && found.applicableInterval !== "all") {
-        if (found.applicableInterval !== interval) {
-          return errorResponse(`This promo code is only valid for ${found.applicableInterval} billing.`);
+      // Strict billing cycle compatibility check
+      const couponCycle = found.billingCycle || found.applicableInterval || "all";
+      if (couponCycle !== "all") {
+        if (couponCycle === "annual" && interval !== "annual") {
+          return errorResponse("This promo code is only valid for annual billing.");
+        }
+        if (couponCycle === "monthly" && interval !== "monthly") {
+          return errorResponse("This promo code is only valid for monthly billing.");
         }
       }
 
+      // Exact two-decimal currency precision
       if (found.discountType === "percentage") {
-        discountAmount = Math.round((basePrice * found.value) / 100);
+        discountAmount = Math.round(((basePrice * found.value) / 100) * 100) / 100;
       } else {
-        discountAmount = Math.min(basePrice, found.value);
+        discountAmount = Math.min(basePrice, Math.round(Number(found.value) * 100) / 100);
       }
 
       validCouponCode = cleanCode;
     }
 
-    const finalPayableAmount = Math.max(0, basePrice - discountAmount);
+    const finalPayableAmount = Math.max(0, Math.round((basePrice - discountAmount) * 100) / 100);
 
     const razorpay = getRazorpayInstance();
     const isSimulated = !razorpay;
@@ -177,6 +182,8 @@ export async function createStoreSubscriptionAction(
         discountAmount: discountAmount || 0,
         originalPrice: basePrice,
         finalAmount: finalPayableAmount,
+        discountScope: interval === "annual" ? "entire_period" : "first_payment",
+        billingCycle: interval,
         billingName: billingDetails?.name || user.user_metadata?.full_name || "",
         billingEmail: billingDetails?.email || user.email || "",
         billingPhone: billingDetails?.phone || "",
@@ -289,10 +296,15 @@ export async function verifySubscriptionPaymentAction(payload: {
     const planConfig = await getAuthoritativePlan(targetPlan);
     const expectedPrice = interval === "annual" ? planConfig.priceAnnual : planConfig.priceMonthly;
 
-    // Actual charged amount in rupees
+    // Actual charged amount in rupees (preserves exact decimals, e.g. 239.20)
     const chargedAmount = payDetails?.amount
-      ? Math.round(payDetails.amount / 100)
-      : expectedPrice;
+      ? Math.round(payDetails.amount) / 100
+      : (subDetails?.notes?.finalAmount ? Number(subDetails.notes.finalAmount) : expectedPrice);
+
+    // Future recurring subscription amount:
+    // If scope is first_payment or entire_period, future recurring billing returns to original plan price!
+    const discountScope = subDetails?.notes?.discountScope || "first_payment";
+    const futureRecurringAmount = discountScope === "recurring" ? chargedAmount : expectedPrice;
 
     const adminSupabase = createAdminClient();
     const now = new Date();
@@ -337,7 +349,7 @@ export async function verifySubscriptionPaymentAction(payload: {
           trial_start: null,
           trial_end: null,
           next_billing_date: nextBillingDateFromRzp,
-          amount: chargedAmount,
+          amount: futureRecurringAmount, // Future recurring billing returns to original plan price!
           currency: "INR",
           updated_at: now.toISOString(),
         },
@@ -352,7 +364,6 @@ export async function verifySubscriptionPaymentAction(payload: {
       if (!existingPayment) {
         await (adminSupabase as any).from("payments").insert({
           store_id: payload.storeId,
-          user_id: user.id,
           plan: targetPlan,
           razorpay_payment_id: payload.paymentId,
           razorpay_subscription_id: payload.subscriptionId,
@@ -390,7 +401,7 @@ export async function verifySubscriptionPaymentAction(payload: {
             trial_start: null,
             trial_end: null,
             next_billing_date: nextBillingDateFromRzp,
-            amount: chargedAmount,
+            amount: futureRecurringAmount,
             currency: "INR",
             updated_at: now.toISOString(),
           })
@@ -408,7 +419,7 @@ export async function verifySubscriptionPaymentAction(payload: {
           trial_start: null,
           trial_end: null,
           next_billing_date: nextBillingDateFromRzp,
-          amount: chargedAmount,
+          amount: futureRecurringAmount,
           currency: "INR",
           updated_at: now.toISOString(),
         });
@@ -417,7 +428,6 @@ export async function verifySubscriptionPaymentAction(payload: {
       // Record verified payment under user_id if not already recorded
       if (!existingPayment) {
         await (adminSupabase as any).from("payments").insert({
-          user_id: user.id,
           store_id: null,
           plan: targetPlan,
           razorpay_payment_id: payload.paymentId,
@@ -435,6 +445,49 @@ export async function verifySubscriptionPaymentAction(payload: {
           updated_at: now.toISOString(),
         })
         .eq("id", user.id);
+    }
+
+    // Schedule next-cycle standard plan if first_payment discount was applied
+    if (razorpay && !isSimulated && discountScope === "first_payment") {
+      try {
+        const canonicalPlanId = await getOrCreateRazorpayPlan(razorpay, targetPlan, interval, expectedPrice);
+        if (canonicalPlanId && subDetails?.plan_id && canonicalPlanId !== subDetails.plan_id) {
+          await razorpay.subscriptions.update(payload.subscriptionId, {
+            plan_id: canonicalPlanId,
+            schedule_change_at: "cycle_end",
+          });
+        }
+      } catch (scheduleErr) {
+        console.warn("Could not schedule future cycle plan update on Razorpay:", scheduleErr);
+      }
+    }
+
+    // Record complete financial audit trail in activity_logs
+    try {
+      const couponCodeUsed = (subDetails?.notes?.couponCode || "").trim().toUpperCase();
+      const origAmt = Number(subDetails?.notes?.originalPrice || expectedPrice);
+      const discAmt = Number(subDetails?.notes?.discountAmount || (origAmt - chargedAmount));
+
+      await (adminSupabase.from("activity_logs") as any).insert({
+        user_id: user.id,
+        store_id: payload.storeId || null,
+        action: "SUBSCRIPTION_PAYMENT_VERIFIED",
+        details: {
+          paymentId: payload.paymentId,
+          subscriptionId: payload.subscriptionId,
+          plan: targetPlan,
+          originalAmount: origAmt,
+          discountAmount: discAmt,
+          finalPaid: chargedAmount,
+          couponCode: couponCodeUsed || null,
+          billingCycle: interval,
+          discountScope,
+          futureRecurringAmount,
+          status: "successful",
+        },
+      });
+    } catch (auditErr) {
+      console.warn("Could not insert payment audit log:", auditErr);
     }
 
     // Atomically increment promo code usage count if a promo code was used in the subscription notes
