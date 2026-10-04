@@ -71,7 +71,8 @@ export function PlanCard({ plans, onUpdatePlan, onToggleStatus, auditLogs = [] }
     setTrialDays(plan.trialDays || 3);
     setFeaturesList([...plan.featuresDisplay]);
     setNewFeatureInput("");
-    setAllowedFeatures([...(plan.allowedFeatures || [])]);
+    const feats = Array.from(new Set([...(plan.allowedFeatures || []), "customer_order_tracking"]));
+    setAllowedFeatures(feats);
   };
 
   const handleAddFeature = () => {
@@ -85,6 +86,7 @@ export function PlanCard({ plans, onUpdatePlan, onToggleStatus, auditLogs = [] }
   };
 
   const toggleAllowedFeature = (featureKey: string) => {
+    if (featureKey === "customer_order_tracking") return; // Universal across all plans
     if (allowedFeatures.includes(featureKey)) {
       setAllowedFeatures(allowedFeatures.filter((f) => f !== featureKey));
     } else {
@@ -103,6 +105,7 @@ export function PlanCard({ plans, onUpdatePlan, onToggleStatus, auditLogs = [] }
 
     setIsSaving(true);
     try {
+      const finalAllowedFeatures = Array.from(new Set([...allowedFeatures, "customer_order_tracking"]));
       const updates: Partial<PlanConfig> = {
         name: name.trim(),
         description: description.trim(),
@@ -116,7 +119,7 @@ export function PlanCard({ plans, onUpdatePlan, onToggleStatus, auditLogs = [] }
         isTrialEligible,
         trialDays: Number(trialDays),
         featuresDisplay: featuresList,
-        allowedFeatures: allowedFeatures as any,
+        allowedFeatures: finalAllowedFeatures as any,
       };
 
       const success = await onUpdatePlan(editingPlan.id, updates);
@@ -411,7 +414,12 @@ export function PlanCard({ plans, onUpdatePlan, onToggleStatus, auditLogs = [] }
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
                 {[
-                  { key: "customer_order_tracking", label: "Customer Order Tracking", desc: "Track Order button & live status on storefront" },
+                  {
+                    key: "customer_order_tracking",
+                    label: "Customer Order Tracking",
+                    desc: "Track Order button & live status on storefront (Universal for All Plans)",
+                    isUniversal: true,
+                  },
                   { key: "order_management", label: "Order Management", desc: "Manage & update customer order status" },
                   { key: "orders", label: "Orders Dashboard", desc: "View received order transactions" },
                   { key: "whatsapp_orders", label: "WhatsApp Orders", desc: "Route cart orders directly to WhatsApp" },
@@ -424,26 +432,36 @@ export function PlanCard({ plans, onUpdatePlan, onToggleStatus, auditLogs = [] }
                   { key: "inventory", label: "Inventory Alerts", desc: "Real-time stock level warnings" },
                   { key: "ai_commercial_reel", label: "AI Commercial Reel", desc: "AI video generation tools" },
                   { key: "vip_support_24_7", label: "24/7 Dedicated Support", desc: "Priority merchant assistance" },
-                ].map((feat) => {
-                  const isChecked = allowedFeatures.includes(feat.key);
+                ].map((feat: any) => {
+                  const isChecked = feat.isUniversal || allowedFeatures.includes(feat.key);
                   return (
                     <label
                       key={feat.key}
                       className={cn(
-                        "flex items-start gap-2.5 p-2.5 rounded-xl border cursor-pointer transition-all text-left",
-                        isChecked
-                          ? "bg-maroon-950/30 border-maroon-700/50 text-white"
-                          : "bg-black/30 border-white/5 text-zinc-400 hover:border-white/10"
+                        "flex items-start gap-2.5 p-2.5 rounded-xl border transition-all text-left",
+                        feat.isUniversal
+                          ? "cursor-default bg-maroon-950/40 border-maroon-700/50 text-white"
+                          : isChecked
+                          ? "cursor-pointer bg-maroon-950/30 border-maroon-700/50 text-white"
+                          : "cursor-pointer bg-black/30 border-white/5 text-zinc-400 hover:border-white/10"
                       )}
                     >
                       <input
                         type="checkbox"
                         checked={isChecked}
+                        disabled={feat.isUniversal}
                         onChange={() => toggleAllowedFeature(feat.key)}
-                        className="mt-0.5 rounded border-zinc-700 text-maroon-600 focus:ring-0"
+                        className="mt-0.5 rounded border-zinc-700 text-maroon-600 focus:ring-0 disabled:opacity-80"
                       />
                       <div className="space-y-0.5">
-                        <span className="text-xs font-semibold block">{feat.label}</span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-semibold block">{feat.label}</span>
+                          {feat.isUniversal && (
+                            <span className="text-[9px] px-1.5 py-0.2 rounded bg-maroon-800 text-maroon-200 font-mono font-bold uppercase">
+                              All Plans
+                            </span>
+                          )}
+                        </div>
                         <span className="text-[10px] text-zinc-500 block leading-tight">{feat.desc}</span>
                       </div>
                     </label>

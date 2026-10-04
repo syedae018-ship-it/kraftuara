@@ -173,7 +173,8 @@ export async function updateOrderStatusAction(orderId: string, status: string) {
 }
 
 /**
- * Public secure order tracking action for storefront customers (Growth & Pro stores)
+ * Public secure order tracking action for storefront customers across all Kraftaura plans
+ * (₹99 Startup, ₹299 Growth, ₹499 Pro, ₹1499 Premium AI)
  */
 export async function trackOrderAction(storeSlug: string, orderNumber: string) {
   try {
@@ -204,7 +205,7 @@ export async function trackOrderAction(storeSlug: string, orderNumber: string) {
 
     const storeId = storeRow?.id || "demo-craft-classic-id";
 
-    // 2. Check store Growth or Pro entitlement for order tracking using centralized feature gating
+    // 2. Check store entitlement for order tracking (universal platform feature for all Kraftaura plans)
     if (!isDemo) {
       const { data: subRow } = await (supabase.from("subscriptions") as any)
         .select("plan, status, current_period_end")
@@ -213,15 +214,8 @@ export async function trackOrderAction(storeSlug: string, orderNumber: string) {
 
       const { normalizePlanTier, hasFeatureAccess } = await import("@/lib/feature-gating");
       let plan = "startup";
-      let subStatus = subRow?.status || "active";
-      if (subRow) {
+      if (subRow?.plan) {
         plan = normalizePlanTier(subRow.plan);
-        if (subRow.current_period_end && new Date(subRow.current_period_end).getTime() < Date.now()) {
-          subStatus = "expired";
-        }
-      }
-      if (subStatus === "expired" || subStatus === "cancelled" || subStatus === "pending") {
-        plan = "startup";
       }
 
       if (!hasFeatureAccess(plan, "customer_order_tracking")) {
@@ -232,34 +226,46 @@ export async function trackOrderAction(storeSlug: string, orderNumber: string) {
       }
     }
 
-    // 3. Query order by storeId and orderNumber
-    const normalizedOrderNum = orderNumber.trim().toUpperCase();
+    // 3. Query order by storeId and orderNumber / ID
+    const rawInput = orderNumber.trim();
+    const strippedInput = rawInput.replace(/^#+/, "").trim();
+    const normalizedOrderNum = rawInput.toUpperCase();
+    const normalizedStripped = strippedInput.toUpperCase();
 
-    // Handle demo store order tracking
-    if (isDemo && normalizedOrderNum.startsWith("KRA-")) {
-      return {
-        success: true,
-        order: {
-          orderNumber: normalizedOrderNum,
-          status: "processing",
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          customerNameMasked: "P*** S***",
-          totalAmount: 1499,
-          itemCount: 1,
-          items: [{ productName: "Demo Artisan Craft", quantity: 1, price: 1499 }],
-        },
-      };
+    let query = (supabase.from("orders") as any)
+      .select("id, order_number, customer_name, total_amount, status, created_at, updated_at, order_items(*)")
+      .eq("store_id", storeId);
+
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawInput);
+    if (isUuid) {
+      query = query.or(`order_number.ilike.${normalizedOrderNum},order_number.ilike.${normalizedStripped},id.eq.${rawInput}`);
+    } else {
+      query = query.or(`order_number.ilike.${normalizedOrderNum},order_number.ilike.${normalizedStripped}`);
     }
 
-    const { data: orderRow, error: orderErr } = await (supabase.from("orders") as any)
-      .select("id, order_number, customer_name, total_amount, status, created_at, updated_at, order_items(*)")
-      .eq("store_id", storeId)
-      .eq("order_number", normalizedOrderNum)
-      .maybeSingle();
+    const { data: orderRow, error: orderErr } = await query.maybeSingle();
+
+    // Handle demo store fallback if no real order found
+    if (!orderRow && isDemo) {
+      if (normalizedOrderNum.startsWith("KRA-") || normalizedStripped.startsWith("KRA-") || normalizedStripped.startsWith("KA") || normalizedStripped.startsWith("DEMO")) {
+        return {
+          success: true,
+          order: {
+            orderNumber: normalizedStripped.startsWith("KRA-") ? normalizedStripped : `KRA-${normalizedStripped}`,
+            status: "confirmed",
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            customerNameMasked: "P*** S***",
+            totalAmount: 1499,
+            itemCount: 1,
+            items: [{ productName: "Demo Artisan Craft", quantity: 1, price: 1499 }],
+          },
+        };
+      }
+    }
 
     if (orderErr || !orderRow) {
-      return { success: false, error: "We couldn't find this order." };
+      return { success: false, error: "We couldn't find this order. Please check the Order ID and try again." };
     }
 
     // Resolve authoritative status from activity_logs if present

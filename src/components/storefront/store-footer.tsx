@@ -33,6 +33,7 @@ export function StoreFooter({ store, isSubdomain = false }: { store: StoreData, 
             <li><Link href={storePrefix} className="hover:text-white transition-colors">Catalog Home</Link></li>
             <li><Link href={`${storePrefix}#products`} className="hover:text-white transition-colors">All Products</Link></li>
             <li><Link href={`${storePrefix}#collections`} className="hover:text-white transition-colors">Curated Collections</Link></li>
+            <li><Link href={`${storePrefix}/track`} className="hover:text-white transition-colors">Track Order</Link></li>
           </ul>
         </div>
 

@@ -73,6 +73,7 @@ export const PLANS: Record<PlanTier, PlanConfig> = {
       "appearance",
       "whatsapp_orders",
       "shipping",
+      "customer_order_tracking",
     ],
     productLimit: 12,
     categoryLimit: 1,
@@ -82,6 +83,7 @@ export const PLANS: Record<PlanTier, PlanConfig> = {
     isTrialEligible: false,
     trialDays: 0,
     featuresDisplay: [
+      "Customer Order Status Tracking",
       "WhatsApp Catalog Order Routing",
       "Basic Merchant Dashboard",
       "Product Management (up to 12 products)",
@@ -342,6 +344,12 @@ export function isPlanAtLeast(currentPlan?: string | null, requiredPlan: PlanTie
 export function hasFeature(planName?: string | null, feature?: FeatureKey | string): boolean {
   if (!feature) return true;
   const canonicalFeature = feature === "order_tracking" ? "customer_order_tracking" : feature;
+
+  // Track Order is a global platform feature available to every Kraftaura merchant across all plans (₹99, ₹299, ₹499, ₹1499)
+  if (canonicalFeature === "customer_order_tracking") {
+    return true;
+  }
+
   const config = getPlanConfig(planName);
   return config.allowedFeatures.includes(canonicalFeature as FeatureKey) || config.allowedFeatures.includes(feature as FeatureKey);
 }
@@ -356,11 +364,15 @@ export function hasFeatureAccess(planName?: string | null, feature?: FeatureKey 
 /**
  * Returns the minimum required plan for a given feature key.
  */
-export function getRequiredPlanForFeature(feature: FeatureKey): PlanTier {
+export function getRequiredPlanForFeature(feature: FeatureKey | string): PlanTier {
+  const canonicalFeature = feature === "order_tracking" ? "customer_order_tracking" : feature;
+  if (canonicalFeature === "customer_order_tracking") {
+    return "startup";
+  }
   const plans = Object.values(dynamicPlansRegistry);
   const sorted = [...plans].sort((a, b) => a.hierarchyWeight - b.hierarchyWeight);
   for (const p of sorted) {
-    if (p.allowedFeatures.includes(feature)) {
+    if (p.allowedFeatures.includes(feature as FeatureKey) || p.allowedFeatures.includes(canonicalFeature as FeatureKey)) {
       return p.id;
     }
   }

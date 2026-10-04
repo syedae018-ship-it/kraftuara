@@ -37,12 +37,24 @@ function mapRowToPlanConfig(row: any): PlanConfig {
     description: row.description || fallback.description,
     productLimit: Number(row.product_limit ?? row.productLimit ?? fallback.productLimit),
     categoryLimit: Number(row.category_limit ?? row.categoryLimit ?? fallback.categoryLimit),
-    allowedFeatures: Array.isArray(row.allowed_features || row.allowedFeatures)
-      ? (row.allowed_features || row.allowedFeatures)
-      : fallback.allowedFeatures,
-    featuresDisplay: Array.isArray(row.features_display || row.featuresDisplay)
-      ? (row.features_display || row.featuresDisplay)
-      : fallback.featuresDisplay,
+    allowedFeatures: (() => {
+      const feats = Array.isArray(row.allowed_features || row.allowedFeatures)
+        ? [...(row.allowed_features || row.allowedFeatures)]
+        : [...fallback.allowedFeatures];
+      if (!feats.includes("customer_order_tracking")) {
+        feats.push("customer_order_tracking");
+      }
+      return feats;
+    })(),
+    featuresDisplay: (() => {
+      const display = Array.isArray(row.features_display || row.featuresDisplay)
+        ? [...(row.features_display || row.featuresDisplay)]
+        : [...fallback.featuresDisplay];
+      if (tier === "startup" && !display.some((f: string) => f.toLowerCase().includes("tracking"))) {
+        display.unshift("Customer Order Status Tracking");
+      }
+      return display;
+    })(),
     hierarchyWeight: fallback.hierarchyWeight,
     displayOrder: Number(row.display_order ?? row.displayOrder ?? fallback.displayOrder ?? 1),
     popular: Boolean(row.is_popular ?? row.popular ?? fallback.popular),
@@ -177,7 +189,13 @@ export async function updatePlan(params: {
   if (params.updates.description !== undefined) payload.description = params.updates.description.trim();
   if (params.updates.productLimit !== undefined) payload.product_limit = Number(params.updates.productLimit);
   if (params.updates.categoryLimit !== undefined) payload.category_limit = Number(params.updates.categoryLimit);
-  if (params.updates.allowedFeatures !== undefined) payload.allowed_features = params.updates.allowedFeatures;
+  if (params.updates.allowedFeatures !== undefined) {
+    const feats = [...params.updates.allowedFeatures];
+    if (!feats.includes("customer_order_tracking")) {
+      feats.push("customer_order_tracking");
+    }
+    payload.allowed_features = feats;
+  }
   if (params.updates.featuresDisplay !== undefined) payload.features_display = params.updates.featuresDisplay;
   if (params.updates.displayOrder !== undefined) payload.display_order = Number(params.updates.displayOrder);
   if (params.updates.popular !== undefined) payload.is_popular = Boolean(params.updates.popular);
